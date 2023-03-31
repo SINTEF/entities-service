@@ -90,8 +90,12 @@ jobs:
       - name: Run tests
         env:
           DOCKER_TEST_HOST: localhost
+        run: ./.github/utils/docker_test.py run-tests
+
+      - name: Stop Docker container to create coverage report
         run: |
-          ./.github/utils/docker_test.py run-tests
+          docker stop entity-service
+          sleep 15
           coverage report
 
       - name: Upload to codecov.io
