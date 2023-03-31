@@ -73,6 +73,7 @@ jobs:
             --name "entity-service" \
             --network "host" \
             -v "${PWD}:/app" \
+            --entrypoint "pip install coverage && coverage run --source /app/dlite_entities_service uvicorn --host 0.0.0.0 --port ${DOCKER_TEST_PORT} --log-level debug --no-server-header --header Server:DLiteEntitiesService --reload dlite_entities_service.main:APP" \
             entity-service
           sleep 5
 
@@ -90,9 +91,8 @@ jobs:
         env:
           DOCKER_TEST_HOST: localhost
         run: |
-          coverage run --source=dlite_entities_service ./.github/utils/docker_test.py run-tests
+          ./.github/utils/docker_test.py run-tests
           coverage report
-          coverage xml
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
