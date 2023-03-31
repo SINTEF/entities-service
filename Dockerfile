@@ -15,8 +15,6 @@ FROM base as development
 ENV PORT=80
 EXPOSE ${PORT}
 
-STOPSIGNAL SIGINT
-
 ENTRYPOINT uvicorn --host 0.0.0.0 --port ${PORT} --log-level debug --no-server-header --header "Server:DLiteEntitiesService" --reload dlite_entities_service.main:APP
 
 FROM base as production

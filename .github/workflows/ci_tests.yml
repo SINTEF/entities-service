@@ -72,9 +72,7 @@ jobs:
             --env PORT=${DOCKER_TEST_PORT} \
             --name "entity-service" \
             --network "host" \
-            --volume "${{ github.workspace }}:/app" \
-            entity-service \
-            bash -c "pip install coverage && coverage run --source=/app/dlite_entities_service uvicorn --host 0.0.0.0 --port ${DOCKER_TEST_PORT} --no-server-header --header Server:DLiteEntitiesService dlite_entities_service.main:APP"
+            entity-service
           sleep 5
 
       - name: Install test dependencies
@@ -82,7 +80,7 @@ jobs:
           python -m pip install -U pip
           pip install -U setuptools wheel flit
           pip install -U -r .github/utils/requirements_docker_test.txt
-          pip install -U -e .[testing]
+          pip install -U .
 
       - name: Fill MongoDB with test data
         run: ./.github/utils/docker_test.py add-testdata
@@ -91,14 +89,3 @@ jobs:
         env:
           DOCKER_TEST_HOST: localhost
         run: ./.github/utils/docker_test.py run-tests
-
-      - name: Stop Docker container to create coverage report
-        run: |
-          docker stop entity-service
-          sleep 15
-          coverage report
-
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v3
-        with:
-          flags: docker
