@@ -89,7 +89,10 @@ jobs:
       - name: Run tests
         env:
           DOCKER_TEST_HOST: localhost
-        run: coverage run ./.github/utils/docker_test.py run-tests
+        run: |
+          coverage run --source=dlite_entities_service ./.github/utils/docker_test.py run-tests
+          coverage report
+          coverage xml
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
