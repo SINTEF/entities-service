@@ -86,5 +86,5 @@ jobs:
 
       - name: Run tests
         env:
-          DOCKER_TEST_HOST: localhost
+          DOCKER_TEST_HOST: "0.0.0.0"
         run: ./.github/utils/docker_test.py run-tests
