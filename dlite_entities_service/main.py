@@ -1,6 +1,6 @@
 """The main application module."""
-from pathlib import Path
 import re
+from pathlib import Path as sysPath
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException, Path, status
@@ -18,7 +18,9 @@ if TYPE_CHECKING:  # pragma: no cover
 APP = FastAPI(
     title="DLite Entities Service",
     version=__version__,
-    description=(Path(__file__).resolve().parent.parent.resolve() / "README.md").read_text(encoding="utf8"),
+    description=(
+        sysPath(__file__).resolve().parent.parent.resolve() / "README.md"
+    ).read_text(encoding="utf8"),
 )
 
 SEMVER_REGEX = re.compile(
