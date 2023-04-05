@@ -1,5 +1,4 @@
 """The main application module."""
-import re
 from pathlib import Path as sysPath
 from typing import TYPE_CHECKING
 
@@ -23,7 +22,7 @@ APP = FastAPI(
     ).read_text(encoding="utf8"),
 )
 
-SEMVER_REGEX = re.compile(
+SEMVER_REGEX = (
     r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)"
     r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
     r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
