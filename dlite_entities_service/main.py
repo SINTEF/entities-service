@@ -28,6 +28,11 @@ SEMVER_REGEX = (
     r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
     r"(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
 )
+"""Semantic Versioning regular expression.
+
+Slightly changed version of the one found at https://semver.org.
+The changed bits pertain to `minor` and `patch`, which are now both optional.
+"""
 
 
 @APP.get(
