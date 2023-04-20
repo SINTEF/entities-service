@@ -1,17 +1,15 @@
 name: CD - Deploy to onto-ns.com
 
 on:
-  # workflow_run:
-  #   workflows: ["CI - Tests"]
-  #   types: [completed]
-  #   branches: [main]
-  push:
-    branches: [cwa/close-6-cd]
+  workflow_run:
+    workflows: ["CI - Tests"]
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Set up Python 3.10
@@ -59,7 +57,7 @@ jobs:
               )
           print(
               "SUCCESS!\n"
-              f"  code: {response['service']}\n"
+              f"  code: {response['returncode']}\n"
               f"  stdout:\n{response['stdout']}"
           )
 
