@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, validator
 from pydantic.networks import AnyHttpUrl
 
-from dlite_entities_service.config import CONFIG
+from dlite_entities_service.service.config import CONFIG
 
 
 class DLiteProperty(BaseModel):

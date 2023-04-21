@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI, HTTPException, Path, status
 
 from dlite_entities_service import __version__
-from dlite_entities_service.backend import ENTITIES_COLLECTION
-from dlite_entities_service.config import CONFIG
-from dlite_entities_service.logger import LOGGER
-from dlite_entities_service.models import Entity
+from dlite_entities_service.service.backend import ENTITIES_COLLECTION
+from dlite_entities_service.service.config import CONFIG
+from dlite_entities_service.service.logger import LOGGER
+from dlite_entities_service.service.models import Entity
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

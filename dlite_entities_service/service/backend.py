@@ -1,7 +1,7 @@
 """Backend implementation."""
 from pymongo import MongoClient
 
-from dlite_entities_service.config import CONFIG
+from dlite_entities_service.service.config import CONFIG
 
 client_kwargs = {
     "username": CONFIG.mongo_user,
