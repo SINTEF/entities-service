@@ -27,7 +27,7 @@ requires-python = "~=3.10"
 dynamic = ["version", "description"]
 
 dependencies = [
-    "fastapi ~=0.95.0",
+    "fastapi ~=0.95.1",
     "pymongo ~=4.3",
     "python-dotenv ~=1.0",
     "uvicorn >=0.21.1,<1",
@@ -46,7 +46,7 @@ dependencies = [
 #     "pytest-cov ~=4.0",
 # ]
 dev = [
-    "pre-commit ~=2.21",
+    "pre-commit ~=3.2",
     "pylint ~=2.17",
 ]
 
