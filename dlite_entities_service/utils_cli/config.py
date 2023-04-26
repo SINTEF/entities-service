@@ -90,11 +90,11 @@ def set_config(
         dotenv_file = CLI_DOTENV_FILE
     if not dotenv_file.exists():
         dotenv_file.touch()
-    set_key(dotenv_file, key, value)
+    set_key(dotenv_file, f"{CONFIG.Config.env_prefix}{key}", value)
     print(
-        f"Set {key} to sensitive value."
+        f"Set {CONFIG.Config.env_prefix}{key} to sensitive value."
         if key.is_sensitive()
-        else f"Set {key} to {value}."
+        else f"Set {CONFIG.Config.env_prefix}{key} to {value}."
     )
 
 
@@ -117,8 +117,8 @@ def unset(
     else:
         dotenv_file = CLI_DOTENV_FILE
     if dotenv_file.exists():
-        unset_key(dotenv_file, key)
-    print(f"Unset {key}.")
+        unset_key(dotenv_file, f"{CONFIG.Config.env_prefix}{key}")
+    print(f"Unset {CONFIG.Config.env_prefix}{key}.")
 
 
 @APP.command()
@@ -138,9 +138,10 @@ def show(
         dotenv_file = CLI_DOTENV_FILE
     if dotenv_file.exists():
         values = {
-            ConfigFields(key): value
+            ConfigFields(key[len(CONFIG.Config.env_prefix) :]): value
             for key, value in dotenv_values(dotenv_file).items()
-            if key in ConfigFields.__members__
+            if key
+            in [f"{CONFIG.Config.env_prefix}{_}" for _ in ConfigFields.__members__]
         }
     else:
         ERROR_CONSOLE.print(f"No {dotenv_file} file found.")
@@ -149,7 +150,7 @@ def show(
     for key, value in values.items():
         if not reveal_sensitive and key.is_sensitive():
             value = "***"
-        print(f"[bold]{key}[/bold]: {value}")
+        print(f"[bold]{CONFIG.Config.env_prefix}{key}[/bold]: {value}")
 
 
 @APP.callback()
