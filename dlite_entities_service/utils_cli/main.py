@@ -203,7 +203,7 @@ def upload(
         print("No entities were uploaded.")
 
 
-@APP.command()
+@APP.command(hidden=True)
 def iterate():
     """Iterate on an existing DLite entity.
 
@@ -212,7 +212,7 @@ def iterate():
     print("Not implemented yet")
 
 
-@APP.command()
+@APP.command(hidden=True)
 def update():
     """Update an existing DLite entity."""
     print("Not implemented yet")
@@ -269,7 +269,7 @@ def get(
     print(entity)
 
 
-@APP.command()
+@APP.command(hidden=True)
 def search():
     """Search for DLite entities."""
     print("Not implemented yet")
