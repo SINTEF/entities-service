@@ -41,10 +41,10 @@ dependencies = [
 #     "mkdocs-material ~=9.1",
 #     "mkdocstrings[python-legacy] ~=0.20.0",
 # ]
-# testing = [
-#     "pytest ~=7.2",
-#     "pytest-cov ~=4.0",
-# ]
+testing = [
+    "pytest ~=7.3",
+    "pytest-cov ~=4.0",
+]
 cli = [
     "DLite-Python ~=0.3.19",
     "typer[all] ~=0.7.0",
@@ -52,6 +52,8 @@ cli = [
 dev = [
     "pre-commit ~=2.21",
     "pylint ~=2.17",
+    "pytest ~=7.3",
+    "pytest-cov ~=4.0",
     "DLite-Python ~=0.3.19",
     "typer[all] ~=0.7.0",
 ]
@@ -86,10 +88,9 @@ disable = [
 max-args = 15
 max-branches = 15
 
-# [tool.pytest.ini_options]
-# minversion = "7.0"
-# filterwarnings = [
-#     "ignore:.*imp module.*:DeprecationWarning",
-#     # Remove when invoke updates to `inspect.signature()` or similar:
-#     "ignore:.*inspect.getargspec().*:DeprecationWarning",
-# ]
+[tool.pytest.ini_options]
+minversion = "7.3"
+addopts = "-rs --cov=dlite_entities_service --cov-report=term"
+filterwarnings = [
+    # "ignore:.*imp module.*:DeprecationWarning",
+]
