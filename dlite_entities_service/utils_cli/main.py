@@ -246,10 +246,27 @@ def delete(
     print(f"Successfully deleted entity with URI {uri!r}.")
 
 
-@APP.command()
-def get():
+@APP.command(no_args_is_help=True)
+def get(
+    uri: str = typer.Argument(
+        ...,
+        help="URI of the DLite entity to get.",
+        show_default=False,
+    ),
+):
     """Get an existing DLite entity."""
-    print("Not implemented yet")
+    backend = _get_backend()
+
+    if not backend.count_documents({"uri": uri}):
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: No entity found with URI {uri!r}."
+        )
+        raise typer.Exit(1)
+
+    entity_dict: "dict[str, Any]" = backend.find_one({"uri": uri})
+    entity_dict.pop("_id")
+    entity = dlite.Instance.from_dict(entity_dict, single=True, check_storages=False)
+    print(entity)
 
 
 @APP.command()
