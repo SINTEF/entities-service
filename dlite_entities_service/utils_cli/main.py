@@ -113,7 +113,8 @@ def upload(
 
     if not filepaths and not directories:
         ERROR_CONSOLE.print(
-            "[bold red]Error[/bold red]: Either a --file/-f or --dir/-d must be given."
+            "[bold red]Error[/bold red]: Missing either option '--file' / '-f' or "
+            "'--dir' / '-d'."
         )
         raise typer.Exit(1)
 
@@ -130,7 +131,7 @@ def upload(
         if filepath.suffix[1:].lower() not in file_formats:
             ERROR_CONSOLE.print(
                 "[bold yellow]Warning[/bold yellow]: File format "
-                f"{filepath.suffix[1:].lower()!r} not supported. Skipping file: "
+                f"{filepath.suffix[1:].lower()!r} is not supported. Skipping file: "
                 f"{filepath}"
             )
             continue
@@ -143,7 +144,10 @@ def upload(
 
         try:
             dlite.Instance.from_dict(entity, single=True, check_storages=False)
-        except dlite.DLiteError as exc:  # pylint: disable=redefined-outer-name
+        except (  # pylint: disable=redefined-outer-name
+            dlite.DLiteError,
+            KeyError,
+        ) as exc:
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {filepath} cannot be loaded with DLite. "
                 f"DLite exception: {exc}"
@@ -153,7 +157,13 @@ def upload(
         ENTITIES_COLLECTION.insert_one(entity)
         successes.append(filepath)
 
-    print(f"Successfully uploaded {len(successes)} entities: {successes}")
+    if successes:
+        print(
+            f"Successfully uploaded {len(successes)} entities: "
+            f"{[str(_) for _ in successes]}"
+        )
+    else:
+        print("No entities were uploaded.")
 
 
 @APP.command()

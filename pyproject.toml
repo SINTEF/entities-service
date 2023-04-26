@@ -42,6 +42,7 @@ dependencies = [
 #     "mkdocstrings[python-legacy] ~=0.20.0",
 # ]
 testing = [
+    "mongomock ~=4.1",
     "pytest ~=7.3",
     "pytest-cov ~=4.0",
 ]
@@ -52,6 +53,7 @@ cli = [
 dev = [
     "pre-commit ~=2.21",
     "pylint ~=2.17",
+    "mongomock ~=4.1",
     "pytest ~=7.3",
     "pytest-cov ~=4.0",
     "DLite-Python ~=0.3.19",
@@ -92,5 +94,7 @@ max-branches = 15
 minversion = "7.3"
 addopts = "-rs --cov=dlite_entities_service --cov-report=term"
 filterwarnings = [
-    # "ignore:.*imp module.*:DeprecationWarning",
+    # Remove warning filter once tiangolo/typer#334 is resolved.
+    "ignore:.*'autocompletion' is renamed to 'shell_complete'.*:DeprecationWarning",
+    "ignore:.*pkg_resources is deprecated as an API.*:DeprecationWarning",
 ]

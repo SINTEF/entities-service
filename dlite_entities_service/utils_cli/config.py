@@ -66,6 +66,8 @@ def set_config(
             f"variable by prefixing with {CONFIG.Config.env_prefix!r}."
         ),
         show_choices=True,
+        # Start using shell_complete once tiangolo/typer#334 is resolved.
+        # shell_complete=ConfigFields.autocomplete,
         autocompletion=ConfigFields.autocomplete,
         case_sensitive=False,
         show_default=False,
@@ -102,6 +104,8 @@ def unset(
         ...,
         help="Configuration option to unset.",
         show_choices=True,
+        # Start using shell_complete once tiangolo/typer#334 is resolved.
+        # shell_complete=ConfigFields.autocomplete,
         autocompletion=ConfigFields.autocomplete,
         case_sensitive=False,
         show_default=False,
