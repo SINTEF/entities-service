@@ -16,7 +16,7 @@ except ImportError as exc:
 
 import dlite
 import yaml
-from dotenv import find_dotenv, get_key
+from dotenv import dotenv_values, find_dotenv
 from rich import print  # pylint: disable=redefined-builtin
 from rich.console import Console
 
@@ -30,6 +30,8 @@ from dlite_entities_service.utils_cli.config import APP as config_APP
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
+
+    from pymongo.collection import Collection
 
 
 ERROR_CONSOLE = Console(stderr=True)
@@ -57,6 +59,22 @@ def _print_version(value: bool) -> None:
     if value:
         print(f"dlite-entities-service version: {__version__}")
         raise typer.Exit()
+
+
+def _get_backend() -> "Collection":
+    """Return the backend."""
+    config_file = find_dotenv()
+    if config_file:
+        config = dotenv_values(config_file)
+        backend_options = {
+            "uri": config.get("entity_service_mongo_uri"),
+            "username": config.get("entity_service_mongo_user"),
+            "password": config.get("entity_service_mongo_password"),
+        }
+        if all(_ is None for _ in backend_options.values()):
+            return ENTITIES_COLLECTION
+        return get_collection(**backend_options)
+    return ENTITIES_COLLECTION
 
 
 @APP.callback()
@@ -137,20 +155,6 @@ def upload(
         )
         raise typer.Exit(1)
 
-    config_file = find_dotenv()
-    if config_file:
-        backend_options = {
-            "uri": get_key(config_file, "entity_service_mongo_uri"),
-            "username": get_key(config_file, "entity_service_mongo_user"),
-            "password": get_key(config_file, "entity_service_mongo_password"),
-        }
-        if all(_ is None for _ in backend_options.values()):
-            backend = ENTITIES_COLLECTION
-        else:
-            backend = get_collection(**backend_options)
-    else:
-        backend = ENTITIES_COLLECTION
-
     successes = []
     for filepath in unique_filepaths:
         if filepath.suffix[1:].lower() not in file_formats:
@@ -180,7 +184,7 @@ def upload(
             raise typer.Exit(1) from exc
 
         try:
-            backend.insert_one(entity)
+            _get_backend().insert_one(entity)
         except AnyWriteError as exc:
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
@@ -200,15 +204,46 @@ def upload(
 
 
 @APP.command()
+def iterate():
+    """Iterate on an existing DLite entity.
+
+    This means uploading a new version of an existing entity.
+    """
+    print("Not implemented yet")
+
+
+@APP.command()
 def update():
     """Update an existing DLite entity."""
     print("Not implemented yet")
 
 
-@APP.command()
-def delete():
+@APP.command(no_args_is_help=True)
+def delete(
+    uri: str = typer.Argument(
+        ...,
+        help="URI of the DLite entity to delete.",
+        show_default=False,
+    ),
+):
     """Delete an existing DLite entity."""
-    print("Not implemented yet")
+    backend = _get_backend()
+
+    if not backend.count_documents({"uri": uri}):
+        print(f"Already no entity found with URI {uri!r}.")
+        raise typer.Exit()
+
+    typer.confirm(
+        f"Are you sure you want to delete entity with URI {uri!r}?", abort=True
+    )
+
+    backend.delete_one({"uri": uri})
+    if backend.count_documents({"uri": uri}):
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Failed to delete entity with URI {uri!r}."
+        )
+        raise typer.Exit(1)
+    print(f"Successfully deleted entity with URI {uri!r}.")
 
 
 @APP.command()
