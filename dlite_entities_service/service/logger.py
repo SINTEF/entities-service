@@ -45,7 +45,7 @@ LOGGER = logging.getLogger("dlite-entities-service")
 LOGGER.setLevel(logging.DEBUG)
 
 # Save a file with all messages (DEBUG level)
-ROOT_DIR = Path(__file__).parent.parent.resolve()
+ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
 LOGS_DIR = ROOT_DIR.joinpath("logs/")
 LOGS_DIR.mkdir(exist_ok=True)
 
