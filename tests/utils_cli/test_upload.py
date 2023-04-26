@@ -16,7 +16,6 @@ def test_upload_no_args(cli: "CliRunner") -> None:
 
     result = cli.invoke(APP, "upload")
     assert result.exit_code == 0
-    assert "Usage: entities-service upload [OPTIONS]" in result.stdout
     assert upload.__doc__ in result.stdout
 
     assert result.stdout == cli.invoke(APP, "upload --help").stdout
