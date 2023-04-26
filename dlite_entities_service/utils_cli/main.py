@@ -129,7 +129,7 @@ def upload(
         case_sensitive=False,
     ),
 ) -> None:
-    """Upload a DLite entity."""
+    """Upload (local) DLite entities."""
     unique_filepaths = set(filepaths or [])
     directories = list(set(directories or []))
     file_formats = list(set(file_formats or []))
@@ -226,7 +226,7 @@ def delete(
         show_default=False,
     ),
 ):
-    """Delete an existing DLite entity."""
+    """Delete an existing (remote) DLite entity."""
     backend = _get_backend()
 
     if not backend.count_documents({"uri": uri}):
@@ -254,7 +254,7 @@ def get(
         show_default=False,
     ),
 ):
-    """Get an existing DLite entity."""
+    """Get an existing (remote) DLite entity."""
     backend = _get_backend()
 
     if not backend.count_documents({"uri": uri}):
@@ -314,7 +314,7 @@ def validate(
         case_sensitive=False,
     ),
 ):
-    """Validate a DLite entity."""
+    """Validate (local) DLite entities."""
     unique_filepaths = set(filepaths or [])
     directories = list(set(directories or []))
     file_formats = list(set(file_formats or []))
