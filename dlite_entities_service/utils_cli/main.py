@@ -115,15 +115,15 @@ def upload(
         resolve_path=True,
         help=(
             "Path to directory with DLite entities. All files matching the given "
-            "format(s) in the directory will be uploaded. Subdirectories will be "
-            "ignored."
+            "format(s) in the directory will be uploaded. "
+            "Subdirectories will be ignored."
         ),
         show_default=False,
     ),
     file_formats: Optional[list[EntityFileFormats]] = typer.Option(
         [EntityFileFormats.JSON],
         "--format",
-        help="Format of DLite entity file.",
+        help="Format of DLite entity file(s).",
         show_choices=True,
         show_default=True,
         case_sensitive=False,
@@ -275,7 +275,92 @@ def search():
     print("Not implemented yet")
 
 
-@APP.command()
-def validate():
+@APP.command(no_args_is_help=True)
+def validate(
+    filepaths: Optional[list[Path]] = typer.Option(
+        None,
+        "--file",
+        "-f",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Path to DLite entity file.",
+        show_default=False,
+    ),
+    directories: Optional[list[Path]] = typer.Option(
+        None,
+        "--dir",
+        "-d",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+        help=(
+            "Path to directory with DLite entities. All files matching the given "
+            "format(s) in the directory will be validated. "
+            "Subdirectories will be ignored."
+        ),
+        show_default=False,
+    ),
+    file_formats: Optional[list[EntityFileFormats]] = typer.Option(
+        [EntityFileFormats.JSON],
+        "--format",
+        help="Format of DLite entity file(s).",
+        show_choices=True,
+        show_default=True,
+        case_sensitive=False,
+    ),
+):
     """Validate a DLite entity."""
-    print("Not implemented yet")
+    unique_filepaths = set(filepaths or [])
+    directories = list(set(directories or []))
+    file_formats = list(set(file_formats or []))
+
+    if not filepaths and not directories:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: Missing either option '--file' / '-f' or "
+            "'--dir' / '-d'."
+        )
+        raise typer.Exit(1)
+
+    for directory in directories:
+        for root, _, files in os.walk(directory):
+            unique_filepaths |= set(
+                Path(root) / file
+                for file in files
+                if file.lower().endswith(tuple(file_formats))
+            )
+
+    if not unique_filepaths:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: No files found with the given options."
+        )
+        raise typer.Exit(1)
+
+    for filepath in unique_filepaths:
+        if filepath.suffix[1:].lower() not in file_formats:
+            ERROR_CONSOLE.print(
+                "[bold yellow]Warning[/bold yellow]: File format "
+                f"{filepath.suffix[1:].lower()!r} is not supported. Skipping file: "
+                f"{filepath}"
+            )
+            continue
+
+        entity: "dict[str, Any]" = (
+            json.loads(filepath.read_bytes())
+            if filepath.suffix[1:].lower() == "json"
+            else yaml.safe_load(filepath.read_bytes())
+        )
+
+        try:
+            dlite.Instance.from_dict(entity, single=True, check_storages=False)
+        except (  # pylint: disable=redefined-outer-name
+            dlite.DLiteError,
+            KeyError,
+        ):
+            print(f"{filepath} [bold red]invalid[/bold red]")
+        else:
+            print(f"{filepath} [bold green]valid[/bold green]")
