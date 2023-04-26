@@ -36,6 +36,9 @@ def test_upload_filepath(
     mock_entities_collection = mongo_client["dlite"]["entities"]
 
     monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)
+    monkeypatch.setattr(
+        main, "get_collection", lambda *args, **kwargs: mock_entities_collection
+    )
 
     result = cli.invoke(
         main.APP, f"upload --file {samples / 'valid_entities' / 'Person.json'}"
@@ -101,6 +104,9 @@ def test_upload_directory(
     mock_entities_collection = mongo_client["dlite"]["entities"]
 
     monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)
+    monkeypatch.setattr(
+        main, "get_collection", lambda *args, **kwargs: mock_entities_collection
+    )
 
     result = cli.invoke(main.APP, f"upload --dir {samples / 'valid_entities'}")
     assert result.exit_code == 0

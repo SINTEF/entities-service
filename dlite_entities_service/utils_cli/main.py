@@ -16,11 +16,16 @@ except ImportError as exc:
 
 import dlite
 import yaml
+from dotenv import find_dotenv, get_key
 from rich import print  # pylint: disable=redefined-builtin
 from rich.console import Console
 
 from dlite_entities_service import __version__
-from dlite_entities_service.service.backend import ENTITIES_COLLECTION
+from dlite_entities_service.service.backend import (
+    ENTITIES_COLLECTION,
+    AnyWriteError,
+    get_collection,
+)
 from dlite_entities_service.utils_cli.config import APP as config_APP
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -126,6 +131,26 @@ def upload(
                 if file.lower().endswith(tuple(file_formats))
             )
 
+    if not unique_filepaths:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: No files found with the given options."
+        )
+        raise typer.Exit(1)
+
+    config_file = find_dotenv()
+    if config_file:
+        backend_options = {
+            "uri": get_key(config_file, "entity_service_mongo_uri"),
+            "username": get_key(config_file, "entity_service_mongo_user"),
+            "password": get_key(config_file, "entity_service_mongo_password"),
+        }
+        if all(_ is None for _ in backend_options.values()):
+            backend = ENTITIES_COLLECTION
+        else:
+            backend = get_collection(**backend_options)
+    else:
+        backend = ENTITIES_COLLECTION
+
     successes = []
     for filepath in unique_filepaths:
         if filepath.suffix[1:].lower() not in file_formats:
@@ -154,7 +179,15 @@ def upload(
             )
             raise typer.Exit(1) from exc
 
-        ENTITIES_COLLECTION.insert_one(entity)
+        try:
+            backend.insert_one(entity)
+        except AnyWriteError as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
+                f"Backend exception: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
         successes.append(filepath)
 
     if successes:
