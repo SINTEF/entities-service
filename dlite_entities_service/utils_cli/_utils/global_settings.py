@@ -6,8 +6,8 @@ try:
     import typer
 except ImportError as exc:
     raise ImportError(
-        "Please install the DLite entities service utility CLI with "
-        f"'pip install {Path(__file__).resolve().parent.parent.parent.resolve()}[cli]'"
+        "Please install the DLite entities service utility CLI with 'pip install "
+        f"{Path(__file__).resolve().parent.parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
 from rich import print  # pylint: disable=redefined-builtin
@@ -17,7 +17,7 @@ from dlite_entities_service import __version__
 STATUS = {"use_service_dotenv": False}
 
 
-def _print_version(value: bool) -> None:
+def print_version(value: bool) -> None:
     """Print version and exit."""
     if value:
         print(f"dlite-entities-service version: {__version__}")
@@ -30,7 +30,7 @@ def global_options(
         "--version",
         help="Show version and exit",
         is_eager=True,
-        callback=_print_version,
+        callback=print_version,
     ),
     use_service_dotenv: bool = typer.Option(
         False,

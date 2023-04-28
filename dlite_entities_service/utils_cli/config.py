@@ -17,7 +17,7 @@ from rich import print  # pylint: disable=redefined-builtin
 from rich.console import Console
 
 from dlite_entities_service.service.config import CONFIG
-from dlite_entities_service.utils_cli.global_settings import STATUS
+from dlite_entities_service.utils_cli._utils.global_settings import STATUS
 
 ERROR_CONSOLE = Console(stderr=True)
 CLI_DOTENV_FILE = Path(__file__).resolve().parent / ".env"

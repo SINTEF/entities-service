@@ -26,8 +26,8 @@ from dlite_entities_service.service.backend import (
     AnyWriteError,
     get_collection,
 )
+from dlite_entities_service.utils_cli._utils.global_settings import global_options
 from dlite_entities_service.utils_cli.config import APP as config_APP
-from dlite_entities_service.utils_cli.global_settings import global_options
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
