@@ -17,6 +17,7 @@ from rich import print  # pylint: disable=redefined-builtin
 from rich.console import Console
 
 from dlite_entities_service.service.config import CONFIG
+from dlite_entities_service.utils_cli.global_settings import STATUS
 
 ERROR_CONSOLE = Console(stderr=True)
 CLI_DOTENV_FILE = Path(__file__).resolve().parent / ".env"
@@ -24,11 +25,10 @@ SERVICE_DOTENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 APP = typer.Typer(
     name=__file__.rsplit("/", 1)[-1].replace(".py", ""),
+    help="Manage configuration options.",
     no_args_is_help=True,
     invoke_without_command=True,
 )
-
-STATUS = {"use_service_dotenv": False}
 
 
 class ConfigFields(str, Enum):
@@ -111,7 +111,7 @@ def unset(
         show_default=False,
     ),
 ) -> None:
-    """Unset a configuration option."""
+    """Unset a single configuration option."""
     if STATUS["use_service_dotenv"]:
         dotenv_file = SERVICE_DOTENV_FILE
     else:
@@ -119,6 +119,26 @@ def unset(
     if dotenv_file.exists():
         unset_key(dotenv_file, f"{CONFIG.Config.env_prefix}{key}")
     print(f"Unset {CONFIG.Config.env_prefix}{key}.")
+
+
+@APP.command()
+def unset_all() -> None:
+    """Unset all configuration options."""
+    typer.confirm(
+        "Are you sure you want to unset (remove) all configuration options in "
+        f"{'Service' if STATUS['use_service_dotenv'] else 'CLI'}-specific .env file?",
+        abort=True,
+    )
+
+    if STATUS["use_service_dotenv"]:
+        dotenv_file = SERVICE_DOTENV_FILE
+    else:
+        dotenv_file = CLI_DOTENV_FILE
+    if dotenv_file.exists():
+        dotenv_file.unlink()
+        print(f"Unset all configuration options. (Removed {dotenv_file}.)")
+    else:
+        print(f"Unset all configuration options. ({dotenv_file} file not found.)")
 
 
 @APP.command()
@@ -151,44 +171,3 @@ def show(
         if not reveal_sensitive and key.is_sensitive():
             value = "***"
         print(f"[bold]{CONFIG.Config.env_prefix}{key}[/bold]: {value}")
-
-
-@APP.callback()
-def main(
-    use_service_dotenv: bool = typer.Option(
-        False,
-        "--use-service-dotenv/--use-cli-dotenv",
-        help=(
-            "Use the .env file also used for the DLite Entities Service or one only "
-            "for the CLI."
-        ),
-        is_flag=True,
-    ),
-    unset_all: bool = typer.Option(
-        False,
-        "--unset-all",
-        help="Unset (remove) all configuration options in dotenv file.",
-        show_default=False,
-        is_flag=True,
-    ),
-) -> None:
-    """Set DLite entities service configuration options."""
-    STATUS["use_service_dotenv"] = use_service_dotenv
-
-    if unset_all:
-        typer.confirm(
-            "Are you sure you want to unset (remove) all configuration options in "
-            f"{'Service' if use_service_dotenv else 'CLI'}-specific .env file?",
-            abort=True,
-        )
-
-        if use_service_dotenv:
-            dotenv_file = SERVICE_DOTENV_FILE
-        else:
-            dotenv_file = CLI_DOTENV_FILE
-
-        if dotenv_file.exists():
-            dotenv_file.unlink()
-            print(f"Removed {dotenv_file}.")
-        else:
-            print(f"No {dotenv_file} file found.")

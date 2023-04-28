@@ -27,6 +27,7 @@ from dlite_entities_service.service.backend import (
     get_collection,
 )
 from dlite_entities_service.utils_cli.config import APP as config_APP
+from dlite_entities_service.utils_cli.global_settings import global_options
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -50,15 +51,9 @@ APP = typer.Typer(
     help="DLite entities service utility CLI",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
+    callback=global_options,
 )
-APP.add_typer(config_APP)
-
-
-def _print_version(value: bool) -> None:
-    """Print version and exit."""
-    if value:
-        print(f"dlite-entities-service version: {__version__}")
-        raise typer.Exit()
+APP.add_typer(config_APP, callback=global_options)
 
 
 def _get_backend() -> "Collection":
@@ -75,19 +70,6 @@ def _get_backend() -> "Collection":
             return ENTITIES_COLLECTION
         return get_collection(**backend_options)
     return ENTITIES_COLLECTION
-
-
-@APP.callback()
-def main(
-    _: Optional[bool] = typer.Option(
-        None,
-        "--version",
-        help="Show version and exit",
-        is_eager=True,
-        callback=_print_version,
-    ),
-) -> None:
-    """DLite entities service utility CLI."""
 
 
 @APP.command(no_args_is_help=True)
