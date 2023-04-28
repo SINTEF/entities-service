@@ -194,10 +194,140 @@ def iterate() -> None:
     print("Not implemented yet")
 
 
-@APP.command(hidden=True)
-def update() -> None:
-    """Update an existing DLite entity."""
-    print("Not implemented yet")
+@APP.command(no_args_is_help=True)
+def update(
+    filepaths: Optional[list[Path]] = typer.Option(
+        None,
+        "--file",
+        "-f",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Path to DLite entity file.",
+        show_default=False,
+    ),
+    directories: Optional[list[Path]] = typer.Option(
+        None,
+        "--dir",
+        "-d",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+        help=(
+            "Path to directory with DLite entities. All files matching the given "
+            "format(s) in the directory will be uploaded. "
+            "Subdirectories will be ignored."
+        ),
+        show_default=False,
+    ),
+    file_formats: Optional[list[EntityFileFormats]] = typer.Option(
+        [EntityFileFormats.JSON],
+        "--format",
+        help="Format of DLite entity file(s).",
+        show_choices=True,
+        show_default=True,
+        case_sensitive=False,
+    ),
+    insert: bool = typer.Option(
+        False,
+        "--insert",
+        "-i",
+        help="Insert the entity if it does not exist yet.",
+        show_default=False,
+        is_flag=True,
+    ),
+) -> None:
+    """Update an existing (remote) DLite entity."""
+    unique_filepaths = set(filepaths or [])
+    directories = list(set(directories or []))
+    file_formats = list(set(file_formats or []))
+
+    if not filepaths and not directories:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: Missing either option '--file' / '-f' or "
+            "'--dir' / '-d'."
+        )
+        raise typer.Exit(1)
+
+    for directory in directories:
+        for root, _, files in os.walk(directory):
+            unique_filepaths |= set(
+                Path(root) / file
+                for file in files
+                if file.lower().endswith(tuple(file_formats))
+            )
+
+    if not unique_filepaths:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: No files found with the given options."
+        )
+        raise typer.Exit(1)
+
+    successes = []
+    inserted = []
+    for filepath in unique_filepaths:
+        if filepath.suffix[1:].lower() not in file_formats:
+            ERROR_CONSOLE.print(
+                "[bold yellow]Warning[/bold yellow]: File format "
+                f"{filepath.suffix[1:].lower()!r} is not supported. Skipping file: "
+                f"{filepath}"
+            )
+            continue
+
+        entity: "dict[str, Any]" = (
+            json.loads(filepath.read_bytes())
+            if filepath.suffix[1:].lower() == "json"
+            else yaml.safe_load(filepath.read_bytes())
+        )
+
+        try:
+            dlite.Instance.from_dict(entity, single=True, check_storages=False)
+        except (  # pylint: disable=redefined-outer-name
+            dlite.DLiteError,
+            KeyError,
+        ) as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: {filepath} cannot be loaded with DLite. "
+                f"DLite exception: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+        try:
+            result = _get_backend().update_one(
+                filter={"uri": entity["uri"]},
+                update=entity,
+                upsert=insert,
+            )
+        except AnyWriteError as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
+                f"Backend exception: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+        if insert:
+            if result.upserted_id:
+                inserted.append(filepath)
+        successes.append(filepath)
+
+    if successes and inserted:
+        print(
+            f"Successfully updated {len(successes) - len(inserted)} entities and "
+            f"inserted {len(inserted)} new entities: "
+            f"{[str(_) for _ in successes if _ not in inserted]} "
+            f"and {[str(_) for _ in inserted]}"
+        )
+    elif successes:
+        print(
+            f"Successfully updated {len(successes)} entities: "
+            f"{[str(_) for _ in successes]}"
+        )
+    else:
+        print("No entities were updated.")
 
 
 @APP.command(no_args_is_help=True)
