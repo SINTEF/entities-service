@@ -186,7 +186,7 @@ def upload(
 
 
 @APP.command(hidden=True)
-def iterate():
+def iterate() -> None:
     """Iterate on an existing DLite entity.
 
     This means uploading a new version of an existing entity.
@@ -195,7 +195,7 @@ def iterate():
 
 
 @APP.command(hidden=True)
-def update():
+def update() -> None:
     """Update an existing DLite entity."""
     print("Not implemented yet")
 
@@ -207,7 +207,7 @@ def delete(
         help="URI of the DLite entity to delete.",
         show_default=False,
     ),
-):
+) -> None:
     """Delete an existing (remote) DLite entity."""
     backend = _get_backend()
 
@@ -235,7 +235,7 @@ def get(
         help="URI of the DLite entity to get.",
         show_default=False,
     ),
-):
+) -> None:
     """Get an existing (remote) DLite entity."""
     backend = _get_backend()
 
@@ -251,10 +251,74 @@ def get(
     print(entity)
 
 
-@APP.command(hidden=True)
-def search():
-    """Search for DLite entities."""
-    print("Not implemented yet")
+@APP.command(no_args_is_help=True)
+def search(
+    uris: Optional[list[str]] = typer.Argument(
+        None,
+        metavar="[URI]...",
+        help=(
+            "URI of the DLite entity to search for. Multiple URIs can be provided. "
+            "Note, the 'http://onto-ns.com/meta' prefix is optional."
+        ),
+        show_default=False,
+    ),
+    query: Optional[str] = typer.Option(
+        None,
+        "--query",
+        "-q",
+        help="Backend-specific query to search for DLite entities.",
+        show_default=False,
+    ),
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        "-j",
+        help="Return the search results as JSON.",
+        show_default=False,
+        is_flag=True,
+    ),
+) -> None:
+    """Search for (remote) DLite entities."""
+    backend = _get_backend()
+
+    if not uris and not query:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: Missing either argument 'URI' or option "
+            "'query'."
+        )
+        raise typer.Exit(1)
+
+    backend_query: "Optional[dict[str, Any]]" = json.loads(query) if query else None
+    if uris:
+        uris = [
+            uri
+            if uri.startswith("http://onto-ns.com/meta")
+            else f"http://onto-ns.com/meta/{uri.lstrip('/')}"
+            for uri in uris
+        ]
+        backend_query = (
+            {"$and": [{"uri": {"$in": uris}}, backend_query]}
+            if backend_query
+            else {"uri": {"$in": uris}}
+        )
+
+    if backend_query is None:
+        ERROR_CONSOLE.print("[bold red]Error[/bold red]: Internal CLI error.")
+        raise typer.Exit(1)
+
+    found_entities: list[dlite.Instance] = []
+    for raw_entity in backend.find(backend_query):
+        raw_entity.pop("_id")
+        entity: dlite.Instance = dlite.Instance.from_dict(
+            raw_entity, single=True, check_storages=False
+        )
+        found_entities.append(entity)
+
+    if as_json:
+        print(json.dumps([_.asdict(uuid=False) for _ in found_entities]))
+        raise typer.Exit()
+
+    print(f"Found {len(found_entities)} entities: {[_.uuid for _ in found_entities]}")
 
 
 @APP.command(no_args_is_help=True)
@@ -295,7 +359,7 @@ def validate(
         show_default=True,
         case_sensitive=False,
     ),
-):
+) -> None:
     """Validate (local) DLite entities."""
     unique_filepaths = set(filepaths or [])
     directories = list(set(directories or []))
