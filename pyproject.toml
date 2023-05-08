@@ -46,7 +46,7 @@ dependencies = [
 #     "pytest-cov ~=4.0",
 # ]
 dev = [
-    "pre-commit ~=3.2",
+    "pre-commit ~=3.3",
     "pylint ~=2.17",
 ]
 
