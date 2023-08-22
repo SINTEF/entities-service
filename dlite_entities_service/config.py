@@ -1,8 +1,9 @@
 """Service app configuration."""
 from typing import Any
 
-from pydantic import BaseSettings, Field, SecretStr, validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic.networks import AnyHttpUrl, MongoDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class MongoSrvDsn(MongoDsn):
@@ -29,18 +30,15 @@ class ServiceSettings(BaseSettings):
         None, description="Password for connecting to the MongoDB."
     )
 
-    @validator("base_url", pre=True)
+    @field_validator("base_url", mode="before")
+    @classmethod
     def _strip_ending_slashes(cls, value: Any) -> str:
         """Strip any end forward slashes."""
         if not isinstance(value, str):
             raise TypeError("Expected a string for `base_url`.")
         return value.rstrip("/")
 
-    class Config:
-        """Pydantic configuraiton for the settings."""
-
-        env_prefix = "entity_service_"
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_prefix="entity_service_", env_file=".env")
 
 
 CONFIG = ServiceSettings()

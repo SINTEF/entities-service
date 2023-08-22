@@ -54,7 +54,7 @@ repos:
     - id: mypy
       exclude: ^docs/example/.*$$
       additional_dependencies:
-        - pydantic<2
+        - pydantic>=2
         - types-requests
 
   - repo: local
