@@ -6,7 +6,7 @@ from pydantic.networks import AnyHttpUrl, MultiHostUrl, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Annotated
 
-MongoSrvDsn = Annotated[
+MongoDsn = Annotated[
     MultiHostUrl, UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"])
 ]
 """Support MongoDB schemes with hidden port (no default port)."""
@@ -19,8 +19,8 @@ class ServiceSettings(BaseSettings):
         AnyHttpUrl("http://onto-ns.com/meta"),
         description="Base URL, where the service is running.",
     )
-    mongo_uri: MongoSrvDsn = Field(
-        MongoSrvDsn("mongodb://localhost:27017"),
+    mongo_uri: MongoDsn = Field(
+        MongoDsn("mongodb://localhost:27017"),
         description="URI for the MongoDB cluster/server.",
     )
     mongo_user: str | None = Field(
