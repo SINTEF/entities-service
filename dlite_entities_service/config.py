@@ -26,11 +26,9 @@ class ServiceSettings(BaseSettings):
 
     @field_validator("base_url", mode="before")
     @classmethod
-    def _strip_ending_slashes(cls, value: Any) -> str:
+    def _strip_ending_slashes(cls, value: Any) -> AnyHttpUrl:
         """Strip any end forward slashes."""
-        if not isinstance(value, str):
-            raise TypeError("Expected a string for `base_url`.")
-        return value.rstrip("/")
+        return AnyHttpUrl(str(value).rstrip("/"))
 
     model_config = SettingsConfigDict(env_prefix="entity_service_", env_file=".env")
 
