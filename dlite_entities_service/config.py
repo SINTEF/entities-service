@@ -6,21 +6,15 @@ from pydantic.networks import AnyHttpUrl, MongoDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class MongoSrvDsn(MongoDsn):
-    """Support `+srv` extension."""
-
-    allowed_schemes = {"mongodb", "mongodb+srv"}
-
-
 class ServiceSettings(BaseSettings):
     """Service app configuration."""
 
-    base_url: AnyHttpUrl = Field(  # type: ignore[assignment]
-        "http://onto-ns.com/meta",
+    base_url: AnyHttpUrl = Field(
+        AnyHttpUrl("http://onto-ns.com/meta"),
         description="Base URL, where the service is running.",
     )
-    mongo_uri: MongoSrvDsn = Field(  # type: ignore[assignment]
-        "mongodb://localhost:27017",
+    mongo_uri: MongoDsn = Field(
+        MongoDsn("mongodb://localhost:27017"),
         description="URI for the MongoDB cluster/server.",
     )
     mongo_user: str | None = Field(
