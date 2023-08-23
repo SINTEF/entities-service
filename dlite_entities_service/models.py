@@ -80,7 +80,7 @@ class Entity(BaseModel):
     @classmethod
     def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
         """Validate `uri` starts with the current base URL for the service."""
-        if not value.startswith(CONFIG.base_url):
+        if not str(value).startswith(str(CONFIG.base_url)):
             raise ValueError(
                 f"This service only works with DLite entities at {CONFIG.base_url}."
             )
