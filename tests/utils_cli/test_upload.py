@@ -32,7 +32,7 @@ def test_upload_filepath(
     from dlite_entities_service.service.config import CONFIG
     from dlite_entities_service.utils_cli import main
 
-    mongo_client = MongoClient(CONFIG.mongo_uri)
+    mongo_client = MongoClient(str(CONFIG.mongo_uri))
     mock_entities_collection = mongo_client["dlite"]["entities"]
 
     monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)
@@ -100,7 +100,7 @@ def test_upload_directory(
     from dlite_entities_service.service.config import CONFIG
     from dlite_entities_service.utils_cli import main
 
-    mongo_client = MongoClient(CONFIG.mongo_uri)
+    mongo_client = MongoClient(str(CONFIG.mongo_uri))
     mock_entities_collection = mongo_client["dlite"]["entities"]
 
     monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)

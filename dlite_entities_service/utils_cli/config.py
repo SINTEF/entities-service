@@ -44,13 +44,11 @@ class ConfigFields(str, Enum):
         """Return a list of valid configuration options."""
         for member in cls:
             if member.value.startswith(incomplete):
-                if member.value not in CONFIG.__fields__:
+                if member.value not in CONFIG.model_fields:
                     raise typer.BadParameter(
                         f"Invalid configuration option: {member.value!r}"
                     )
-                yield member.value, CONFIG.__fields__[
-                    member.value
-                ].field_info.description
+                yield member.value, CONFIG.model_fields[member.value].description
 
     def is_sensitive(self) -> bool:
         """Return True if this is a sensitive configuration option."""
@@ -63,7 +61,7 @@ def set_config(
         ...,
         help=(
             "Configuration option to set. These can also be set as an environment "
-            f"variable by prefixing with {CONFIG.Config.env_prefix!r}."
+            f"variable by prefixing with {CONFIG.model_config['env_prefix']!r}."
         ),
         show_choices=True,
         # Start using shell_complete once tiangolo/typer#334 is resolved.
@@ -90,11 +88,11 @@ def set_config(
         dotenv_file = CLI_DOTENV_FILE
     if not dotenv_file.exists():
         dotenv_file.touch()
-    set_key(dotenv_file, f"{CONFIG.Config.env_prefix}{key}", value)
+    set_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}", value)
     print(
-        f"Set {CONFIG.Config.env_prefix}{key} to sensitive value."
+        f"Set {CONFIG.model_config['env_prefix']}{key} to sensitive value."
         if key.is_sensitive()
-        else f"Set {CONFIG.Config.env_prefix}{key} to {value}."
+        else f"Set {CONFIG.model_config['env_prefix']}{key} to {value}."
     )
 
 
@@ -117,8 +115,8 @@ def unset(
     else:
         dotenv_file = CLI_DOTENV_FILE
     if dotenv_file.exists():
-        unset_key(dotenv_file, f"{CONFIG.Config.env_prefix}{key}")
-    print(f"Unset {CONFIG.Config.env_prefix}{key}.")
+        unset_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}")
+    print(f"Unset {CONFIG.model_config['env_prefix']}{key}.")
 
 
 @APP.command()
@@ -158,10 +156,13 @@ def show(
         dotenv_file = CLI_DOTENV_FILE
     if dotenv_file.exists():
         values = {
-            ConfigFields(key[len(CONFIG.Config.env_prefix) :]): value
+            ConfigFields(key[len(CONFIG.model_config["env_prefix"]) :]): value
             for key, value in dotenv_values(dotenv_file).items()
             if key
-            in [f"{CONFIG.Config.env_prefix}{_}" for _ in ConfigFields.__members__]
+            in [
+                f"{CONFIG.model_config['env_prefix']}{_}"
+                for _ in ConfigFields.__members__
+            ]
         }
     else:
         ERROR_CONSOLE.print(f"No {dotenv_file} file found.")
@@ -170,4 +171,4 @@ def show(
     for key, value in values.items():
         if not reveal_sensitive and key.is_sensitive():
             value = "***"
-        print(f"[bold]{CONFIG.Config.env_prefix}{key}[/bold]: {value}")
+        print(f"[bold]{CONFIG.model_config['env_prefix']}{key}[/bold]: {value}")
