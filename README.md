@@ -49,8 +49,8 @@ For production, use a public MongoDB, and follow the same instructions above for
 Run the following commands:
 
 ```shell
-docker-compose pull
-docker-compose up --build
+docker compose pull
+docker compose up --build
 ```
 
 By default the `development` target will be built, to change this, set the `entity_service_docker_target` environment variable accordingly, e.g.:
@@ -95,5 +95,5 @@ For using it with Docker, use the `--env-file .env` argument when calling `docke
 
 ## Licensing & copyright
 
-All files in this repository are [MIT licensed](LICENSE).
+All files in this repository are [MIT licensed](LICENSE).  
 Copyright by [Casper Welzel Andersen](https://github.com/CasperWA).
