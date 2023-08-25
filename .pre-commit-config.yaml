@@ -52,7 +52,7 @@ repos:
     rev: v1.5.1
     hooks:
     - id: mypy
-      exclude: ^docs/example/.*$$
+      exclude: ^(docs/example|tests)/.*$
       additional_dependencies:
         - pydantic>=2
         - types-requests

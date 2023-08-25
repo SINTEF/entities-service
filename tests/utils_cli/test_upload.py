@@ -1,12 +1,11 @@
 """Tests for `entities-service upload` CLI command."""
 from typing import TYPE_CHECKING
 
-import pytest
-
 if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
+    from pymongo.collection import Collection
     from typer.testing import CliRunner
 
 
@@ -22,23 +21,12 @@ def test_upload_no_args(cli: "CliRunner") -> None:
 
 
 def test_upload_filepath(
-    cli: "CliRunner", samples: "Path", monkeypatch: pytest.MonkeyPatch
+    cli: "CliRunner", samples: "Path", mock_entities_collection: "Collection"
 ) -> None:
     """Test upload with a filepath."""
     import json
 
-    from mongomock import MongoClient
-
-    from dlite_entities_service.service.config import CONFIG
     from dlite_entities_service.utils_cli import main
-
-    mongo_client = MongoClient(str(CONFIG.mongo_uri))
-    mock_entities_collection = mongo_client["dlite"]["entities"]
-
-    monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)
-    monkeypatch.setattr(
-        main, "get_collection", lambda *args, **kwargs: mock_entities_collection
-    )
 
     result = cli.invoke(
         main.APP, f"upload --file {samples / 'valid_entities' / 'Person.json'}"
@@ -90,23 +78,12 @@ def test_upload_no_file_or_dir(cli: "CliRunner") -> None:
 
 
 def test_upload_directory(
-    cli: "CliRunner", samples: "Path", monkeypatch: pytest.MonkeyPatch
+    cli: "CliRunner", samples: "Path", mock_entities_collection: "Collection"
 ) -> None:
     """Test upload with a directory."""
     import json
 
-    from mongomock import MongoClient
-
-    from dlite_entities_service.service.config import CONFIG
     from dlite_entities_service.utils_cli import main
-
-    mongo_client = MongoClient(str(CONFIG.mongo_uri))
-    mock_entities_collection = mongo_client["dlite"]["entities"]
-
-    monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)
-    monkeypatch.setattr(
-        main, "get_collection", lambda *args, **kwargs: mock_entities_collection
-    )
 
     result = cli.invoke(main.APP, f"upload --dir {samples / 'valid_entities'}")
     assert result.exit_code == 0
