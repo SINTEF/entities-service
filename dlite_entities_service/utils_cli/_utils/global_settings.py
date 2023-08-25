@@ -42,6 +42,46 @@ def global_options(
         is_flag=True,
         rich_help_panel="Global options",
     ),
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        help=(
+            "Print output as JSON. (Muting mutually exclusive with --yaml/--yml and "
+            "--json-one-line.)"
+        ),
+        is_flag=True,
+        rich_help_panel="Global options",
+    ),
+    as_json_one_line: bool = typer.Option(
+        False,
+        "--json-one-line",
+        help=(
+            "Print output as JSON without new lines. (Muting mutually exclusive with "
+            "--yaml/--yml and --json.)"
+        ),
+        is_flag=True,
+        rich_help_panel="Global options",
+    ),
+    as_yaml: bool = typer.Option(
+        False,
+        "--yaml",
+        "--yml",
+        help=(
+            "Print output as YAML. (Mutually exclusive with --json and "
+            "--json-one-line.)"
+        ),
+        is_flag=True,
+        rich_help_panel="Global options",
+    ),
 ) -> None:
     """Global options for the CLI."""
     STATUS["use_service_dotenv"] = use_service_dotenv
+
+    if sum(int(_) for _ in [as_json, as_json_one_line, as_yaml]) > 1:
+        raise typer.BadParameter(
+            "Cannot use --json, --yaml/--yml, and --json-one-line together in any "
+            "combination."
+        )
+    STATUS["as_json"] = as_json
+    STATUS["as_json_one_line"] = as_json_one_line
+    STATUS["as_yaml"] = as_yaml

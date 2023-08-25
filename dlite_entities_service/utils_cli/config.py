@@ -12,16 +12,19 @@ except ImportError as exc:
         f"'pip install {Path(__file__).resolve().parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
+import yaml
 from dotenv import dotenv_values, set_key, unset_key
-from rich import print  # pylint: disable=redefined-builtin
+from rich import print, print_json  # pylint: disable=redefined-builtin
 from rich.console import Console
 
 from dlite_entities_service.service.config import CONFIG
 from dlite_entities_service.utils_cli._utils.global_settings import STATUS
 
 ERROR_CONSOLE = Console(stderr=True)
-CLI_DOTENV_FILE = Path(__file__).resolve().parent / CONFIG.model_config["env_file"]
-SERVICE_DOTENV_FILE = (
+CLI_DOTENV_FILE: Path = (
+    Path(__file__).resolve().parent / CONFIG.model_config["env_file"]
+)
+SERVICE_DOTENV_FILE: Path = (
     Path(__file__).resolve().parent.parent.parent / CONFIG.model_config["env_file"]
 )
 
@@ -158,6 +161,8 @@ def show(
     else:
         dotenv_file = CLI_DOTENV_FILE
     if dotenv_file.exists():
+        if not any(STATUS[_] for _ in ["as_json", "as_json_one_line", "as_yaml"]):
+            print(f"Current configuration in {dotenv_file}:\n")
         values = {
             ConfigFields(key[len(CONFIG.model_config["env_prefix"]) :]): value
             for key, value in dotenv_values(dotenv_file).items()
@@ -171,7 +176,17 @@ def show(
         ERROR_CONSOLE.print(f"No {dotenv_file} file found.")
         raise typer.Exit(1)
 
+    output = {}
     for key, value in values.items():
         if not reveal_sensitive and key.is_sensitive():
             value = "*" * 8
-        print(f"[bold]{CONFIG.model_config['env_prefix']}{key}[/bold]: {value}")
+        output[f"{CONFIG.model_config['env_prefix']}{key}"] = value
+
+    if STATUS["as_json"] or STATUS["as_json_one_line"]:
+        print_json(data=output, indent=2 if STATUS["as_json"] else None)
+    elif STATUS["as_yaml"]:
+        print(yaml.safe_dump(output, sort_keys=False, allow_unicode=True))
+    else:
+        print(
+            "\n".join(f"[bold]{key}[/bold]: {value}" for key, value in output.items())
+        )
