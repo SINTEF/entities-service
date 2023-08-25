@@ -20,8 +20,10 @@ from dlite_entities_service.service.config import CONFIG
 from dlite_entities_service.utils_cli._utils.global_settings import STATUS
 
 ERROR_CONSOLE = Console(stderr=True)
-CLI_DOTENV_FILE = Path(__file__).resolve().parent / ".env"
-SERVICE_DOTENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
+CLI_DOTENV_FILE = Path(__file__).resolve().parent / CONFIG.model_config["env_file"]
+SERVICE_DOTENV_FILE = (
+    Path(__file__).resolve().parent.parent.parent / CONFIG.model_config["env_file"]
+)
 
 APP = typer.Typer(
     name=__file__.rsplit("/", 1)[-1].replace(".py", ""),
@@ -124,7 +126,8 @@ def unset_all() -> None:
     """Unset all configuration options."""
     typer.confirm(
         "Are you sure you want to unset (remove) all configuration options in "
-        f"{'Service' if STATUS['use_service_dotenv'] else 'CLI'}-specific .env file?",
+        f"{'Service' if STATUS['use_service_dotenv'] else 'CLI'}-specific "
+        f"{CONFIG.model_config['env_file']} file?",
         abort=True,
     )
 
@@ -161,7 +164,7 @@ def show(
             if key
             in [
                 f"{CONFIG.model_config['env_prefix']}{_}"
-                for _ in ConfigFields.__members__
+                for _ in ConfigFields.__members__.values()
             ]
         }
     else:
@@ -170,5 +173,5 @@ def show(
 
     for key, value in values.items():
         if not reveal_sensitive and key.is_sensitive():
-            value = "***"
+            value = "*" * 8
         print(f"[bold]{CONFIG.model_config['env_prefix']}{key}[/bold]: {value}")
