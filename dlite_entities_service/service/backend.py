@@ -32,7 +32,7 @@ def get_collection(
             client_kwargs.pop(key, None)
 
     mongo_client = MongoClient(
-        uri or CONFIG.mongo_uri,
+        uri or str(CONFIG.mongo_uri),
         **client_kwargs,
     )
     return mongo_client.dlite.entities
