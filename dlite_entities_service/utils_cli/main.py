@@ -111,7 +111,7 @@ def upload(
         case_sensitive=False,
     ),
 ) -> None:
-    """Upload (local) DLite entities."""
+    """Upload (local) DLite entities to a remote location."""
     unique_filepaths = set(filepaths or [])
     directories = list(set(directories or []))
     file_formats = list(set(file_formats or []))
