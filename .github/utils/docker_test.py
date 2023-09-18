@@ -145,7 +145,9 @@ def run_tests() -> None:
     host = os.getenv("DOCKER_TEST_HOST", "localhost")
     port = os.getenv("DOCKER_TEST_PORT", "8000")
     for test_entity in DLITE_TEST_ENTITIES:
-        uri = test_entity.get("uri", _get_uri(test_entity))
+        uri = test_entity.get("uri")
+        if uri is None:
+            uri = _get_uri(test_entity)
         if not isinstance(uri, str):
             raise TypeError("uri must be a string")
         version, name = _get_version_name(uri)
