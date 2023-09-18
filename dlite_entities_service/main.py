@@ -56,7 +56,7 @@ async def get_entity(
     """Get a DLite entity."""
     query = {
         "$or": [
-            {"namespace": CONFIG.base_url, "version": version, "name": name},
+            {"namespace": str(CONFIG.base_url), "version": version, "name": name},
             {"uri": f"{CONFIG.base_url}/{version}/{name}"},
         ]
     }
