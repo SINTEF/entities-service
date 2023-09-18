@@ -128,18 +128,30 @@ def _get_version_name(uri: str) -> tuple[str, str]:
     return match.group("version") or "", match.group("name") or ""
 
 
+def _get_uri(entity: "dict[str, Any]") -> str:
+    """Return the uri for an entity."""
+    namespace = entity.get("namespace")
+    version = entity.get("version")
+    name = entity.get("name")
+    if any(_ is None for _ in (namespace, version, name)):
+        raise RuntimeError(
+            "Could not retrieve namespace, version, and/or name from test entities."
+        )
+    return f"{namespace}/{version}/{name}"
+
+
 def run_tests() -> None:
     """Test the service."""
     host = os.getenv("DOCKER_TEST_HOST", "localhost")
     port = os.getenv("DOCKER_TEST_PORT", "8000")
     for test_entity in DLITE_TEST_ENTITIES:
-        uri = test_entity["uri"]
+        uri = test_entity.get("uri", _get_uri(test_entity))
         if not isinstance(uri, str):
             raise TypeError("uri must be a string")
         version, name = _get_version_name(uri)
         response = requests.get(f"http://{host}:{port}/{version}/{name}", timeout=5)
         assert response.ok, (
-            f"Test data {test_entity['uri']!r} not found! (Or some other error).\n"
+            f"Test data {uri!r} not found! (Or some other error).\n"
             f"Response:\n{json.dumps(response.json(), indent=2)}"
         )
 
