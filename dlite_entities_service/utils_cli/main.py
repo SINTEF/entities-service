@@ -20,7 +20,6 @@ from dotenv import dotenv_values, find_dotenv
 from rich import print  # pylint: disable=redefined-builtin
 from rich.console import Console
 
-from dlite_entities_service import __version__
 from dlite_entities_service.service.backend import (
     ENTITIES_COLLECTION,
     AnyWriteError,
