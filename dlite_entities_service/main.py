@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI, HTTPException, Path, status
 
 from dlite_entities_service import __version__
+from dlite_entities_service.models import VersionedSOFTEntity
 from dlite_entities_service.service.backend import ENTITIES_COLLECTION
 from dlite_entities_service.service.config import CONFIG
 from dlite_entities_service.service.logger import LOGGER
-from dlite_entities_service.service.models import Entity
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -37,7 +37,7 @@ The changed bits pertain to `minor` and `patch`, which are now both optional.
 
 @APP.get(
     "/{version}/{name}",
-    response_model=Entity,
+    response_model=VersionedSOFTEntity,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
 )
@@ -56,7 +56,7 @@ async def get_entity(
     """Get a DLite entity."""
     query = {
         "$or": [
-            {"version": version, "name": name},
+            {"namespace": str(CONFIG.base_url), "version": version, "name": name},
             {"uri": f"{CONFIG.base_url}/{version}/{name}"},
         ]
     }
