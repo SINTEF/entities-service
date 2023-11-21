@@ -1,10 +1,11 @@
 """Service app configuration."""
-from typing import Any
+from __future__ import annotations
+
+from typing import Annotated, Any
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic.networks import AnyHttpUrl, MultiHostUrl, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing_extensions import Annotated
 
 MongoDsn = Annotated[
     MultiHostUrl, UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"])

@@ -1,4 +1,6 @@
 """The main application module."""
+from __future__ import annotations
+
 from pathlib import Path as sysPath
 from typing import TYPE_CHECKING
 
@@ -52,7 +54,7 @@ async def get_entity(
         regex=r"^[A-Za-z]+$",
         description="The name part must be CamelCase without any white space.",
     ),
-) -> "dict[str, Any]":
+) -> dict[str, Any]:
     """Get a DLite entity."""
     query = {
         "$or": [
@@ -61,7 +63,7 @@ async def get_entity(
         ]
     }
     LOGGER.debug("Performing MongoDB query: %r", query)
-    entity_doc: "dict[str, Any]" = ENTITIES_COLLECTION.find_one(query)
+    entity_doc: dict[str, Any] = ENTITIES_COLLECTION.find_one(query)
     if entity_doc is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
