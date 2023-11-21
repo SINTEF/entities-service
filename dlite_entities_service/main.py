@@ -63,6 +63,7 @@ async def get_entity(
     version: Annotated[
         str,
         Path(
+            title="Entity version",
             pattern=SEMVER_REGEX,
             description="The version part must be of the kind MAJOR.MINOR.",
         ),
@@ -70,8 +71,12 @@ async def get_entity(
     name: Annotated[
         str,
         Path(
-            pattern=r"^[A-Za-z]+$",
-            description="The name part must be CamelCase without any white space.",
+            title="Entity name",
+            pattern=r"(?i)^[A-Z]+$",
+            description=(
+                "The name part is without any white space. It is conventionally "
+                "written in PascalCase."
+            ),
         ),
     ],
 ) -> dict[str, Any]:
