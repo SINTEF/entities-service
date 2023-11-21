@@ -185,13 +185,14 @@ def run_tests() -> None:
         response.status_code == status.HTTP_404_NOT_FOUND
     ), f"Response:\n\n{json.dumps(response.json(), indent=2)}"
 
-    # Test that the service returns an internal error (500) for invalid URIs
+    # Test that the service raises a pydantic ValidationError and returns an "
+    # "Unprocessable Entity (422) for invalid URIs
     version, name = _get_version_name("http://onto-ns.com/meta/Entity/1.0")
     response = requests.get(f"http://{host}:{port}/{version}/{name}", timeout=5)
 
     assert not response.ok, "Invalid URI returned an OK response!"
     assert (
-        response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     ), f"Response:\n\n{json.dumps(response.json(), indent=2)}"
 
 
