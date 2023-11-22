@@ -6,9 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
-    from typing import Any
 
     from fastapi.testclient import TestClient
     from pymongo.collection import Collection
@@ -58,46 +56,6 @@ def _mock_backend_entities_collection(
     from dlite_entities_service import backend
 
     monkeypatch.setattr(backend, "ENTITIES_COLLECTION", mongo_test_collection)
-
-
-@pytest.fixture()
-def get_version_name() -> Callable[[str], tuple[str, str]]:
-    """Return the version and name part of a uri."""
-    import re
-
-    def _get_version_name(uri: str) -> tuple[str, str]:
-        """Return the version and name part of a uri."""
-        match = re.match(
-            r"^http://onto-ns\.com/meta/(?P<version>[^/]+)/(?P<name>[^/]+)$", uri
-        )
-        assert match is not None, (
-            f"Could not retrieve version and name from {uri!r}. "
-            "URI must be of the form: "
-            "http://onto-ns.com/meta/{version}/{name}"
-        )
-
-        return match.group("version") or "", match.group("name") or ""
-
-    return _get_version_name
-
-
-@pytest.fixture()
-def get_uri() -> Callable[[dict[str, Any]], str]:
-    """Return the uri for an entity."""
-
-    def _get_uri(entity: dict[str, Any]) -> str:
-        """Return the uri for an entity."""
-        namespace = entity.get("namespace")
-        version = entity.get("version")
-        name = entity.get("name")
-
-        assert not any(
-            _ is None for _ in (namespace, version, name)
-        ), "Could not retrieve namespace, version, and/or name from test entities."
-
-        return f"{namespace}/{version}/{name}"
-
-    return _get_uri
 
 
 @pytest.fixture()

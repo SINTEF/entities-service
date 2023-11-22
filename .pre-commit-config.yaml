@@ -67,3 +67,4 @@ repos:
         - pydantic>=2
         - types-requests
         - types-pyyaml
+      args: [--explicit-package-bases]

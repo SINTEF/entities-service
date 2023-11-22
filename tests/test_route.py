@@ -1,51 +1,64 @@
 """Test the service's only route to retrieve DLite/SOFT entities."""
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
+import pytest
+
+from tests.utils import parameterize_get_entities
+
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
     from typing import Any
 
     from fastapi.testclient import TestClient
 
 
+@pytest.mark.parametrize(
+    ("entity", "version", "name"),
+    parameterize_get_entities(),
+    ids=[f"{_.version}/{_.name}" for _ in parameterize_get_entities()],
+)
 def test_get_entity(
-    static_dir: Path,
-    get_version_name: Callable[[str], tuple[str, str]],
-    get_uri: Callable[[dict[str, Any]], str],
+    entity: dict[str, Any],
+    version: str,
+    name: str,
     client: TestClient,
 ) -> None:
     """Test the route to retrieve a DLite/SOFT entity."""
-    import sys
-
-    import yaml
     from fastapi import status
 
-    entities: list[dict[str, Any]] = yaml.safe_load(
-        (static_dir / "entities.yaml").read_text()
-    )
+    response = client.get(f"/{version}/{name}", timeout=5)
 
-    for entity in entities:
-        uri = entity.get("uri") or get_uri(entity)
+    assert (
+        response.is_success
+    ), f"Response: {response.json()}. Request: {response.request}"
+    assert response.status_code == status.HTTP_200_OK, response.json()
+    assert (resolved_entity := response.json()) == entity, resolved_entity
 
-        version, name = get_version_name(uri)
 
-        response = client.get(f"/{version}/{name}", timeout=5)
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="DLite does not yet support Python 3.12+."
+)
+@pytest.mark.parametrize(
+    ("entity", "version", "name"),
+    parameterize_get_entities(),
+    ids=[f"{_.version}/{_.name}" for _ in parameterize_get_entities()],
+)
+def test_get_entity_instance(
+    entity: dict[str, Any],
+    version: str,
+    name: str,
+    client: TestClient,
+) -> None:
+    """Validate that we can instantiate an Instance from the response"""
+    from dlite import Instance
 
-        assert (
-            response.is_success
-        ), f"Response: {response.json()}. Request: {response.request}"
-        assert response.status_code == status.HTTP_200_OK, response.json()
-        assert (resolved_entity := response.json()) == entity, resolved_entity
+    response = client.get(f"/{version}/{name}", timeout=5)
 
-        # Validate that we can instantiate an Instance from the response
-        # DLite does not support Python 3.12 yet.
-        if sys.version_info < (3, 12):
-            from dlite import Instance
+    assert (resolve_entity := response.json()) == entity, resolve_entity
 
-            Instance.from_dict(resolved_entity)
+    Instance.from_dict(resolve_entity)
 
 
 def test_get_entity_not_found(client: TestClient) -> None:
