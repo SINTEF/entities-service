@@ -100,7 +100,6 @@ def upload(
     directories: Annotated[
         OptionalListPath,
         typer.Option(
-            None,
             "--dir",
             "-d",
             exists=True,
@@ -119,7 +118,6 @@ def upload(
     file_formats: Annotated[
         OptionalListEntityFileFormats,
         typer.Option(
-            [EntityFileFormats.JSON],
             "--format",
             help="Format of DLite entity file(s).",
             show_choices=True,
@@ -218,7 +216,6 @@ def update(
     filepaths: Annotated[
         OptionalListPath,
         typer.Option(
-            None,
             "--file",
             "-f",
             exists=True,
@@ -233,7 +230,6 @@ def update(
     directories: Annotated[
         OptionalListPath,
         typer.Option(
-            None,
             "--dir",
             "-d",
             exists=True,
@@ -252,7 +248,6 @@ def update(
     file_formats: Annotated[
         OptionalListEntityFileFormats,
         typer.Option(
-            [EntityFileFormats.JSON],
             "--format",
             help="Format of DLite entity file(s).",
             show_choices=True,
@@ -265,7 +260,6 @@ def update(
     insert: Annotated[
         bool,
         typer.Option(
-            False,
             "--insert",
             "-i",
             help="Insert the entity if it does not exist yet.",
@@ -368,7 +362,6 @@ def delete(
     uri: Annotated[
         str,
         typer.Argument(
-            ...,
             help="URI of the DLite entity to delete.",
             show_default=False,
         ),
@@ -399,7 +392,6 @@ def get(
     uri: Annotated[
         str,
         typer.Argument(
-            ...,
             help="URI of the DLite entity to get.",
             show_default=False,
         ),
@@ -425,7 +417,6 @@ def search(
     uris: Annotated[
         OptionalListStr,
         typer.Argument(
-            None,
             metavar="[URI]...",
             help=(
                 "URI of the DLite entity to search for. Multiple URIs can be provided. "
@@ -437,7 +428,6 @@ def search(
     query: Annotated[
         OptionalStr,
         typer.Option(
-            None,
             "--query",
             "-q",
             help="Backend-specific query to search for DLite entities.",
@@ -447,7 +437,6 @@ def search(
     as_json: Annotated[
         bool,
         typer.Option(
-            False,
             "--json",
             "-j",
             help="Return the search results as JSON.",
@@ -504,7 +493,6 @@ def validate(
     filepaths: Annotated[
         OptionalListPath,
         typer.Option(
-            None,
             "--file",
             "-f",
             exists=True,
@@ -519,7 +507,6 @@ def validate(
     directories: Annotated[
         OptionalListPath,
         typer.Option(
-            None,
             "--dir",
             "-d",
             exists=True,
@@ -538,7 +525,6 @@ def validate(
     file_formats: Annotated[
         OptionalListEntityFileFormats,
         typer.Option(
-            [EntityFileFormats.JSON],
             "--format",
             help="Format of DLite entity file(s).",
             show_choices=True,

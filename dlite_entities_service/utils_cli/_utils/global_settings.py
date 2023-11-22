@@ -33,7 +33,6 @@ def global_options(
     _: Annotated[
         OptionalBool,
         typer.Option(
-            None,
             "--version",
             help="Show version and exit",
             is_eager=True,
@@ -43,7 +42,6 @@ def global_options(
     use_service_dotenv: Annotated[
         bool,
         typer.Option(
-            False,
             "--use-service-dotenv/--use-cli-dotenv",
             help=(
                 "Use the .env file also used for the DLite Entities Service or one "
@@ -56,7 +54,6 @@ def global_options(
     as_json: Annotated[
         bool,
         typer.Option(
-            False,
             "--json",
             help=(
                 "Print output as JSON. (Muting mutually exclusive with --yaml/--yml "
@@ -69,7 +66,6 @@ def global_options(
     as_json_one_line: Annotated[
         bool,
         typer.Option(
-            False,
             "--json-one-line",
             help=(
                 "Print output as JSON without new lines. (Muting mutually exclusive "
@@ -82,7 +78,6 @@ def global_options(
     as_yaml: Annotated[
         bool,
         typer.Option(
-            False,
             "--yaml",
             "--yml",
             help=(

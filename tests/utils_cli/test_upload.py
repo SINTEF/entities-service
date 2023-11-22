@@ -33,7 +33,7 @@ def test_upload_filepath(
     result = cli.invoke(
         main.APP, f"upload --file {samples / 'valid_entities' / 'Person.json'}"
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.stderr
 
     assert mock_entities_collection.count_documents({}) == 1
     stored_entity: dict[str, Any] = mock_entities_collection.find_one({})

@@ -14,4 +14,4 @@ def samples() -> Path:
     """Fixture for samples directory."""
     from pathlib import Path
 
-    return Path(__file__).resolve().parent / "samples"
+    return (Path(__file__).resolve().parent / "samples").resolve()
