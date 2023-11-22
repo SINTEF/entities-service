@@ -20,11 +20,27 @@ if TYPE_CHECKING:
     from typing import Any, Literal
 
 
-DLITE_TEST_ENTITIES: list[dict[str, Any]] = yaml.safe_load(
-    (
-        Path(__file__).resolve().parent.parent / "tests" / "static" / "entities.yaml"
-    ).read_text()
-)
+def _get_test_data() -> list[dict[str, Any]]:
+    """Return the test data from tests folder."""
+    static_dir = (
+        Path(__file__).resolve().parent.parent.parent / "tests" / "static"
+    ).resolve()
+
+    if not static_dir.exists():
+        error_message = f"Could not find static directory {static_dir!r}."
+        raise RuntimeError(error_message)
+
+    test_entities = static_dir / "entities.yaml"
+
+    if not test_entities.exists():
+        error_message = f"Could not find test entities file {test_entities!r}."
+        raise RuntimeError(error_message)
+
+    try:
+        return yaml.safe_load(test_entities.read_text())
+    except yaml.error.YAMLError as error:
+        error_message = f"Could not load test entities from {test_entities!r}."
+        raise RuntimeError(error_message) from error
 
 
 def add_testdata() -> None:
@@ -41,7 +57,7 @@ def add_testdata() -> None:
 
     client = MongoClient(mongodb_uri, username=mongodb_user, password=mongodb_pass)
     collection = client.dlite.entities
-    collection.insert_many(DLITE_TEST_ENTITIES)
+    collection.insert_many(_get_test_data())
 
 
 def _get_version_name(uri: str) -> tuple[str, str]:
@@ -77,7 +93,7 @@ def run_tests() -> None:
     host = os.getenv("DOCKER_TEST_HOST", "localhost")
     port = os.getenv("DOCKER_TEST_PORT", "8000")
 
-    for test_entity in DLITE_TEST_ENTITIES:
+    for test_entity in _get_test_data():
         uri = test_entity.get("uri")
 
         if uri is None:
