@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
 try:
     import typer
@@ -63,11 +63,16 @@ class ConfigFields(str, Enum):
         return self in [ConfigFields.MONGO_PASSWORD]
 
 
+# Type Aliases
+OptionalStr = Optional[str]
+
+
 @APP.command(name="set")
 def set_config(
     key: Annotated[
         ConfigFields,
         typer.Argument(
+            ...,
             help=(
                 "Configuration option to set. These can also be set as an environment "
                 f"variable by prefixing with {CONFIG.model_config['env_prefix']!r}."
@@ -81,8 +86,9 @@ def set_config(
         ),
     ],
     value: Annotated[
-        str | None,
+        OptionalStr,
         typer.Argument(
+            None,
             help=(
                 "Value to set. For sensitive values, this will be prompted for if not "
                 "provided."
@@ -113,6 +119,7 @@ def unset(
     key: Annotated[
         ConfigFields,
         typer.Argument(
+            ...,
             help="Configuration option to unset.",
             show_choices=True,
             # Start using shell_complete once tiangolo/typer#334 is resolved.
@@ -159,6 +166,7 @@ def show(
     reveal_sensitive: Annotated[
         bool,
         typer.Option(
+            False,
             "--reveal-sensitive",
             help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
             is_flag=True,

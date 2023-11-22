@@ -6,7 +6,7 @@ import json
 import os
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Optional
 
 try:
     import typer
@@ -47,6 +47,13 @@ class EntityFileFormats(str, Enum):
     YML = "yml"
 
 
+# Type Aliases
+OptionalListPath = Optional[list[Path]]
+OptionalListEntityFileFormats = Optional[list[EntityFileFormats]]
+OptionalListStr = Optional[list[str]]
+OptionalStr = Optional[str]
+
+
 APP = typer.Typer(
     name="entities-service",
     help="DLite entities service utility CLI",
@@ -76,8 +83,9 @@ def _get_backend() -> Collection:
 @APP.command(no_args_is_help=True)
 def upload(
     filepaths: Annotated[
-        list[Path] | None,
+        OptionalListPath,
         typer.Option(
+            None,
             "--file",
             "-f",
             exists=True,
@@ -90,8 +98,9 @@ def upload(
         ),
     ] = None,
     directories: Annotated[
-        list[Path] | None,
+        OptionalListPath,
         typer.Option(
+            None,
             "--dir",
             "-d",
             exists=True,
@@ -108,8 +117,9 @@ def upload(
         ),
     ] = None,
     file_formats: Annotated[
-        list[EntityFileFormats] | None,
+        OptionalListEntityFileFormats,
         typer.Option(
+            [EntityFileFormats.JSON],
             "--format",
             help="Format of DLite entity file(s).",
             show_choices=True,
@@ -206,8 +216,9 @@ def iterate() -> None:
 @APP.command(no_args_is_help=True)
 def update(
     filepaths: Annotated[
-        list[Path] | None,
+        OptionalListPath,
         typer.Option(
+            None,
             "--file",
             "-f",
             exists=True,
@@ -220,8 +231,9 @@ def update(
         ),
     ] = None,
     directories: Annotated[
-        list[Path] | None,
+        OptionalListPath,
         typer.Option(
+            None,
             "--dir",
             "-d",
             exists=True,
@@ -238,8 +250,9 @@ def update(
         ),
     ] = None,
     file_formats: Annotated[
-        list[EntityFileFormats] | None,
+        OptionalListEntityFileFormats,
         typer.Option(
+            [EntityFileFormats.JSON],
             "--format",
             help="Format of DLite entity file(s).",
             show_choices=True,
@@ -252,6 +265,7 @@ def update(
     insert: Annotated[
         bool,
         typer.Option(
+            False,
             "--insert",
             "-i",
             help="Insert the entity if it does not exist yet.",
@@ -354,6 +368,7 @@ def delete(
     uri: Annotated[
         str,
         typer.Argument(
+            ...,
             help="URI of the DLite entity to delete.",
             show_default=False,
         ),
@@ -384,6 +399,7 @@ def get(
     uri: Annotated[
         str,
         typer.Argument(
+            ...,
             help="URI of the DLite entity to get.",
             show_default=False,
         ),
@@ -407,8 +423,9 @@ def get(
 @APP.command(no_args_is_help=True)
 def search(
     uris: Annotated[
-        list[str] | None,
+        OptionalListStr,
         typer.Argument(
+            None,
             metavar="[URI]...",
             help=(
                 "URI of the DLite entity to search for. Multiple URIs can be provided. "
@@ -418,8 +435,9 @@ def search(
         ),
     ] = None,
     query: Annotated[
-        str | None,
+        OptionalStr,
         typer.Option(
+            None,
             "--query",
             "-q",
             help="Backend-specific query to search for DLite entities.",
@@ -429,6 +447,7 @@ def search(
     as_json: Annotated[
         bool,
         typer.Option(
+            False,
             "--json",
             "-j",
             help="Return the search results as JSON.",
@@ -483,8 +502,9 @@ def search(
 @APP.command(no_args_is_help=True)
 def validate(
     filepaths: Annotated[
-        list[Path] | None,
+        OptionalListPath,
         typer.Option(
+            None,
             "--file",
             "-f",
             exists=True,
@@ -497,8 +517,9 @@ def validate(
         ),
     ] = None,
     directories: Annotated[
-        list[Path] | None,
+        OptionalListPath,
         typer.Option(
+            None,
             "--dir",
             "-d",
             exists=True,
@@ -515,8 +536,9 @@ def validate(
         ),
     ] = None,
     file_formats: Annotated[
-        list[EntityFileFormats] | None,
+        OptionalListEntityFileFormats,
         typer.Option(
+            [EntityFileFormats.JSON],
             "--format",
             help="Format of DLite entity file(s).",
             show_choices=True,

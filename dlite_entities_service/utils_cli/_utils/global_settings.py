@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated, Optional
 
 try:
     import typer
@@ -17,6 +18,9 @@ from dlite_entities_service import __version__
 
 STATUS = {"use_service_dotenv": False}
 
+# Type Aliases
+OptionalBool = Optional[bool]
+
 
 def print_version(value: bool) -> None:
     """Print version and exit."""
@@ -26,55 +30,69 @@ def print_version(value: bool) -> None:
 
 
 def global_options(
-    _: bool
-    | None = typer.Option(
-        None,
-        "--version",
-        help="Show version and exit",
-        is_eager=True,
-        callback=print_version,
-    ),
-    use_service_dotenv: bool = typer.Option(
-        False,
-        "--use-service-dotenv/--use-cli-dotenv",
-        help=(
-            "Use the .env file also used for the DLite Entities Service or one only "
-            "for the CLI."
+    _: Annotated[
+        OptionalBool,
+        typer.Option(
+            None,
+            "--version",
+            help="Show version and exit",
+            is_eager=True,
+            callback=print_version,
         ),
-        is_flag=True,
-        rich_help_panel="Global options",
-    ),
-    as_json: bool = typer.Option(
-        False,
-        "--json",
-        help=(
-            "Print output as JSON. (Muting mutually exclusive with --yaml/--yml and "
-            "--json-one-line.)"
+    ] = None,
+    use_service_dotenv: Annotated[
+        bool,
+        typer.Option(
+            False,
+            "--use-service-dotenv/--use-cli-dotenv",
+            help=(
+                "Use the .env file also used for the DLite Entities Service or one "
+                "only for the CLI."
+            ),
+            is_flag=True,
+            rich_help_panel="Global options",
         ),
-        is_flag=True,
-        rich_help_panel="Global options",
-    ),
-    as_json_one_line: bool = typer.Option(
-        False,
-        "--json-one-line",
-        help=(
-            "Print output as JSON without new lines. (Muting mutually exclusive with "
-            "--yaml/--yml and --json.)"
+    ] = False,
+    as_json: Annotated[
+        bool,
+        typer.Option(
+            False,
+            "--json",
+            help=(
+                "Print output as JSON. (Muting mutually exclusive with --yaml/--yml "
+                "and --json-one-line.)"
+            ),
+            is_flag=True,
+            rich_help_panel="Global options",
         ),
-        is_flag=True,
-        rich_help_panel="Global options",
-    ),
-    as_yaml: bool = typer.Option(
-        False,
-        "--yaml",
-        "--yml",
-        help=(
-            "Print output as YAML. (Mutually exclusive with --json and "
-            "--json-one-line.)"
+    ] = False,
+    as_json_one_line: Annotated[
+        bool,
+        typer.Option(
+            False,
+            "--json-one-line",
+            help=(
+                "Print output as JSON without new lines. (Muting mutually exclusive "
+                "with --yaml/--yml and --json.)"
+            ),
+            is_flag=True,
+            rich_help_panel="Global options",
         ),
-        is_flag=True,
-        rich_help_panel="Global options",
-    ),
+    ] = False,
+    as_yaml: Annotated[
+        bool,
+        typer.Option(
+            False,
+            "--yaml",
+            "--yml",
+            help=(
+                "Print output as YAML. (Mutually exclusive with --json and "
+                "--json-one-line.)"
+            ),
+            is_flag=True,
+            rich_help_panel="Global options",
+        ),
+    ] = False,
 ) -> None:
     """Global options for the CLI."""
     STATUS["use_service_dotenv"] = use_service_dotenv
