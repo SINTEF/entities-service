@@ -7,9 +7,11 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import requests
+import yaml
 from dlite import Instance
 from fastapi import status
 from pymongo import MongoClient
@@ -18,90 +20,11 @@ if TYPE_CHECKING:
     from typing import Any, Literal
 
 
-DLITE_TEST_ENTITIES: list[dict[str, Any]] = [
-    {
-        "uri": "http://onto-ns.com/meta/0.1/Person",
-        "meta": "http://onto-ns.com/meta/0.3/EntitySchema",
-        "description": "A person.",
-        "dimensions": {"nskills": "Number of skills."},
-        "properties": {
-            "name": {
-                "type": "string",
-                "description": "The person's name.",
-            },
-            "age": {
-                "type": "int",
-                "description": "The person's age.",
-            },
-            "skills": {
-                "type": "string",
-                "description": "The person's skills.",
-                "shape": ["nskills"],
-            },
-        },
-    },
-    {
-        "uri": "http://onto-ns.com/meta/0.1/Cat",
-        "meta": "http://onto-ns.com/meta/0.3/EntitySchema",
-        "description": "A cat.",
-        "dimensions": {"ncolors": "Number of different colors the cat has."},
-        "properties": {
-            "name": {
-                "type": "string",
-                "description": "The cat's name.",
-            },
-            "age": {
-                "type": "int",
-                "description": "The cat's age.",
-            },
-            "color": {
-                "type": "string",
-                "description": "The cat's different colors.",
-                "shape": ["ncolors"],
-            },
-            "breed": {
-                "type": "string",
-                "description": "The cat's breed.",
-            },
-        },
-    },
-    # SOFT5 example
-    {
-        "name": "Dog",
-        "version": "0.1",
-        "namespace": "http://onto-ns.com/meta",
-        "description": "A dog.",
-        "dimensions": [
-            {
-                "name": "ncolors",
-                "description": "Number of different colors the dog has.",
-            }
-        ],
-        "properties": [
-            {
-                "name": "name",
-                "type": "string",
-                "description": "The dog's name.",
-            },
-            {
-                "name": "age",
-                "type": "int",
-                "description": "The dog's age.",
-            },
-            {
-                "name": "color",
-                "type": "string",
-                "description": "The dog's different colors.",
-                "dims": ["ncolors"],
-            },
-            {
-                "name": "breed",
-                "type": "string",
-                "description": "The dog's breed.",
-            },
-        ],
-    },
-]
+DLITE_TEST_ENTITIES: list[dict[str, Any]] = yaml.safe_load(
+    (
+        Path(__file__).resolve().parent.parent / "tests" / "static" / "entities.yaml"
+    ).read_text()
+)
 
 
 def add_testdata() -> None:
