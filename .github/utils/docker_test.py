@@ -174,7 +174,7 @@ def run_tests() -> None:
 
         entity = response.json()
         assert entity == test_entity
-        Instance.from_dict(test_entity)
+        Instance.from_dict(entity)
 
     # Test that the service returns a Not Found (404) for non existant URIs
     version, name = _get_version_name("http://onto-ns.com/meta/0.3/EntitySchema")
@@ -185,8 +185,8 @@ def run_tests() -> None:
         response.status_code == status.HTTP_404_NOT_FOUND
     ), f"Response:\n\n{json.dumps(response.json(), indent=2)}"
 
-    # Test that the service raises a pydantic ValidationError and returns an "
-    # "Unprocessable Entity (422) for invalid URIs
+    # Test that the service raises a pydantic ValidationError and returns an
+    # Unprocessable Entity (422) for invalid URIs
     version, name = _get_version_name("http://onto-ns.com/meta/Entity/1.0")
     response = requests.get(f"http://{host}:{port}/{version}/{name}", timeout=5)
 

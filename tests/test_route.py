@@ -19,6 +19,7 @@ def test_get_entity(
 ) -> None:
     """Test the route to retrieve a DLite/SOFT entity."""
     import yaml
+    from dlite import Instance
     from fastapi import status
 
     entities: list[dict[str, Any]] = yaml.safe_load(
@@ -36,4 +37,37 @@ def test_get_entity(
             response.is_success
         ), f"Response: {response.json()}. Request: {response.request}"
         assert response.status_code == status.HTTP_200_OK, response.json()
-        assert response.json() == entity, response.json()
+        assert (resolved_entity := response.json()) == entity, resolved_entity
+
+        # Validate that we can instantiate an Instance from the response
+        Instance.from_dict(resolved_entity)
+
+
+def test_get_entity_not_found(client: TestClient) -> None:
+    """Test that the route returns a Not Found (404) for non existant URIs."""
+    from fastapi import status
+
+    version, name = "0.0", "NonExistantEntity"
+    response = client.get(f"/{version}/{name}", timeout=5)
+
+    assert not response.is_success, "Non existant (valid) URI returned an OK response!"
+    assert (
+        response.status_code == status.HTTP_404_NOT_FOUND
+    ), f"Response:\n\n{response.json()}"
+
+
+def test_get_entity_invalid_uri(client: TestClient) -> None:
+    """Test that the service raises a pydantic ValidationError and returns an
+    Unprocessable Entity (422) for invalid URIs.
+
+    Test by reversing version and name in URI, thereby making it invalid.
+    """
+    from fastapi import status
+
+    version, name = "1.0", "EntityName"
+    response = client.get(f"/{name}/{version}", timeout=5)
+
+    assert not response.is_success, "Invalid URI returned an OK response!"
+    assert (
+        response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    ), f"Response:\n\n{response.json()}"
