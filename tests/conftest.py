@@ -32,13 +32,17 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
         "ENTITY_SERVICE_MONGO_PASSWORD",
     )
 
-    # Check certain environment variables are set
-    assert not any(os.getenv(_) is None for _ in required_environment_variables), (
-        "All required environment variables were not found to be set. "
-        "Please set the following environment variables: "
-        f"{', '.join(required_environment_variables)}"
-    )
-    return request.config.getoption("--live-backend")
+    value = request.config.getoption("--live-backend")
+
+    if value:
+        # Check certain environment variables are set
+        assert not any(os.getenv(_) is None for _ in required_environment_variables), (
+            "All required environment variables were not found to be set. "
+            "Please set the following environment variables: "
+            f"{', '.join(required_environment_variables)}"
+        )
+
+    return value
 
 
 @pytest.fixture(scope="session")
