@@ -1,8 +1,11 @@
 """config subcommand for dlite-entities-service CLI."""
 # pylint: disable=duplicate-code
+from __future__ import annotations
+
+from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Annotated
 
 try:
     import typer
@@ -62,27 +65,31 @@ class ConfigFields(str, Enum):
 
 @APP.command(name="set")
 def set_config(
-    key: ConfigFields = typer.Argument(
-        ...,
-        help=(
-            "Configuration option to set. These can also be set as an environment "
-            f"variable by prefixing with {CONFIG.model_config['env_prefix']!r}."
+    key: Annotated[
+        ConfigFields,
+        typer.Argument(
+            help=(
+                "Configuration option to set. These can also be set as an environment "
+                f"variable by prefixing with {CONFIG.model_config['env_prefix']!r}."
+            ),
+            show_choices=True,
+            # Start using shell_complete once tiangolo/typer#334 is resolved.
+            # shell_complete=ConfigFields.autocomplete,
+            autocompletion=ConfigFields.autocomplete,
+            case_sensitive=False,
+            show_default=False,
         ),
-        show_choices=True,
-        # Start using shell_complete once tiangolo/typer#334 is resolved.
-        # shell_complete=ConfigFields.autocomplete,
-        autocompletion=ConfigFields.autocomplete,
-        case_sensitive=False,
-        show_default=False,
-    ),
-    value: Optional[str] = typer.Argument(
-        None,
-        help=(
-            "Value to set. For sensitive values, this will be prompted for if not "
-            "provided."
+    ],
+    value: Annotated[
+        str | None,
+        typer.Argument(
+            help=(
+                "Value to set. For sensitive values, this will be prompted for if not "
+                "provided."
+            ),
+            show_default=False,
         ),
-        show_default=False,
-    ),
+    ] = None,
 ) -> None:
     """Set a configuration option."""
     if not value:
@@ -103,16 +110,18 @@ def set_config(
 
 @APP.command()
 def unset(
-    key: ConfigFields = typer.Argument(
-        ...,
-        help="Configuration option to unset.",
-        show_choices=True,
-        # Start using shell_complete once tiangolo/typer#334 is resolved.
-        # shell_complete=ConfigFields.autocomplete,
-        autocompletion=ConfigFields.autocomplete,
-        case_sensitive=False,
-        show_default=False,
-    ),
+    key: Annotated[
+        ConfigFields,
+        typer.Argument(
+            help="Configuration option to unset.",
+            show_choices=True,
+            # Start using shell_complete once tiangolo/typer#334 is resolved.
+            # shell_complete=ConfigFields.autocomplete,
+            autocompletion=ConfigFields.autocomplete,
+            case_sensitive=False,
+            show_default=False,
+        ),
+    ]
 ) -> None:
     """Unset a single configuration option."""
     if STATUS["use_service_dotenv"]:
@@ -147,13 +156,15 @@ def unset_all() -> None:
 
 @APP.command()
 def show(
-    reveal_sensitive: bool = typer.Option(
-        False,
-        "--reveal-sensitive",
-        help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
-        is_flag=True,
-        show_default=False,
-    ),
+    reveal_sensitive: Annotated[
+        bool,
+        typer.Option(
+            "--reveal-sensitive",
+            help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
+            is_flag=True,
+            show_default=False,
+        ),
+    ] = False,
 ) -> None:
     """Show the current configuration."""
     if STATUS["use_service_dotenv"]:
@@ -178,9 +189,10 @@ def show(
 
     output = {}
     for key, value in values.items():
+        sensitive_value = None
         if not reveal_sensitive and key.is_sensitive():
-            value = "*" * 8
-        output[f"{CONFIG.model_config['env_prefix']}{key}"] = value
+            sensitive_value = "*" * 8
+        output[f"{CONFIG.model_config['env_prefix']}{key}"] = sensitive_value or value
 
     if STATUS["as_json"] or STATUS["as_json_one_line"]:
         print_json(data=output, indent=2 if STATUS["as_json"] else None)

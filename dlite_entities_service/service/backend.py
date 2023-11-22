@@ -1,4 +1,6 @@
 """Backend implementation."""
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from pymongo import MongoClient
@@ -16,7 +18,7 @@ AnyWriteError = (WriteError, WriteConcernError)
 
 def get_collection(
     uri: str | None = None, username: str | None = None, password: str | None = None
-) -> "Collection":
+) -> Collection:
     """Get the MongoDB collection for entities."""
     client_kwargs = {
         "username": username or CONFIG.mongo_user,

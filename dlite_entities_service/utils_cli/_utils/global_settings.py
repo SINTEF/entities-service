@@ -1,6 +1,7 @@
 """Global settings for the CLI."""
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional
 
 try:
     import typer
@@ -25,7 +26,8 @@ def print_version(value: bool) -> None:
 
 
 def global_options(
-    _: Optional[bool] = typer.Option(
+    _: bool
+    | None = typer.Option(
         None,
         "--version",
         help="Show version and exit",

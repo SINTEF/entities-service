@@ -1,4 +1,6 @@
 """Fixtures for the utils_cli tests."""
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,15 +11,15 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope="session")
-def cli() -> "CliRunner":
+def cli() -> CliRunner:
     """Fixture for CLI runner."""
     from typer.testing import CliRunner
 
     return CliRunner(mix_stderr=False)
 
 
-@pytest.fixture
-def mock_entities_collection(monkeypatch: pytest.MonkeyPatch) -> "Collection":
+@pytest.fixture()
+def mock_entities_collection(monkeypatch: pytest.MonkeyPatch) -> Collection:
     """Return a mock entities collection."""
     from mongomock import MongoClient
 
@@ -29,7 +31,9 @@ def mock_entities_collection(monkeypatch: pytest.MonkeyPatch) -> "Collection":
 
     monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)
     monkeypatch.setattr(
-        main, "get_collection", lambda *args, **kwargs: mock_entities_collection
+        main,
+        "get_collection",
+        lambda *args, **kwargs: mock_entities_collection,  # noqa: ARG005
     )
 
     return mock_entities_collection
