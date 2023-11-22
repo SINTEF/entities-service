@@ -21,7 +21,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Private :: Do Not Upload",
 ]
 keywords = ["dlite", "mongodb"]
 requires-python = "~=3.10"
@@ -37,7 +36,7 @@ dependencies = [
 
 [project.optional-dependencies]
 testing = [
-    "dlite-python >=0.4.5,<1",
+    "dlite-python >=0.4.5,<1; python_version < '3.12'",
     "httpx >=0.25.1,<1",
     "mongomock ~=4.1",
     "pytest ~=7.4",

@@ -18,8 +18,9 @@ def test_get_entity(
     client: TestClient,
 ) -> None:
     """Test the route to retrieve a DLite/SOFT entity."""
+    import sys
+
     import yaml
-    from dlite import Instance
     from fastapi import status
 
     entities: list[dict[str, Any]] = yaml.safe_load(
@@ -40,7 +41,11 @@ def test_get_entity(
         assert (resolved_entity := response.json()) == entity, resolved_entity
 
         # Validate that we can instantiate an Instance from the response
-        Instance.from_dict(resolved_entity)
+        # DLite does not support Python 3.12 yet.
+        if sys.version_info < (3, 12):
+            from dlite import Instance
+
+            Instance.from_dict(resolved_entity)
 
 
 def test_get_entity_not_found(client: TestClient) -> None:
