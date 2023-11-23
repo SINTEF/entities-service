@@ -2,10 +2,19 @@
 # pylint: disable=duplicate-code
 from __future__ import annotations
 
+import sys
 from collections.abc import Generator
-from enum import Enum
 from pathlib import Path
 from typing import Optional
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """Enum with string values."""
+
 
 try:
     import typer
@@ -42,7 +51,7 @@ APP = typer.Typer(
 OptionalStr = Optional[str]
 
 
-class ConfigFields(str, Enum):
+class ConfigFields(StrEnum):
     """Configuration options."""
 
     BASE_URL = "base_url"

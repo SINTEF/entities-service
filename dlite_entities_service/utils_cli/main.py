@@ -4,9 +4,18 @@ from __future__ import annotations
 
 import json
 import os
-from enum import Enum
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """Enum with string values."""
+
 
 try:
     import typer
@@ -39,7 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
 ERROR_CONSOLE = Console(stderr=True)
 
 
-class EntityFileFormats(str, Enum):
+class EntityFileFormats(StrEnum):
     """Supported entity file formats."""
 
     JSON = "json"
