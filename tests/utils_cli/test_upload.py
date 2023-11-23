@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(
 
 def test_upload_no_args(cli: CliRunner) -> None:
     """Test `entities-service upload` CLI command."""
-    from dlite_entities_service.utils_cli.main import APP, upload
+    from dlite_entities_service.cli.main import APP, upload
 
     result = cli.invoke(APP, "upload")
     assert result.exit_code == 0, result.stderr
@@ -36,7 +36,7 @@ def test_upload_filepath(
     """Test upload with a filepath."""
     import json
 
-    from dlite_entities_service.utils_cli import main
+    from dlite_entities_service.cli import main
 
     result = cli.invoke(
         main.APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
@@ -55,7 +55,7 @@ def test_upload_filepath(
 
 def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
     """Test upload with an invalid filepath."""
-    from dlite_entities_service.utils_cli.main import APP
+    from dlite_entities_service.cli.main import APP
 
     result = cli.invoke(
         APP, f"upload --file {static_dir / 'invalid_entities' / 'Person.json'}"
@@ -67,7 +67,7 @@ def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
 
 def test_upload_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
     """Test upload with an invalid file format."""
-    from dlite_entities_service.utils_cli.main import APP
+    from dlite_entities_service.cli.main import APP
 
     (tmp_path / "Person.txt").touch()
 
@@ -79,7 +79,7 @@ def test_upload_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
 
 def test_upload_no_file_or_dir(cli: CliRunner) -> None:
     """Test error when no file or directory is provided."""
-    from dlite_entities_service.utils_cli.main import APP
+    from dlite_entities_service.cli.main import APP
 
     result = cli.invoke(APP, "upload --format json")
     assert result.exit_code == 1, result.stdout
@@ -93,7 +93,7 @@ def test_upload_directory(
     """Test upload with a directory."""
     import json
 
-    from dlite_entities_service.utils_cli import main
+    from dlite_entities_service.cli import main
 
     result = cli.invoke(main.APP, f"upload --dir {static_dir / 'valid_entities'}")
     assert result.exit_code == 0, result.stderr

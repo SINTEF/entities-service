@@ -23,8 +23,8 @@ def mock_entities_collection(monkeypatch: pytest.MonkeyPatch) -> Collection:
     """Return a mock entities collection."""
     from mongomock import MongoClient
 
+    from dlite_entities_service.cli import main
     from dlite_entities_service.service.config import CONFIG
-    from dlite_entities_service.utils_cli import main
 
     mongo_client = MongoClient(str(CONFIG.mongo_uri))
     mock_entities_collection = mongo_client["dlite"]["entities"]
