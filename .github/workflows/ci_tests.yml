@@ -82,6 +82,7 @@ jobs:
             --name "entity-service" \
             --network "host" \
             --volume "${PWD}:/app" \
+            --user "$(id -u):$(id -g)" \
             entity-service
           sleep 5
 
