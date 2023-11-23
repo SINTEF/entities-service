@@ -28,7 +28,8 @@ def test_get_entity(
     """Test the route to retrieve a DLite/SOFT entity."""
     from fastapi import status
 
-    response = client.get(f"/{version}/{name}", timeout=5)
+    with client as client:
+        response = client.get(f"/{version}/{name}", timeout=5)
 
     assert (
         response.is_success
@@ -54,7 +55,8 @@ def test_get_entity_instance(
     """Validate that we can instantiate an Instance from the response"""
     from dlite import Instance
 
-    response = client.get(f"/{version}/{name}", timeout=5)
+    with client as client:
+        response = client.get(f"/{version}/{name}", timeout=5)
 
     assert (resolve_entity := response.json()) == entity, resolve_entity
 
@@ -66,7 +68,8 @@ def test_get_entity_not_found(client: TestClient) -> None:
     from fastapi import status
 
     version, name = "0.0", "NonExistantEntity"
-    response = client.get(f"/{version}/{name}", timeout=5)
+    with client as client:
+        response = client.get(f"/{version}/{name}", timeout=5)
 
     assert not response.is_success, "Non existant (valid) URI returned an OK response!"
     assert (
@@ -83,7 +86,8 @@ def test_get_entity_invalid_uri(client: TestClient) -> None:
     from fastapi import status
 
     version, name = "1.0", "EntityName"
-    response = client.get(f"/{name}/{version}", timeout=5)
+    with client as client:
+        response = client.get(f"/{name}/{version}", timeout=5)
 
     assert not response.is_success, "Invalid URI returned an OK response!"
     assert (
