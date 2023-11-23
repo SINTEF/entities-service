@@ -16,7 +16,7 @@ def test_upload_no_args(cli: CliRunner) -> None:
     from dlite_entities_service.utils_cli.main import APP, upload
 
     result = cli.invoke(APP, "upload")
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.stderr
     assert upload.__doc__ in result.stdout
 
     assert result.stdout == cli.invoke(APP, "upload --help").stdout
@@ -52,7 +52,7 @@ def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
     result = cli.invoke(
         APP, f"upload --file {static_dir / 'invalid_entities' / 'Person.json'}"
     )
-    assert result.exit_code == 1
+    assert result.exit_code == 1, result.stdout
     assert "cannot be loaded with DLite." in result.stderr
     assert not result.stdout
 
@@ -64,7 +64,7 @@ def test_upload_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
     (tmp_path / "Person.txt").touch()
 
     result = cli.invoke(APP, f"upload --file {tmp_path / 'Person.txt'}")
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.stderr
     assert "File format 'txt' is not supported." in result.stderr
     assert "No entities were uploaded." in result.stdout
 
@@ -74,7 +74,7 @@ def test_upload_no_file_or_dir(cli: CliRunner) -> None:
     from dlite_entities_service.utils_cli.main import APP
 
     result = cli.invoke(APP, "upload --format json")
-    assert result.exit_code == 1
+    assert result.exit_code == 1, result.stdout
     assert "Missing either option '--file' / '-f'" in result.stderr
     assert not result.stdout
 
@@ -88,7 +88,7 @@ def test_upload_directory(
     from dlite_entities_service.utils_cli import main
 
     result = cli.invoke(main.APP, f"upload --dir {static_dir / 'valid_entities'}")
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.stderr
 
     assert mock_entities_collection.count_documents({}) == 3
     stored_entities = list(mock_entities_collection.find({}))

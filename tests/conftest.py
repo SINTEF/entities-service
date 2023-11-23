@@ -59,7 +59,7 @@ def mongo_test_collection(static_dir: Path, live_backend: bool) -> Collection | 
     import yaml
 
     if live_backend:
-        from dlite_entities_service.backend import ENTITIES_COLLECTION
+        from dlite_entities_service.service.backend import ENTITIES_COLLECTION
 
         # TODO: Handle authentication properly
         ENTITIES_COLLECTION.insert_many(
@@ -71,7 +71,7 @@ def mongo_test_collection(static_dir: Path, live_backend: bool) -> Collection | 
     # else
     from mongomock import MongoClient
 
-    from dlite_entities_service.config import CONFIG
+    from dlite_entities_service.service.config import CONFIG
 
     client_kwargs = {
         "username": CONFIG.mongo_user,
@@ -101,7 +101,7 @@ def _mock_backend_entities_collection(
     if mongo_test_collection is None:
         return
 
-    from dlite_entities_service import backend
+    from dlite_entities_service.service import backend
 
     monkeypatch.setattr(backend, "ENTITIES_COLLECTION", mongo_test_collection)
 
@@ -113,8 +113,8 @@ def client(live_backend: bool) -> TestClient:
 
     from fastapi.testclient import TestClient
 
-    from dlite_entities_service.config import CONFIG
     from dlite_entities_service.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     if live_backend:
         host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(

@@ -17,7 +17,7 @@
       type: string
 
 - description: A cat.
-  uri: http://onto-ns.com/meta/0.1/Cat
+  uri: http://onto-ns.com/meta/0.2/Cat
   meta: http://onto-ns.com/meta/0.3/EntitySchema
   dimensions:
     ncolors: Number of different colors the cat has.
@@ -40,7 +40,7 @@
   # SOFT5 example
 - description: A dog.
   namespace: http://onto-ns.com/meta
-  version: '0.1'
+  version: '0.2'
   name: Dog
   dimensions:
   - description: Number of different colors the dog has.
