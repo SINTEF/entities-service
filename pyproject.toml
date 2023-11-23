@@ -21,7 +21,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Private :: Do Not Upload",
 ]
 keywords = ["dlite", "mongodb"]
 requires-python = "~=3.10"
@@ -36,14 +35,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cli = [
+    "dlite-python >=0.4.5,<1; python_version < '3.12'",
+    "typer[all] >=0.9.0,<1",
+]
 testing = [
+    "httpx >=0.25.1,<1",
     "mongomock ~=4.1",
     "pytest ~=7.4",
     "pytest-cov ~=4.1",
-]
-cli = [
-    "DLite-Python ~=0.4.5",
-    "typer[all] ~=0.9.0",
+    "pyyaml ~=6.0",
+    "dlite-entities-service[cli]",
 ]
 dev = [
     "pre-commit ~=3.5",
@@ -104,11 +106,12 @@ isort.required-imports = ["from __future__ import annotations"]
 minversion = "7.4"
 addopts = "-rs --cov=dlite_entities_service --cov-report=term-missing:skip-covered --no-cov-on-fail"
 filterwarnings = [
+    # Treat all warnings as errors
     "error",
 
     # Remove warning filter once tiangolo/typer#334 is resolved.
     "ignore:.*'autocompletion' is renamed to 'shell_complete'.*:DeprecationWarning",
 
-    # mongomock issue
+    # mongomock uses pkg_resources
     "ignore:.*pkg_resources is deprecated as an API.*:DeprecationWarning",
 ]

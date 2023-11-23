@@ -23,7 +23,7 @@ def test_upload_no_args(cli: CliRunner) -> None:
 
 
 def test_upload_filepath(
-    cli: CliRunner, samples: Path, mock_entities_collection: Collection
+    cli: CliRunner, static_dir: Path, mock_entities_collection: Collection
 ) -> None:
     """Test upload with a filepath."""
     import json
@@ -31,7 +31,7 @@ def test_upload_filepath(
     from dlite_entities_service.utils_cli import main
 
     result = cli.invoke(
-        main.APP, f"upload --file {samples / 'valid_entities' / 'Person.json'}"
+        main.APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
     )
     assert result.exit_code == 0, result.stderr
 
@@ -39,18 +39,18 @@ def test_upload_filepath(
     stored_entity: dict[str, Any] = mock_entities_collection.find_one({})
     stored_entity.pop("_id")
     assert stored_entity == json.loads(
-        (samples / "valid_entities" / "Person.json").read_bytes()
+        (static_dir / "valid_entities" / "Person.json").read_bytes()
     )
 
     assert "Successfully uploaded 1 entities:" in result.stdout
 
 
-def test_upload_filepath_invalid(cli: CliRunner, samples: Path) -> None:
+def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
     """Test upload with an invalid filepath."""
     from dlite_entities_service.utils_cli.main import APP
 
     result = cli.invoke(
-        APP, f"upload --file {samples / 'invalid_entities' / 'Person.json'}"
+        APP, f"upload --file {static_dir / 'invalid_entities' / 'Person.json'}"
     )
     assert result.exit_code == 1
     assert "cannot be loaded with DLite." in result.stderr
@@ -80,14 +80,14 @@ def test_upload_no_file_or_dir(cli: CliRunner) -> None:
 
 
 def test_upload_directory(
-    cli: CliRunner, samples: Path, mock_entities_collection: Collection
+    cli: CliRunner, static_dir: Path, mock_entities_collection: Collection
 ) -> None:
     """Test upload with a directory."""
     import json
 
     from dlite_entities_service.utils_cli import main
 
-    result = cli.invoke(main.APP, f"upload --dir {samples / 'valid_entities'}")
+    result = cli.invoke(main.APP, f"upload --dir {static_dir / 'valid_entities'}")
     assert result.exit_code == 0
 
     assert mock_entities_collection.count_documents({}) == 3
@@ -96,7 +96,7 @@ def test_upload_directory(
         stored_entity.pop("_id")
     for sample_file in ("Person.json", "Dog.json", "Cat.json"):
         assert (
-            json.loads((samples / "valid_entities" / sample_file).read_bytes())
+            json.loads((static_dir / "valid_entities" / sample_file).read_bytes())
             in stored_entities
         )
 
