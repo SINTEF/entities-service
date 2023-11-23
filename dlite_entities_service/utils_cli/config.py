@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Optional
 
 try:
     import typer
@@ -38,6 +38,9 @@ APP = typer.Typer(
     invoke_without_command=True,
 )
 
+# Type Aliases
+OptionalStr = Optional[str]
+
 
 class ConfigFields(str, Enum):
     """Configuration options."""
@@ -63,37 +66,28 @@ class ConfigFields(str, Enum):
         return self in [ConfigFields.MONGO_PASSWORD]
 
 
-# Type Aliases
-OptionalStr = Optional[str]
-
-
 @APP.command(name="set")
 def set_config(
-    key: Annotated[
-        ConfigFields,
-        typer.Argument(
-            help=(
-                "Configuration option to set. These can also be set as an environment "
-                f"variable by prefixing with {CONFIG.model_config['env_prefix']!r}."
-            ),
-            show_choices=True,
-            # Start using shell_complete once tiangolo/typer#334 is resolved.
-            # shell_complete=ConfigFields.autocomplete,
-            autocompletion=ConfigFields.autocomplete,
-            case_sensitive=False,
-            show_default=False,
+    key: ConfigFields = typer.Argument(
+        help=(
+            "Configuration option to set. These can also be set as an environment "
+            f"variable by prefixing with {CONFIG.model_config['env_prefix']!r}."
         ),
-    ],
-    value: Annotated[
-        OptionalStr,
-        typer.Argument(
-            help=(
-                "Value to set. For sensitive values, this will be prompted for if not "
-                "provided."
-            ),
-            show_default=False,
+        show_choices=True,
+        # Start using shell_complete once tiangolo/typer#334 is resolved.
+        # shell_complete=ConfigFields.autocomplete,
+        autocompletion=ConfigFields.autocomplete,
+        case_sensitive=False,
+        show_default=False,
+    ),
+    value: OptionalStr = typer.Argument(
+        None,
+        help=(
+            "Value to set. For sensitive values, this will be prompted for if not "
+            "provided."
         ),
-    ] = None,
+        show_default=False,
+    ),
 ) -> None:
     """Set a configuration option."""
     if not value:
@@ -114,18 +108,16 @@ def set_config(
 
 @APP.command()
 def unset(
-    key: Annotated[
-        ConfigFields,
-        typer.Argument(
-            help="Configuration option to unset.",
-            show_choices=True,
-            # Start using shell_complete once tiangolo/typer#334 is resolved.
-            # shell_complete=ConfigFields.autocomplete,
-            autocompletion=ConfigFields.autocomplete,
-            case_sensitive=False,
-            show_default=False,
-        ),
-    ]
+    key: ConfigFields = typer.Argument(
+        None,
+        help="Configuration option to unset.",
+        show_choices=True,
+        # Start using shell_complete once tiangolo/typer#334 is resolved.
+        # shell_complete=ConfigFields.autocomplete,
+        autocompletion=ConfigFields.autocomplete,
+        case_sensitive=False,
+        show_default=False,
+    ),
 ) -> None:
     """Unset a single configuration option."""
     if STATUS["use_service_dotenv"]:
@@ -160,15 +152,13 @@ def unset_all() -> None:
 
 @APP.command()
 def show(
-    reveal_sensitive: Annotated[
-        bool,
-        typer.Option(
-            "--reveal-sensitive",
-            help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
-            is_flag=True,
-            show_default=False,
-        ),
-    ] = False,
+    reveal_sensitive: bool = typer.Option(
+        False,
+        "--reveal-sensitive",
+        help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
+        is_flag=True,
+        show_default=False,
+    ),
 ) -> None:
     """Show the current configuration."""
     if STATUS["use_service_dotenv"]:

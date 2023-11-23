@@ -96,6 +96,7 @@ extend-select = [
 ]
 ignore = [
   "PLR",  # Design related pylint codes
+  "B008",  # Performing function calls in argument defaults - done all the time in the CLI.
 ]
 isort.required-imports = ["from __future__ import annotations"]
 

@@ -6,7 +6,7 @@ import json
 import os
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Optional
 
 try:
     import typer
@@ -48,9 +48,9 @@ class EntityFileFormats(str, Enum):
 
 
 # Type Aliases
-OptionalListPath = Optional[list[Path]]
 OptionalListEntityFileFormats = Optional[list[EntityFileFormats]]
 OptionalListStr = Optional[list[str]]
+OptionalListPath = Optional[list[Path]]
 OptionalStr = Optional[str]
 
 
@@ -82,51 +82,42 @@ def _get_backend() -> Collection:
 
 @APP.command(no_args_is_help=True)
 def upload(
-    filepaths: Annotated[
-        OptionalListPath,
-        typer.Option(
-            None,
-            "--file",
-            "-f",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            resolve_path=True,
-            help="Path to DLite entity file.",
-            show_default=False,
+    filepaths: OptionalListPath = typer.Option(
+        None,
+        "--file",
+        "-f",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Path to DLite entity file.",
+        show_default=False,
+    ),
+    directories: OptionalListPath = typer.Option(
+        None,
+        "--dir",
+        "-d",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+        help=(
+            "Path to directory with DLite entities. All files matching the given "
+            "format(s) in the directory will be uploaded. "
+            "Subdirectories will be ignored."
         ),
-    ] = None,
-    directories: Annotated[
-        OptionalListPath,
-        typer.Option(
-            "--dir",
-            "-d",
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            resolve_path=True,
-            help=(
-                "Path to directory with DLite entities. All files matching the given "
-                "format(s) in the directory will be uploaded. "
-                "Subdirectories will be ignored."
-            ),
-            show_default=False,
-        ),
-    ] = None,
-    file_formats: Annotated[
-        OptionalListEntityFileFormats,
-        typer.Option(
-            "--format",
-            help="Format of DLite entity file(s).",
-            show_choices=True,
-            show_default=True,
-            case_sensitive=False,
-        ),
-    ] = [  # noqa: B006
-        EntityFileFormats.JSON
-    ],
+        show_default=False,
+    ),
+    file_formats: OptionalListEntityFileFormats = typer.Option(
+        [EntityFileFormats.JSON],
+        "--format",
+        help="Format of DLite entity file(s).",
+        show_choices=True,
+        show_default=True,
+        case_sensitive=False,
+    ),
 ) -> None:
     """Upload (local) DLite entities to a remote location."""
     unique_filepaths = set(filepaths or [])
@@ -213,60 +204,50 @@ def iterate() -> None:
 
 @APP.command(no_args_is_help=True)
 def update(
-    filepaths: Annotated[
-        OptionalListPath,
-        typer.Option(
-            "--file",
-            "-f",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            resolve_path=True,
-            help="Path to DLite entity file.",
-            show_default=False,
+    filepaths: OptionalListPath = typer.Option(
+        None,
+        "--file",
+        "-f",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Path to DLite entity file.",
+        show_default=False,
+    ),
+    directories: OptionalListPath = typer.Option(
+        None,
+        "--dir",
+        "-d",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+        help=(
+            "Path to directory with DLite entities. All files matching the given "
+            "format(s) in the directory will be uploaded. "
+            "Subdirectories will be ignored."
         ),
-    ] = None,
-    directories: Annotated[
-        OptionalListPath,
-        typer.Option(
-            "--dir",
-            "-d",
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            resolve_path=True,
-            help=(
-                "Path to directory with DLite entities. All files matching the given "
-                "format(s) in the directory will be uploaded. "
-                "Subdirectories will be ignored."
-            ),
-            show_default=False,
-        ),
-    ] = None,
-    file_formats: Annotated[
-        OptionalListEntityFileFormats,
-        typer.Option(
-            "--format",
-            help="Format of DLite entity file(s).",
-            show_choices=True,
-            show_default=True,
-            case_sensitive=False,
-        ),
-    ] = [  # noqa: B006
-        EntityFileFormats.JSON
-    ],
-    insert: Annotated[
-        bool,
-        typer.Option(
-            "--insert",
-            "-i",
-            help="Insert the entity if it does not exist yet.",
-            show_default=False,
-            is_flag=True,
-        ),
-    ] = False,
+        show_default=False,
+    ),
+    file_formats: OptionalListEntityFileFormats = typer.Option(
+        [EntityFileFormats.JSON],
+        "--format",
+        help="Format of DLite entity file(s).",
+        show_choices=True,
+        show_default=True,
+        case_sensitive=False,
+    ),
+    insert: bool = typer.Option(
+        False,
+        "--insert",
+        "-i",
+        help="Insert the entity if it does not exist yet.",
+        show_default=False,
+        is_flag=True,
+    ),
 ) -> None:
     """Update an existing (remote) DLite entity."""
     unique_filepaths = set(filepaths or [])
@@ -359,13 +340,10 @@ def update(
 
 @APP.command(no_args_is_help=True)
 def delete(
-    uri: Annotated[
-        str,
-        typer.Argument(
-            help="URI of the DLite entity to delete.",
-            show_default=False,
-        ),
-    ],
+    uri: str = typer.Argument(
+        help="URI of the DLite entity to delete.",
+        show_default=False,
+    ),
 ) -> None:
     """Delete an existing (remote) DLite entity."""
     backend = _get_backend()
@@ -389,13 +367,10 @@ def delete(
 
 @APP.command(no_args_is_help=True)
 def get(
-    uri: Annotated[
-        str,
-        typer.Argument(
-            help="URI of the DLite entity to get.",
-            show_default=False,
-        ),
-    ],
+    uri: str = typer.Argument(
+        help="URI of the DLite entity to get.",
+        show_default=False,
+    ),
 ) -> None:
     """Get an existing (remote) DLite entity."""
     backend = _get_backend()
@@ -414,36 +389,30 @@ def get(
 
 @APP.command(no_args_is_help=True)
 def search(
-    uris: Annotated[
-        OptionalListStr,
-        typer.Argument(
-            metavar="[URI]...",
-            help=(
-                "URI of the DLite entity to search for. Multiple URIs can be provided. "
-                "Note, the 'http://onto-ns.com/meta' prefix is optional."
-            ),
-            show_default=False,
+    uris: OptionalListStr = typer.Argument(
+        None,
+        metavar="[URI]...",
+        help=(
+            "URI of the DLite entity to search for. Multiple URIs can be provided. "
+            "Note, the 'http://onto-ns.com/meta' prefix is optional."
         ),
-    ] = None,
-    query: Annotated[
-        OptionalStr,
-        typer.Option(
-            "--query",
-            "-q",
-            help="Backend-specific query to search for DLite entities.",
-            show_default=False,
-        ),
-    ] = None,
-    as_json: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            "-j",
-            help="Return the search results as JSON.",
-            show_default=False,
-            is_flag=True,
-        ),
-    ] = False,
+        show_default=False,
+    ),
+    query: OptionalStr = typer.Option(
+        None,
+        "--query",
+        "-q",
+        help="Backend-specific query to search for DLite entities.",
+        show_default=False,
+    ),
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        "-j",
+        help="Return the search results as JSON.",
+        show_default=False,
+        is_flag=True,
+    ),
 ) -> None:
     """Search for (remote) DLite entities."""
     backend = _get_backend()
@@ -490,50 +459,42 @@ def search(
 
 @APP.command(no_args_is_help=True)
 def validate(
-    filepaths: Annotated[
-        OptionalListPath,
-        typer.Option(
-            "--file",
-            "-f",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            resolve_path=True,
-            help="Path to DLite entity file.",
-            show_default=False,
+    filepaths: OptionalListPath = typer.Option(
+        None,
+        "--file",
+        "-f",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Path to DLite entity file.",
+        show_default=False,
+    ),
+    directories: OptionalListPath = typer.Option(
+        None,
+        "--dir",
+        "-d",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+        help=(
+            "Path to directory with DLite entities. All files matching the given "
+            "format(s) in the directory will be validated. "
+            "Subdirectories will be ignored."
         ),
-    ] = None,
-    directories: Annotated[
-        OptionalListPath,
-        typer.Option(
-            "--dir",
-            "-d",
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            resolve_path=True,
-            help=(
-                "Path to directory with DLite entities. All files matching the given "
-                "format(s) in the directory will be validated. "
-                "Subdirectories will be ignored."
-            ),
-            show_default=False,
-        ),
-    ] = None,
-    file_formats: Annotated[
-        OptionalListEntityFileFormats,
-        typer.Option(
-            "--format",
-            help="Format of DLite entity file(s).",
-            show_choices=True,
-            show_default=True,
-            case_sensitive=False,
-        ),
-    ] = [  # noqa: B006
-        EntityFileFormats.JSON
-    ],
+        show_default=False,
+    ),
+    file_formats: OptionalListEntityFileFormats = typer.Option(
+        [EntityFileFormats.JSON],
+        "--format",
+        help="Format of DLite entity file(s).",
+        show_choices=True,
+        show_default=True,
+        case_sensitive=False,
+    ),
 ) -> None:
     """Validate (local) DLite entities."""
     unique_filepaths = set(filepaths or [])
