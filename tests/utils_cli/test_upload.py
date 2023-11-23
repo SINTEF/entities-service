@@ -1,7 +1,10 @@
 """Tests for `entities-service upload` CLI command."""
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
+
+import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -9,6 +12,11 @@ if TYPE_CHECKING:
 
     from pymongo.collection import Collection
     from typer.testing import CliRunner
+
+
+pytestmark = pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="DLite does not yet support Python 3.12+."
+)
 
 
 def test_upload_no_args(cli: CliRunner) -> None:
