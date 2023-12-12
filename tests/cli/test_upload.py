@@ -109,3 +109,65 @@ def test_upload_directory(
         )
 
     assert "Successfully uploaded 3 entities:" in result.stdout
+
+
+def test_upload_empty_dir(cli: CliRunner, tmp_path: Path) -> None:
+    """Test upload with no valid files found.
+
+    The outcome here should be the same whether an empty directory is
+    provided or a directory with only invalid files.
+    """
+    from dlite_entities_service.cli import main
+
+    empty_dir = tmp_path / "empty_dir"
+    assert not empty_dir.exists()
+    empty_dir.mkdir()
+
+    yaml_dir = tmp_path / "yaml_dir"
+    assert not yaml_dir.exists()
+    yaml_dir.mkdir()
+    (yaml_dir / "Person.yaml").touch()
+
+    for directory in (empty_dir, yaml_dir):
+        result = cli.invoke(main.APP, f"upload --format json --dir {directory}")
+        assert result.exit_code == 1, result.stderr
+        assert "Error: No files found with the given options." in result.stderr.replace(
+            "│\n│ ", ""
+        ), result.stderr
+        assert not result.stdout
+
+
+def test_get_backend(
+    cli: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    static_dir: Path,
+    mock_entities_collection: Collection,
+) -> None:
+    """Test that a found '.env' file is utilized."""
+    import json
+
+    from dotenv import set_key
+
+    from dlite_entities_service.cli import main
+
+    # Create a temporary '.env' file
+    dotenv_file = tmp_path / ".env"
+    dotenv_file.touch()
+    set_key(dotenv_file, "ENTITY_SERVICE_MONGO_URI", "mongodb://localhost:27017")
+
+    monkeypatch.setattr(main, "find_dotenv", lambda: str(dotenv_file))
+
+    result = cli.invoke(
+        main.APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    )
+    assert result.exit_code == 0, result.stderr
+
+    assert mock_entities_collection.count_documents({}) == 1
+    stored_entity: dict[str, Any] = mock_entities_collection.find_one({})
+    stored_entity.pop("_id")
+    assert stored_entity == json.loads(
+        (static_dir / "valid_entities" / "Person.json").read_bytes()
+    )
+
+    assert "Successfully uploaded 1 entities:" in result.stdout, result.stdout
