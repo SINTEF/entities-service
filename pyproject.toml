@@ -53,7 +53,7 @@ dev = [
 ]
 
 [project.scripts]
-entities-service = "dlite_entities_service.utils_cli.main:APP"
+entities-service = "dlite_entities_service.cli.main:APP"
 
 [project.urls]
 Home = "https://github.com/CasperWA/dlite-entities-service"
@@ -108,9 +108,6 @@ addopts = "-rs --cov=dlite_entities_service --cov-report=term-missing:skip-cover
 filterwarnings = [
     # Treat all warnings as errors
     "error",
-
-    # Remove warning filter once tiangolo/typer#334 is resolved.
-    "ignore:.*'autocompletion' is renamed to 'shell_complete'.*:DeprecationWarning",
 
     # mongomock uses pkg_resources
     "ignore:.*pkg_resources is deprecated as an API.*:DeprecationWarning",

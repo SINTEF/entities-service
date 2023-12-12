@@ -1,5 +1,4 @@
 """Typer CLI for doing DLite entities service stuff."""
-# pylint: disable=duplicate-code
 from __future__ import annotations
 
 import json
@@ -19,18 +18,28 @@ else:
 
 try:
     import typer
-except ImportError as exc:
-    raise ImportError(
-        "Please install the DLite entities service utility CLI with "
-        f"'pip install {Path(__file__).resolve().parent.parent.parent.resolve()}[cli]'"
-    ) from exc
+except ImportError as exc:  # pragma: no cover
+    from dlite_entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
 
-import dlite
+    raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
+
+try:
+    import dlite
+except ImportError as exc:  # pragma: no cover
+    if sys.version_info >= (3, 12):
+        raise NotImplementedError(
+            "Python 3.12 and newer is not yet supported. Please use Python 3.10 or "
+            "3.11."
+        ) from exc
+
+    from dlite_entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
+
+    raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
+
 import yaml
 from dotenv import dotenv_values, find_dotenv
-from rich import print  # pylint: disable=redefined-builtin
-from rich.console import Console
 
+from dlite_entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from dlite_entities_service.cli._utils.global_settings import global_options
 from dlite_entities_service.cli.config import APP as config_APP
 from dlite_entities_service.service.backend import (
@@ -43,9 +52,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from pymongo.collection import Collection
-
-
-ERROR_CONSOLE = Console(stderr=True)
 
 
 class EntityFileFormats(StrEnum):
@@ -89,10 +95,8 @@ def _get_backend() -> Collection:
             "password": config.get("ENTITY_SERVICE_MONGO_PASSWORD"),
         }
 
-        if all(_ is None for _ in backend_options.values()):
-            return ENTITIES_COLLECTION
-
-        return get_collection(**backend_options)
+        if any(_ is not None for _ in backend_options.values()):
+            return get_collection(**backend_options)
 
     return ENTITIES_COLLECTION
 
@@ -180,7 +184,7 @@ def upload(
 
         try:
             dlite.Instance.from_dict(entity, single=True, check_storages=False)
-        except (  # pylint: disable=redefined-outer-name
+        except (
             dlite.DLiteError,
             KeyError,
         ) as exc:
@@ -192,7 +196,7 @@ def upload(
 
         try:
             _get_backend().insert_one(entity)
-        except AnyWriteError as exc:
+        except AnyWriteError as exc:  # pragma: no cover
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
                 f"Backend exception: {exc}"

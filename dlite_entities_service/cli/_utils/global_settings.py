@@ -6,13 +6,13 @@ from typing import Optional
 
 try:
     import typer
-except ImportError as exc:
+except ImportError as exc:  # pragma: no cover
     raise ImportError(
         "Please install the DLite entities service utility CLI with 'pip install "
         f"{Path(__file__).resolve().parent.parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
-from rich import print  # pylint: disable=redefined-builtin
+from rich import print
 
 from dlite_entities_service import __version__
 
