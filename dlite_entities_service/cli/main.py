@@ -25,16 +25,18 @@ except ImportError as exc:  # pragma: no cover
 
 try:
     import dlite
-except ImportError as exc:  # pragma: no cover
+except ImportError as exc:
     if sys.version_info >= (3, 12):
         raise NotImplementedError(
             "Python 3.12 and newer is not yet supported. Please use Python 3.10 or "
             "3.11."
         ) from exc
 
-    from dlite_entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
+    from dlite_entities_service.cli._utils.generics import (
+        EXC_MSG_INSTALL_PACKAGE,
+    )
 
-    raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
+    raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc  # pragma: no cover
 
 import yaml
 from dotenv import dotenv_values, find_dotenv
