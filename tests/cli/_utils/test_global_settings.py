@@ -13,6 +13,8 @@ def test_multiple_as_file_formats(cli: CliRunner) -> None:
 
     from dlite_entities_service.cli.main import APP
 
+    APP.pretty_exceptions_enable = False
+
     as_file_format_options = ["--json", "--json-one-line", "--yaml"]
 
     options = [choice(as_file_format_options)]
@@ -27,8 +29,8 @@ def test_multiple_as_file_formats(cli: CliRunner) -> None:
     assert result.exit_code != 0, result.stdout
     assert (
         "Cannot use --json, --yaml/--yml, and --json-one-line together in any "
-        "combination." in result.stderr.replace("│\n│ ", "")
-    ), result.stdout
+        "combination." in result.stderr
+    ), result.stderr
 
     for as_file_format_option in as_file_format_options:
         result = cli.invoke(APP, f"{as_file_format_option} upload")

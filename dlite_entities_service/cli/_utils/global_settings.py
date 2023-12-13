@@ -12,9 +12,8 @@ except ImportError as exc:  # pragma: no cover
         f"{Path(__file__).resolve().parent.parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
-from rich import print
-
 from dlite_entities_service import __version__
+from dlite_entities_service.cli._utils.generics import print
 
 STATUS = {"use_service_dotenv": False}
 
