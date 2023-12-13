@@ -32,7 +32,7 @@ except ImportError as exc:
             "3.11."
         ) from exc
 
-    from dlite_entities_service.cli._utils.generics import (
+    from dlite_entities_service.cli._utils.generics import (  # pragma: no cover
         EXC_MSG_INSTALL_PACKAGE,
     )
 
