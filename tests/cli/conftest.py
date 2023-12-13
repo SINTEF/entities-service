@@ -13,12 +13,14 @@ if TYPE_CHECKING:
     from typer.testing import CliRunner
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def cli() -> CliRunner:
     """Fixture for CLI runner."""
+    import os
+
     from typer.testing import CliRunner
 
-    return CliRunner(mix_stderr=False)
+    return CliRunner(mix_stderr=False, env=os.environ.copy())
 
 
 @pytest.fixture()
