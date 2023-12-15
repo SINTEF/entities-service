@@ -4,16 +4,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymongo import MongoClient
-from pymongo.errors import WriteConcernError, WriteError
 
 from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from pymongo.collection import Collection
-
-
-AnyWriteError = (WriteError, WriteConcernError)
-"""Any write error exception."""
 
 
 def get_collection(

@@ -44,11 +44,7 @@ from dotenv import dotenv_values, find_dotenv
 from dlite_entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from dlite_entities_service.cli._utils.global_settings import global_options
 from dlite_entities_service.cli.config import APP as config_APP
-from dlite_entities_service.service.backend import (
-    ENTITIES_COLLECTION,
-    AnyWriteError,
-    get_collection,
-)
+from dlite_entities_service.service.exceptions import BackendAnyWriteError
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -83,6 +79,11 @@ APP.add_typer(config_APP, callback=global_options)
 
 def _get_backend() -> Collection:
     """Return the backend."""
+    from dlite_entities_service.service.backend import (
+        ENTITIES_COLLECTION,
+        get_collection,
+    )
+
     config_file = find_dotenv()
 
     if config_file:
@@ -198,7 +199,7 @@ def upload(
 
         try:
             _get_backend().insert_one(entity)
-        except AnyWriteError as exc:  # pragma: no cover
+        except BackendAnyWriteError as exc:  # pragma: no cover
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
                 f"Backend exception: {exc}"
