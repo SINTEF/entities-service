@@ -1,18 +1,10 @@
 """Test edge cases for global settings."""
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
-
-import pytest
 
 if TYPE_CHECKING:
     from typer.testing import CliRunner
-
-
-pytestmark = pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="DLite does not yet support Python 3.12+."
-)
 
 
 def test_version(cli: CliRunner) -> None:

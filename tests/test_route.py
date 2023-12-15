@@ -1,7 +1,6 @@
 """Test the service's only route to retrieve DLite/SOFT entities."""
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -38,9 +37,6 @@ def test_get_entity(
     assert (resolved_entity := response.json()) == entity, resolved_entity
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="DLite does not yet support Python 3.12+."
-)
 @pytest.mark.parametrize(
     ("entity", "version", "name"),
     parameterize_get_entities(),

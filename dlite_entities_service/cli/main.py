@@ -23,20 +23,6 @@ except ImportError as exc:  # pragma: no cover
 
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
-try:
-    import dlite
-except ImportError as exc:
-    if sys.version_info >= (3, 12):
-        raise NotImplementedError(
-            "Python 3.12 and newer is not yet supported. Please use Python 3.10 or "
-            "3.11."
-        ) from exc
-
-    from dlite_entities_service.cli._utils.generics import (  # pragma: no cover
-        EXC_MSG_INSTALL_PACKAGE,
-    )
-
-    raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc  # pragma: no cover
 
 import yaml
 from dotenv import dotenv_values
@@ -44,6 +30,7 @@ from dotenv import dotenv_values
 from dlite_entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from dlite_entities_service.cli._utils.global_settings import CONTEXT, global_options
 from dlite_entities_service.cli.config import APP as config_APP
+from dlite_entities_service.models import soft_entity
 from dlite_entities_service.service.exceptions import BackendAnyWriteError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -185,18 +172,17 @@ def upload(
             else yaml.safe_load(filepath.read_bytes())
         )
 
-        try:
-            dlite.Instance.from_dict(entity, single=True, check_storages=False)
-        except (
-            dlite.DLiteError,
-            KeyError,
-        ) as exc:
+        # Validate entity
+        errors = soft_entity(return_errors=True, **entity)
+        if isinstance(errors, list):
+            error_list = "\n\n".join(str(error) for error in errors)
             ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: {filepath} cannot be loaded with DLite. "
-                f"DLite exception: {exc}"
+                f"[bold red]Error[/bold red]: {filepath} is not a valid SOFT entity:"
+                f"\n\n{error_list}\n"
             )
-            raise typer.Exit(1) from exc
+            raise typer.Exit(1)
 
+        # Upload entity
         try:
             _get_backend().insert_one(entity)
         except BackendAnyWriteError as exc:  # pragma: no cover

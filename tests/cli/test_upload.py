@@ -1,10 +1,7 @@
 """Tests for `entities-service upload` CLI command."""
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
-
-import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -12,11 +9,6 @@ if TYPE_CHECKING:
 
     from pymongo.collection import Collection
     from typer.testing import CliRunner
-
-
-pytestmark = pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="DLite does not yet support Python 3.12+."
-)
 
 
 def test_upload_no_args(cli: CliRunner) -> None:
@@ -61,7 +53,9 @@ def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
         APP, f"upload --file {static_dir / 'invalid_entities' / 'Person.json'}"
     )
     assert result.exit_code == 1, result.stdout
-    assert "cannot be loaded with DLite." in result.stderr
+    assert "Person.json is not a valid SOFT entity:" in result.stderr
+    assert "validation error for SOFT7Entity" in result.stderr
+    assert "validation errors for SOFT5Entity" in result.stderr
     assert not result.stdout
 
 

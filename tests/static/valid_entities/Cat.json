@@ -3,18 +3,21 @@
     "meta": "http://onto-ns.com/meta/0.3/EntitySchema",
     "description": "A cat.",
     "dimensions": [],
-    "properties": {
-        "name": {
+    "properties": [
+        {
+            "name": "name",
             "type": "string",
             "description": "Name of the cat."
         },
-        "age": {
+        {
+            "name": "age",
             "type": "int",
             "description": "Age of the cat."
         },
-        "color": {
+        {
+            "name": "color",
             "type": "string",
             "description": "Color of the cat."
         }
-    }
+    ]
 }
