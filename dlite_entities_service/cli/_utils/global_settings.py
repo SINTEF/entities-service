@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 try:
     import typer
@@ -14,11 +14,25 @@ except ImportError as exc:  # pragma: no cover
 
 from dlite_entities_service import __version__
 from dlite_entities_service.cli._utils.generics import print
+from dlite_entities_service.service.config import CONFIG
 
-STATUS = {"use_service_dotenv": False}
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import TypedDict
+
+    class ContextDict(TypedDict):
+        """Global context for the CLI."""
+
+        dotenv_path: Path
+
+
+CONTEXT: ContextDict = {
+    "dotenv_path": (Path().cwd() / str(CONFIG.model_config["env_file"])).resolve()
+}
+"""Global context for the CLI used to communicate global options."""
 
 # Type Aliases
 OptionalBool = Optional[bool]
+OptionalPath = Optional[Path]
 
 
 def print_version(value: bool) -> None:
@@ -32,60 +46,27 @@ def global_options(
     _: OptionalBool = typer.Option(
         None,
         "--version",
-        help="Show version and exit",
+        help="Show version and exit.",
         is_eager=True,
         callback=print_version,
     ),
-    use_service_dotenv: bool = typer.Option(
-        False,
-        "--use-service-dotenv/--use-cli-dotenv",
+    dotenv_path: OptionalPath = typer.Option(
+        None,
+        "--dotenv-config",
+        exists=False,
+        dir_okay=False,
+        file_okay=True,
+        readable=True,
+        writable=True,
+        resolve_path=True,
         help=(
-            "Use the .env file also used for the DLite Entities Service or one "
-            "only for the CLI."
+            "Use the .env file at the given location for the current command. "
+            "By default it will point to an .env file in the current directory."
         ),
-        is_flag=True,
-        rich_help_panel="Global options",
-    ),
-    as_json: bool = typer.Option(
-        False,
-        "--json",
-        help=(
-            "Print output as JSON. (Muting mutually exclusive with --yaml/--yml "
-            "and --json-one-line.)"
-        ),
-        is_flag=True,
-        rich_help_panel="Global options",
-    ),
-    as_json_one_line: bool = typer.Option(
-        False,
-        "--json-one-line",
-        help=(
-            "Print output as JSON without new lines. (Muting mutually exclusive "
-            "with --yaml/--yml and --json.)"
-        ),
-        is_flag=True,
-        rich_help_panel="Global options",
-    ),
-    as_yaml: bool = typer.Option(
-        False,
-        "--yaml",
-        "--yml",
-        help=(
-            "Print output as YAML. (Mutually exclusive with --json and "
-            "--json-one-line.)"
-        ),
-        is_flag=True,
+        show_default=False,
         rich_help_panel="Global options",
     ),
 ) -> None:
     """Global options for the CLI."""
-    STATUS["use_service_dotenv"] = use_service_dotenv
-
-    if sum(int(_) for _ in [as_json, as_json_one_line, as_yaml]) > 1:
-        raise typer.BadParameter(
-            "Cannot use --json, --yaml/--yml, and --json-one-line together in any "
-            "combination."
-        )
-    STATUS["as_json"] = as_json
-    STATUS["as_json_one_line"] = as_json_one_line
-    STATUS["as_yaml"] = as_yaml
+    if dotenv_path is not None:
+        CONTEXT["dotenv_path"] = dotenv_path

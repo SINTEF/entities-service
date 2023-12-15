@@ -22,12 +22,10 @@ except ImportError as exc:  # pragma: no cover
 
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
-import yaml
 from dotenv import dotenv_values, set_key, unset_key
-from rich import print_json
 
 from dlite_entities_service.cli._utils.generics import ERROR_CONSOLE, print
-from dlite_entities_service.cli._utils.global_settings import STATUS
+from dlite_entities_service.cli._utils.global_settings import CONTEXT
 from dlite_entities_service.service.config import CONFIG
 
 CLI_DOTENV_FILE: Path = (
@@ -103,13 +101,14 @@ def set_config(
         value = typer.prompt(
             f"Enter a value for {key.upper()}", hide_input=key.is_sensitive()
         )
-    if STATUS["use_service_dotenv"]:
-        dotenv_file = SERVICE_DOTENV_FILE
-    else:
-        dotenv_file = CLI_DOTENV_FILE
+
+    dotenv_file = CONTEXT["dotenv_path"]
+
     if not dotenv_file.exists():
         dotenv_file.touch()
+
     set_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}".upper(), value)
+
     print(
         (
             f"Set {CONFIG.model_config['env_prefix'].upper()}{key.upper()} to "
@@ -131,10 +130,8 @@ def unset(
     ),
 ) -> None:
     """Unset a single configuration option."""
-    if STATUS["use_service_dotenv"]:
-        dotenv_file = SERVICE_DOTENV_FILE
-    else:
-        dotenv_file = CLI_DOTENV_FILE
+    dotenv_file = CONTEXT["dotenv_path"]
+
     if dotenv_file.exists():
         unset_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}".upper())
         print(f"Unset {CONFIG.model_config['env_prefix'].upper()}{key.upper()}.")
@@ -145,17 +142,14 @@ def unset(
 @APP.command()
 def unset_all() -> None:
     """Unset all configuration options."""
+    dotenv_file = CONTEXT["dotenv_path"]
+
     typer.confirm(
         "Are you sure you want to unset (remove) all configuration options in "
-        f"{'Service' if STATUS['use_service_dotenv'] else 'CLI'}-specific "
-        f"{CONFIG.model_config['env_file']} file?",
+        f"{dotenv_file} file, deleting the file in the process?",
         abort=True,
     )
 
-    if STATUS["use_service_dotenv"]:
-        dotenv_file = SERVICE_DOTENV_FILE
-    else:
-        dotenv_file = CLI_DOTENV_FILE
     if dotenv_file.exists():
         dotenv_file.unlink()
         print(f"Unset all configuration options. (Removed {dotenv_file}.)")
@@ -174,14 +168,11 @@ def show(
     ),
 ) -> None:
     """Show the current configuration."""
-    if STATUS["use_service_dotenv"]:
-        dotenv_file = SERVICE_DOTENV_FILE
-    else:
-        dotenv_file = CLI_DOTENV_FILE
+    dotenv_file = CONTEXT["dotenv_path"]
+
     if dotenv_file.exists():
-        if not any(STATUS[_] for _ in ["as_json", "as_json_one_line", "as_yaml"]):
-            print(f"Current configuration in {dotenv_file}:\n")
-        values = {
+        print(f"Current configuration in {dotenv_file}:\n")
+        values: dict[ConfigFields, str | None] = {
             ConfigFields(key[len(CONFIG.model_config["env_prefix"]) :].lower()): value
             for key, value in dotenv_values(dotenv_file).items()
             if key
@@ -194,22 +185,20 @@ def show(
         ERROR_CONSOLE.print(f"No {dotenv_file} file found.")
         raise typer.Exit(1)
 
-    output = {}
+    output: dict[str, str | None] = {}
     for key, value in values.items():
         sensitive_value = None
+
         if not reveal_sensitive and key.is_sensitive():
             sensitive_value = "*" * 8
+
         output[f"{CONFIG.model_config['env_prefix']}{key}".upper()] = (
             sensitive_value or value
         )
 
-    if STATUS["as_json"] or STATUS["as_json_one_line"]:
-        print_json(data=output, indent=2 if STATUS["as_json"] else None)
-    elif STATUS["as_yaml"]:
-        print(yaml.safe_dump(output, sort_keys=False, allow_unicode=True))
-    else:
-        print(
-            "\n".join(
-                f"[bold]{key.upper()}[/bold]: {value}" for key, value in output.items()
-            )
+    print(
+        "\n".join(
+            f"[bold]{key.upper()}[/bold]: {value if value is not None else ''}"
+            for key, value in output.items()
         )
+    )

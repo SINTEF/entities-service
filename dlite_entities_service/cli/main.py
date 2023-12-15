@@ -39,10 +39,10 @@ except ImportError as exc:
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc  # pragma: no cover
 
 import yaml
-from dotenv import dotenv_values, find_dotenv
+from dotenv import dotenv_values
 
 from dlite_entities_service.cli._utils.generics import ERROR_CONSOLE, print
-from dlite_entities_service.cli._utils.global_settings import global_options
+from dlite_entities_service.cli._utils.global_settings import CONTEXT, global_options
 from dlite_entities_service.cli.config import APP as config_APP
 from dlite_entities_service.service.exceptions import BackendAnyWriteError
 
@@ -84,9 +84,9 @@ def _get_backend() -> Collection:
         get_collection,
     )
 
-    config_file = find_dotenv()
+    config_file = CONTEXT["dotenv_path"]
 
-    if config_file:
+    if config_file.exists():
         config = dotenv_values(config_file)
 
         # Turn all keys to uppercase
