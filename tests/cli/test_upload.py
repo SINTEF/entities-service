@@ -139,8 +139,7 @@ def test_upload_empty_dir(cli: CliRunner, tmp_path: Path) -> None:
 
 def test_get_backend(
     cli: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    dotenv_file: Path,
     static_dir: Path,
     mock_entities_collection: Collection,
 ) -> None:
@@ -149,17 +148,21 @@ def test_get_backend(
 
     from dotenv import set_key
 
-    from dlite_entities_service.cli import main
+    from dlite_entities_service.cli._utils.global_settings import CONTEXT
+    from dlite_entities_service.cli.main import APP
 
     # Create a temporary '.env' file
-    dotenv_file = tmp_path / ".env"
-    dotenv_file.touch()
+    if not dotenv_file.exists():
+        dotenv_file.touch()
+    else:
+        dotenv_file.unlink()
+        dotenv_file.touch()
     set_key(dotenv_file, "ENTITY_SERVICE_MONGO_URI", "mongodb://localhost:27017")
 
-    monkeypatch.setattr(main, "find_dotenv", lambda: str(dotenv_file))
+    CONTEXT["dotenv_path"] = dotenv_file
 
     result = cli.invoke(
-        main.APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
     )
     assert result.exit_code == 0, result.stderr
 

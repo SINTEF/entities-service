@@ -28,15 +28,15 @@ def mock_entities_collection(monkeypatch: pytest.MonkeyPatch) -> Collection:
     """Return a mock entities collection."""
     from mongomock import MongoClient
 
-    from dlite_entities_service.cli import main
+    from dlite_entities_service.service import backend
     from dlite_entities_service.service.config import CONFIG
 
     mongo_client = MongoClient(str(CONFIG.mongo_uri))
     mock_entities_collection = mongo_client["dlite"]["entities"]
 
-    monkeypatch.setattr(main, "ENTITIES_COLLECTION", mock_entities_collection)
+    monkeypatch.setattr(backend, "ENTITIES_COLLECTION", mock_entities_collection)
     monkeypatch.setattr(
-        main,
+        backend,
         "get_collection",
         lambda *args, **kwargs: mock_entities_collection,  # noqa: ARG005
     )
@@ -59,37 +59,29 @@ def config_app() -> Typer:
 
 
 @pytest.fixture()
-def patch_dotenv_config_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Fixture for monkeypatching dotenv config paths."""
-    from dlite_entities_service.cli import config
+def dotenv_file(tmp_path: Path) -> Path:
+    """Create a path to a dotenv file in a temporary test folder."""
     from dlite_entities_service.service.config import CONFIG
 
     env_file = CONFIG.model_config["env_file"]
 
-    monkeypatch.setattr(config, "CLI_DOTENV_FILE", tmp_path / f"{env_file}_cli")
-    monkeypatch.setattr(config, "SERVICE_DOTENV_FILE", tmp_path / f"{env_file}_service")
+    assert isinstance(env_file, str)
 
-    return tmp_path
+    return tmp_path / env_file
 
 
 @pytest.fixture()
-def _prefill_dotenv_config(patch_dotenv_config_paths: Path) -> None:
+def _prefill_dotenv_config(dotenv_file: Path) -> None:
     """'Pre'-fill the monkeypatched dotenv config paths."""
     from dotenv import set_key
 
     from dlite_entities_service.cli.config import ConfigFields
     from dlite_entities_service.service.config import CONFIG
 
-    env_file = CONFIG.model_config["env_file"]
     env_prefix = CONFIG.model_config["env_prefix"]
 
-    for dotenv_file in ("service", "cli"):
-        if not (patch_dotenv_config_paths / f"{env_file}_{dotenv_file}").exists():
-            (patch_dotenv_config_paths / f"{env_file}_{dotenv_file}").touch()
+    if not dotenv_file.exists():
+        dotenv_file.touch()
 
-        for field in ConfigFields:
-            set_key(
-                patch_dotenv_config_paths / f"{env_file}_{dotenv_file}",
-                f"{env_prefix}{field}".upper(),
-                f"{field}_{dotenv_file}_test",
-            )
+    for field in ConfigFields:
+        set_key(dotenv_file, f"{env_prefix}{field}".upper(), f"{field}_test")

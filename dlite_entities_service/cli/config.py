@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Generator
-from pathlib import Path
 from typing import Optional
 
 if sys.version_info >= (3, 11):
@@ -27,13 +26,6 @@ from dotenv import dotenv_values, set_key, unset_key
 from dlite_entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from dlite_entities_service.cli._utils.global_settings import CONTEXT
 from dlite_entities_service.service.config import CONFIG
-
-CLI_DOTENV_FILE: Path = (
-    Path(__file__).resolve().parent / CONFIG.model_config["env_file"]
-)
-SERVICE_DOTENV_FILE: Path = (
-    Path(__file__).resolve().parent.parent.parent / CONFIG.model_config["env_file"]
-)
 
 APP = typer.Typer(
     name=__file__.rsplit("/", 1)[-1].replace(".py", ""),
