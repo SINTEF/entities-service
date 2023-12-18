@@ -42,7 +42,7 @@ def test_upload_filepath(
         (static_dir / "valid_entities" / "Person.json").read_bytes()
     )
 
-    assert "Successfully uploaded 1 entities:" in result.stdout
+    assert "Successfully uploaded 1 entity:" in result.stdout
 
 
 def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
@@ -191,4 +191,4 @@ def test_get_backend(
         (static_dir / "valid_entities" / "Person.json").read_bytes()
     )
 
-    assert "Successfully uploaded 1 entities:" in result.stdout, result.stdout
+    assert "Successfully uploaded 1 entity:" in result.stdout, result.stdout

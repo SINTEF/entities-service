@@ -167,8 +167,10 @@ def upload(
         )
         raise typer.Exit(1)
 
-    successes = []
-    informed_file_formats = set()
+    successes: list[tuple[Path, dict[str, Any]]] = []
+    skipped: list[Path] = []
+
+    informed_file_formats: set[str] = set()
     for filepath in unique_filepaths:
         if (file_format := filepath.suffix[1:].lower()) not in file_formats:
             print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
@@ -176,6 +178,7 @@ def upload(
             # The rest of the code in this block is to ensure we only print extra info
             # or warning messages the first time a new file format is encountered.
             if file_format in informed_file_formats:
+                skipped.append(filepath)
                 continue
 
             if file_format in EntityFileFormats.__members__.values():
@@ -190,6 +193,7 @@ def upload(
                 )
 
             informed_file_formats.add(file_format)
+            skipped.append(filepath)
             continue
 
         entity: dict[str, Any] = (
@@ -231,6 +235,7 @@ def upload(
                     "[bold blue]Info[/bold blue]: Entity already exists in the "
                     f"database. Skipping file: {filepath}"
                 )
+                skipped.append(filepath)
                 continue
 
             print(
@@ -251,6 +256,7 @@ def upload(
 
             if not update_version:
                 print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+                skipped.append(filepath)
                 continue
 
             # Passing incoming entity-as-model here, since the URIs (and thereby the
@@ -268,6 +274,7 @@ def upload(
                 )
             except typer.Abort:
                 print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+                skipped.append(filepath)
                 continue
 
             if entity_model_or_errors.version is not None:
@@ -311,22 +318,30 @@ def upload(
                     for key, value in property_value.items()
                 }
 
-        # Upload entity
+        successes.append((filepath, dumped_entity))
+
+    # Upload entities
+    if successes:
         try:
-            backend.insert_one(dumped_entity)
+            backend.insert_many([entity for _, entity in successes])
         except BackendError as exc:  # pragma: no cover
             ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
+                "[bold red]Error[/bold red]: Could not upload "
+                f"entit{'y' if len(successes) == 1 else 'ies'}. "
                 f"Backend exception: {exc}"
             )
             raise typer.Exit(1) from exc
 
-        successes.append(filepath)
-
-    if successes:
         print(
-            f"Successfully uploaded {len(successes)} entities: "
-            f"{[str(_) for _ in successes]}"
+            f"Successfully uploaded {len(successes)} "
+            f"entit{'y' if len(successes) == 1 else 'ies'}:\n"
+            + "\n".join([str(entity_filepath) for entity_filepath, _ in successes])
         )
     else:
         print("No entities were uploaded.")
+
+    if skipped:
+        print(
+            f"Skipped {len(skipped)} entit{'y' if len(skipped) == 1 else 'ies'}:\n"
+            + "\n".join([str(entity_filepath) for entity_filepath in skipped])
+        )
