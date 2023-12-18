@@ -85,4 +85,4 @@
       shape:
       - ndogs
       type: ref
-      $ref: http://onto-ns.com/meta/0.1/Dog
+      $ref: http://onto-ns.com/meta/0.2/Dog
