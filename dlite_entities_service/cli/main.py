@@ -1,4 +1,4 @@
-"""Typer CLI for doing DLite entities service stuff."""
+"""Typer CLI for doing SOFT entities service stuff."""
 from __future__ import annotations
 
 import json
@@ -26,12 +26,23 @@ except ImportError as exc:  # pragma: no cover
 
 import yaml
 from dotenv import dotenv_values
+from pydantic import AnyHttpUrl
 
-from dlite_entities_service.cli._utils.generics import ERROR_CONSOLE, print
+from dlite_entities_service.cli._utils.generics import (
+    ERROR_CONSOLE,
+    pretty_compare_dicts,
+    print,
+)
 from dlite_entities_service.cli._utils.global_settings import CONTEXT, global_options
 from dlite_entities_service.cli.config import APP as config_APP
-from dlite_entities_service.models import soft_entity
-from dlite_entities_service.service.exceptions import BackendAnyWriteError
+from dlite_entities_service.models import (
+    URI_REGEX,
+    get_updated_version,
+    get_uri,
+    get_version,
+    soft_entity,
+)
+from dlite_entities_service.service.exceptions import BackendError
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -56,7 +67,7 @@ OptionalStr = Optional[str]
 
 APP = typer.Typer(
     name="entities-service",
-    help="DLite entities service utility CLI",
+    help="SOFT entities service utility CLI",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
     callback=global_options,
@@ -102,7 +113,7 @@ def upload(
         dir_okay=False,
         readable=True,
         resolve_path=True,
-        help="Path to DLite entity file.",
+        help="Path to entity file.",
         show_default=False,
     ),
     directories: OptionalListPath = typer.Option(
@@ -115,22 +126,22 @@ def upload(
         readable=True,
         resolve_path=True,
         help=(
-            "Path to directory with DLite entities. All files matching the given "
+            "Path to directory with entities. All files matching the given "
             "format(s) in the directory will be uploaded. "
-            "Subdirectories will be ignored."
+            "Subdirectories will be ignored. Can be provided multiple times."
         ),
         show_default=False,
     ),
     file_formats: OptionalListEntityFileFormats = typer.Option(
         [EntityFileFormats.JSON.value],
         "--format",
-        help="Format of DLite entity file(s).",
+        help="Format of entity file(s).",
         show_choices=True,
         show_default=True,
         case_sensitive=False,
     ),
 ) -> None:
-    """Upload (local) DLite entities to a remote location."""
+    """Upload (local) entities to a remote location."""
     unique_filepaths = set(filepaths or [])
     directories = list(set(directories or []))
     file_formats = list(set(file_formats or []))
@@ -157,35 +168,134 @@ def upload(
         raise typer.Exit(1)
 
     successes = []
+    informed_file_formats = set()
     for filepath in unique_filepaths:
-        if filepath.suffix[1:].lower() not in file_formats:
-            ERROR_CONSOLE.print(
-                "[bold yellow]Warning[/bold yellow]: File format "
-                f"{filepath.suffix[1:].lower()!r} is not supported. Skipping file: "
-                f"{filepath}"
-            )
+        if (file_format := filepath.suffix[1:].lower()) not in file_formats:
+            print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+
+            # The rest of the code in this block is to ensure we only print extra info
+            # or warning messages the first time a new file format is encountered.
+            if file_format in informed_file_formats:
+                continue
+
+            if file_format in EntityFileFormats.__members__.values():
+                print(
+                    f"[bold blue]Info[/bold blue]: File format {file_format!r} can be "
+                    f"uploaded by adding the option: --format={file_format}"
+                )
+            else:
+                ERROR_CONSOLE.print(
+                    f"[bold yellow]Warning[/bold yellow]: File format {file_format!r} "
+                    "is not supported."
+                )
+
+            informed_file_formats.add(file_format)
             continue
 
         entity: dict[str, Any] = (
             json.loads(filepath.read_bytes())
-            if filepath.suffix[1:].lower() == "json"
+            if file_format == "json"
             else yaml.safe_load(filepath.read_bytes())
         )
 
         # Validate entity
-        errors = soft_entity(return_errors=True, **entity)
-        if isinstance(errors, list):
-            error_list = "\n\n".join(str(error) for error in errors)
+        entity_model_or_errors = soft_entity(return_errors=True, **entity)
+        if isinstance(entity_model_or_errors, list):
+            error_list = "\n\n".join(str(error) for error in entity_model_or_errors)
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {filepath} is not a valid SOFT entity:"
                 f"\n\n{error_list}\n"
             )
             raise typer.Exit(1)
 
+        backend = _get_backend()
+
+        # Check if entity already exists
+        if TYPE_CHECKING:  # pragma: no cover
+            existing_entity: dict[str, Any]
+
+        if (
+            existing_entity := backend.find_one(
+                {"uri": get_uri(entity_model_or_errors)}
+            )
+        ) is not None:
+            # Compare existing model with new model
+
+            # Prepare entities: Remove _id from existing entity and dump new entity
+            # from model
+            existing_entity.pop("_id", None)
+            dumped_entity = entity_model_or_errors.model_dump()
+
+            if existing_entity == dumped_entity:
+                print(
+                    "[bold blue]Info[/bold blue]: Entity already exists in the "
+                    f"database. Skipping file: {filepath}"
+                )
+                continue
+
+            print(
+                "[bold blue]Info[/bold blue]: Entity already exists in the "
+                "database, but they differ in their content.\nDifference between "
+                f"existing entity (first) and incoming entity (second) {filepath}:\n\n"
+                + pretty_compare_dicts(existing_entity, dumped_entity)
+            )
+
+            try:
+                update_version = typer.confirm(
+                    "You cannot overwrite existing entities. Do you wish to upload the "
+                    "new entity with an updated version?",
+                    default=True,
+                )
+            except typer.Abort:
+                update_version = False
+
+            if not update_version:
+                print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+                continue
+
+            # Passing incoming entity-as-model here, since the URIs (and thereby the
+            # versions) have already been determined to be the same, and the function
+            # only accepts models.
+            try:
+                new_version: str = typer.prompt(
+                    "The existing entity's version is "
+                    f"{get_version(entity_model_or_errors)!r}. Please enter the new "
+                    "version:",
+                    default=get_updated_version(entity_model_or_errors),
+                    abort=False,
+                    type=str,
+                    confirmation_prompt=True,
+                )
+            except typer.Abort:
+                print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+                continue
+
+            if entity_model_or_errors.version is not None:
+                entity_model_or_errors.version = new_version
+                entity_model_or_errors.uri = AnyHttpUrl(
+                    f"{entity_model_or_errors.namespace}/{new_version}"
+                    f"/{entity_model_or_errors.name}"
+                )
+            else:
+                if (match := URI_REGEX.match(str(entity_model_or_errors.uri))) is None:
+                    ERROR_CONSOLE.print(
+                        f"[bold red]Error[/bold red]: Cannot parse URI to get version: "
+                        f"{entity_model_or_errors.uri}"
+                    )
+                    raise typer.Exit(1)
+
+                entity_model_or_errors.uri = AnyHttpUrl(
+                    f"{match.group('namespace')}/{new_version}/{match.group('name')}"
+                )
+
         # Upload entity
         try:
-            _get_backend().insert_one(entity)
-        except BackendAnyWriteError as exc:  # pragma: no cover
+            backend.insert_one(
+                entity_model_or_errors.model_dump(
+                    by_alias=True, mode="json", exclude_unset=True
+                )
+            )
+        except BackendError as exc:  # pragma: no cover
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
                 f"Backend exception: {exc}"

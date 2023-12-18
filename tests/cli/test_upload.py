@@ -53,9 +53,9 @@ def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
         APP, f"upload --file {static_dir / 'invalid_entities' / 'Person.json'}"
     )
     assert result.exit_code == 1, result.stdout
-    assert "Person.json is not a valid SOFT entity:" in result.stderr
-    assert "validation error for SOFT7Entity" in result.stderr
-    assert "validation errors for SOFT5Entity" in result.stderr
+    assert "Person.json is not a valid SOFT entity:" in result.stderr.replace("\n", "")
+    assert "validation error for SOFT7Entity" in result.stderr.replace("\n", "")
+    assert "validation errors for SOFT5Entity" in result.stderr.replace("\n", "")
     assert not result.stdout
 
 
@@ -89,20 +89,44 @@ def test_upload_directory(
 
     from dlite_entities_service.cli import main
 
-    result = cli.invoke(main.APP, f"upload --dir {static_dir / 'valid_entities'}")
+    directory = static_dir / "valid_entities"
+
+    result = cli.invoke(main.APP, f"upload --dir {directory}")
     assert result.exit_code == 0, result.stderr
 
-    assert mock_entities_collection.count_documents({}) == 3
+    original_entities = list(directory.glob("*.json"))
+
+    assert mock_entities_collection.count_documents({}) == len(original_entities)
+
     stored_entities = list(mock_entities_collection.find({}))
     for stored_entity in stored_entities:
+        # Remove MongoDB ID
         stored_entity.pop("_id")
-    for sample_file in ("Person.json", "Dog.json", "Cat.json"):
-        assert (
-            json.loads((static_dir / "valid_entities" / sample_file).read_bytes())
-            in stored_entities
-        )
 
-    assert "Successfully uploaded 3 entities:" in result.stdout
+    for sample_file in original_entities:
+        # If the sample file contains a '$ref' key, it will be stored in the DB as 'ref'
+        # instead. This is due to the fact that MongoDB does not allow keys to start
+        # with a '$' character.
+        parsed_sample_file: dict[str, Any] = json.loads(sample_file.read_bytes())
+        if isinstance(parsed_sample_file["properties"], list):
+            for index, property_value in enumerate(
+                list(parsed_sample_file["properties"])
+            ):
+                if "$ref" in property_value:
+                    property_value["ref"] = property_value.pop("$ref")
+                    parsed_sample_file["properties"][index] = property_value
+        else:
+            # Expect "properties" to be a dict
+            for property_name, property_value in list(
+                parsed_sample_file["properties"].items()
+            ):
+                if "$ref" in property_value:
+                    property_value["ref"] = property_value.pop("$ref")
+                    parsed_sample_file["properties"][property_name] = property_value
+
+        assert parsed_sample_file in stored_entities
+
+    assert f"Successfully uploaded {len(original_entities)} entities:" in result.stdout
 
 
 def test_upload_empty_dir(cli: CliRunner, tmp_path: Path) -> None:

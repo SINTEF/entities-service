@@ -1,10 +1,12 @@
 """Various generic constants and functions used by the CLI."""
 from __future__ import annotations
 
+import difflib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 try:
+    import rich.pretty
     from rich import get_console
     from rich import print as rich_print
 except ImportError as exc:  # pragma: no cover
@@ -44,3 +46,14 @@ def print(
             del kwargs[key]
 
     rich_print(*objects, **kwargs)
+
+
+def pretty_compare_dicts(
+    dict_first: dict[Any, Any], dict_second: dict[Any, Any]
+) -> str:
+    return "\n".join(
+        difflib.ndiff(
+            rich.pretty.pretty_repr(dict_first).splitlines(),
+            rich.pretty.pretty_repr(dict_second).splitlines(),
+        ),
+    )

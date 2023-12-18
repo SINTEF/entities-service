@@ -1,7 +1,7 @@
 """Service-specific exceptions."""
 from __future__ import annotations
 
-from pymongo.errors import WriteConcernError, WriteError
+from pymongo.errors import InvalidDocument, PyMongoError
 
-BackendAnyWriteError = (WriteError, WriteConcernError)
-"""Any write error exception from the backend."""
+BackendError = (PyMongoError, InvalidDocument)
+"""Any backend error exception."""

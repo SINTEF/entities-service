@@ -38,6 +38,7 @@ class SOFT5Property(BaseModel):
         AnyHttpUrl | None,
         Field(
             alias="$ref",
+            serialization_alias="ref",
             description=(
                 "Formally a part of type. `$ref` is used together with the `ref` type, "
                 "which is a special datatype for referring to other instances."
