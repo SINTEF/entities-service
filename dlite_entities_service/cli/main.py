@@ -140,6 +140,12 @@ def upload(
         show_default=True,
         case_sensitive=False,
     ),
+    fail_fast: bool = typer.Option(
+        False,
+        "--fail-fast",
+        help="Stop uploading entities on the first error during file validation.",
+        show_default=True,
+    ),
 ) -> None:
     """Upload (local) entities to a remote location."""
     unique_filepaths = set(filepaths or [])
@@ -169,6 +175,7 @@ def upload(
 
     successes: list[tuple[Path, dict[str, Any]]] = []
     skipped: list[Path] = []
+    failed: list[Path] = []
 
     informed_file_formats: set[str] = set()
     for filepath in unique_filepaths:
@@ -210,7 +217,10 @@ def upload(
                 f"[bold red]Error[/bold red]: {filepath} is not a valid SOFT entity:"
                 f"\n\n{error_list}\n"
             )
-            raise typer.Exit(1)
+            if fail_fast:
+                raise typer.Exit(1)
+            failed.append(filepath)
+            continue
 
         backend = _get_backend()
 
@@ -289,7 +299,10 @@ def upload(
                         f"[bold red]Error[/bold red]: Cannot parse URI to get version: "
                         f"{entity_model_or_errors.uri}"
                     )
-                    raise typer.Exit(1)
+                    if fail_fast:
+                        raise typer.Exit(1)
+                    failed.append(filepath)
+                    continue
 
                 entity_model_or_errors.uri = AnyHttpUrl(
                     f"{match.group('namespace')}/{new_version}/{match.group('name')}"
@@ -320,6 +333,16 @@ def upload(
 
         successes.append((filepath, dumped_entity))
 
+    # Exit if errors occurred
+    if failed:
+        ERROR_CONSOLE.print(
+            f"[bold red]Failed to upload {len(failed)} "
+            f"entit{'y' if len(failed) == 1 else 'ies'}, see above for more "
+            "details:[/bold red]\n"
+            + "\n".join([str(entity_filepath) for entity_filepath in failed])
+        )
+        raise typer.Exit(1)
+
     # Upload entities
     if successes:
         try:
@@ -333,15 +356,16 @@ def upload(
             raise typer.Exit(1) from exc
 
         print(
-            f"Successfully uploaded {len(successes)} "
-            f"entit{'y' if len(successes) == 1 else 'ies'}:\n"
+            f"[bold green]Successfully uploaded {len(successes)} "
+            f"entit{'y' if len(successes) == 1 else 'ies'}:[/bold green]\n"
             + "\n".join([str(entity_filepath) for entity_filepath, _ in successes])
         )
     else:
-        print("No entities were uploaded.")
+        print("[bold blue]No entities were uploaded.[/bold blue]")
 
     if skipped:
         print(
-            f"Skipped {len(skipped)} entit{'y' if len(skipped) == 1 else 'ies'}:\n"
+            f"\n[bold yellow]Skipped {len(skipped)} "
+            f"entit{'y' if len(skipped) == 1 else 'ies'}:[/bold yellow]\n"
             + "\n".join([str(entity_filepath) for entity_filepath in skipped])
         )
