@@ -288,13 +288,32 @@ def upload(
                     f"{match.group('namespace')}/{new_version}/{match.group('name')}"
                 )
 
+        # Prepare entity for upload
+        # Specifically, rename '$ref' keys to 'ref'
+        dumped_entity = entity_model_or_errors.model_dump(
+            by_alias=True, mode="json", exclude_unset=True
+        )
+
+        # SOFT5
+        if isinstance(dumped_entity["properties"], list):
+            dumped_entity["properties"] = [
+                {key.replace("$ref", "ref"): value for key, value in prop.items()}
+                for prop in dumped_entity["properties"]
+            ]
+
+        # SOFT7
+        else:
+            for property_name, property_value in list(
+                dumped_entity["properties"].items()
+            ):
+                dumped_entity["properties"][property_name] = {
+                    key.replace("$ref", "ref"): value
+                    for key, value in property_value.items()
+                }
+
         # Upload entity
         try:
-            backend.insert_one(
-                entity_model_or_errors.model_dump(
-                    by_alias=True, mode="json", exclude_unset=True
-                )
-            )
+            backend.insert_one(dumped_entity)
         except BackendError as exc:  # pragma: no cover
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {filepath} cannot be uploaded. "
