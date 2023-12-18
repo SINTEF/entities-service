@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -238,7 +239,9 @@ def upload(
             # Prepare entities: Remove _id from existing entity and dump new entity
             # from model
             existing_entity.pop("_id", None)
-            dumped_entity = entity_model_or_errors.model_dump()
+            dumped_entity = entity_model_or_errors.model_dump(
+                by_alias=True, mode="json", exclude_unset=True
+            )
 
             if existing_entity == dumped_entity:
                 print(
@@ -276,33 +279,51 @@ def upload(
                 new_version: str = typer.prompt(
                     "The existing entity's version is "
                     f"{get_version(entity_model_or_errors)!r}. Please enter the new "
-                    "version:",
+                    "version",
                     default=get_updated_version(entity_model_or_errors),
-                    abort=False,
                     type=str,
-                    confirmation_prompt=True,
                 )
             except typer.Abort:
                 print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
                 skipped.append(filepath)
                 continue
 
+            # Validate new version
+            error_message = ""
+            if new_version == get_version(entity_model_or_errors):
+                error_message = (
+                    "[bold red]Error[/bold red]: Could not update entity. "
+                    f"New version ({new_version}) is the same as the existing version "
+                    f"({get_version(entity_model_or_errors)})."
+                )
+            elif re.match(r"^\d+(?:\.\d+){0,2}$", new_version) is None:
+                error_message = (
+                    "[bold red]Error[/bold red]: Could not update entity. "
+                    f"New version ({new_version}) is not a valid SOFT version."
+                )
+
+            if error_message:
+                ERROR_CONSOLE.print(error_message)
+                if fail_fast:
+                    raise typer.Exit(1)
+                failed.append(filepath)
+                continue
+
+            # Update version and URI
             if entity_model_or_errors.version is not None:
                 entity_model_or_errors.version = new_version
                 entity_model_or_errors.uri = AnyHttpUrl(
                     f"{entity_model_or_errors.namespace}/{new_version}"
                     f"/{entity_model_or_errors.name}"
                 )
-            else:
-                if (match := URI_REGEX.match(str(entity_model_or_errors.uri))) is None:
-                    ERROR_CONSOLE.print(
-                        f"[bold red]Error[/bold red]: Cannot parse URI to get version: "
-                        f"{entity_model_or_errors.uri}"
-                    )
-                    if fail_fast:
-                        raise typer.Exit(1)
-                    failed.append(filepath)
-                    continue
+
+            if entity_model_or_errors.uri is not None:
+                match = URI_REGEX.match(str(entity_model_or_errors.uri))
+
+                # match will always be a match object, since the URI has already been
+                # validated by the model
+                if TYPE_CHECKING:  # pragma: no cover
+                    assert match is not None  # nosec
 
                 entity_model_or_errors.uri = AnyHttpUrl(
                     f"{match.group('namespace')}/{new_version}/{match.group('name')}"

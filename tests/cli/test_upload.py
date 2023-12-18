@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
@@ -45,18 +47,33 @@ def test_upload_filepath(
     assert "Successfully uploaded 1 entity:" in result.stdout
 
 
-def test_upload_filepath_invalid(cli: CliRunner, static_dir: Path) -> None:
+@pytest.mark.parametrize("fail_fast", [True, False])
+def test_upload_filepath_invalid(
+    cli: CliRunner, static_dir: Path, fail_fast: bool
+) -> None:
     """Test upload with an invalid filepath."""
     from dlite_entities_service.cli.main import APP
 
     result = cli.invoke(
-        APP, f"upload --file {static_dir / 'invalid_entities' / 'Person.json'}"
+        APP,
+        f"upload {'--fail-fast ' if fail_fast else ''}"
+        f"--file {static_dir / 'invalid_entities' / 'Person.json'}",
     )
     assert result.exit_code == 1, result.stdout
     assert "Person.json is not a valid SOFT entity:" in result.stderr.replace("\n", "")
     assert "validation error for SOFT7Entity" in result.stderr.replace("\n", "")
     assert "validation errors for SOFT5Entity" in result.stderr.replace("\n", "")
     assert not result.stdout
+    if fail_fast:
+        assert (
+            "Failed to upload 1 entity, see above for more details:"
+            not in result.stderr.replace("\n", "")
+        )
+    else:
+        assert (
+            "Failed to upload 1 entity, see above for more details:"
+            in result.stderr.replace("\n", "")
+        )
 
 
 def test_upload_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
@@ -67,7 +84,7 @@ def test_upload_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
 
     result = cli.invoke(APP, f"upload --file {tmp_path / 'Person.txt'}")
     assert result.exit_code == 0, result.stderr
-    assert "File format 'txt' is not supported." in result.stderr
+    assert result.stderr.count("File format 'txt' is not supported.") == 1
     assert "No entities were uploaded." in result.stdout
 
 
@@ -155,6 +172,87 @@ def test_upload_empty_dir(cli: CliRunner, tmp_path: Path) -> None:
         assert not result.stdout
 
 
+def test_upload_files_with_unchosen_format(cli: CliRunner, static_dir: Path) -> None:
+    """Test upload several files with a format not chosen."""
+    from dlite_entities_service.cli.main import APP
+
+    directory = static_dir / "valid_entities"
+    file_inputs = " ".join(
+        f"--file={filepath}" for filepath in directory.glob("*.json")
+    )
+
+    result = cli.invoke(APP, f"upload --format yaml {file_inputs}")
+    assert result.exit_code == 0, result.stderr
+    assert "No entities were uploaded." in result.stdout
+    assert all(
+        f"Skipping file: {filepath}" in result.stdout.replace("\n", "")
+        for filepath in directory.glob("*.json")
+    )
+    assert (
+        result.stdout.replace("\n", "").count(
+            "File format 'json' can be uploaded by adding the option: --format=json"
+        )
+        == 1
+    )
+    assert not result.stderr
+
+
+@pytest.mark.parametrize("fail_fast", [True, False])
+def test_upload_directory_invalid_entities(
+    cli: CliRunner, static_dir: Path, fail_fast: bool
+) -> None:
+    """Test uploading a directory full of invalid entities."""
+    import re
+
+    from dlite_entities_service.cli.main import APP
+
+    directory = static_dir / "invalid_entities"
+
+    result = cli.invoke(
+        APP, f"upload {'--fail-fast ' if fail_fast else ''}--dir {directory}"
+    )
+    assert result.exit_code == 1, result.stderr
+    assert (
+        re.search(
+            r"validation errors? for SOFT7Entity", result.stderr.replace("\n", "")
+        )
+        is not None
+    )
+    assert (
+        re.search(
+            r"validation errors? for SOFT5Entity", result.stderr.replace("\n", "")
+        )
+        is not None
+    )
+    assert not result.stdout
+
+    if fail_fast:
+        errored_entity = set()
+        for invalid_entity in directory.glob("*.json"):
+            if (
+                f"{invalid_entity.name} is not a valid SOFT entity:"
+                in result.stderr.replace("\n", "")
+            ):
+                errored_entity.add(invalid_entity.name)
+        assert len(errored_entity) == 1
+
+        assert (
+            f"Failed to upload {len(list(directory.glob('*.json')))} entities, see "
+            "above for more details:" not in result.stderr.replace("\n", "")
+        )
+    else:
+        assert all(
+            f"{invalid_entity.name} is not a valid SOFT entity:"
+            in result.stderr.replace("\n", "")
+            for invalid_entity in directory.glob("*.json")
+        )
+
+        assert (
+            f"Failed to upload {len(list(directory.glob('*.json')))} entities, see "
+            "above for more details:" in result.stderr.replace("\n", "")
+        )
+
+
 def test_get_backend(
     cli: CliRunner,
     dotenv_file: Path,
@@ -192,3 +290,160 @@ def test_get_backend(
     )
 
     assert "Successfully uploaded 1 entity:" in result.stdout, result.stdout
+
+
+def test_existing_entity(
+    cli: CliRunner, static_dir: Path, mock_entities_collection: Collection
+) -> None:
+    """Test that an existing entity is not overwritten."""
+    from dlite_entities_service.cli.main import APP
+
+    result = cli.invoke(
+        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    )
+    assert result.exit_code == 0, result.stderr
+
+    result = cli.invoke(
+        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "Entity already exists in the database." in result.stdout.replace(
+        "\n", ""
+    ), result.stderr
+    assert "No entities were uploaded." in result.stdout.replace(
+        "\n", ""
+    ), result.stderr
+    assert not result.stderr
+
+    assert mock_entities_collection.count_documents({}) == 1
+
+
+def test_existing_entity_different_content(
+    cli: CliRunner,
+    static_dir: Path,
+    mock_entities_collection: Collection,
+    tmp_path: Path,
+) -> None:
+    """Test that an incoming entity can be uploaded with a new version due to an
+    existance collision."""
+    import json
+    from copy import deepcopy
+
+    from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
+
+    raw_entity = (static_dir / "valid_entities" / "Person.json").read_text()
+    parsed_entity: dict[str, Any] = json.loads(raw_entity)
+
+    result = cli.invoke(
+        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    )
+    assert (
+        result.exit_code == 0
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+
+    assert mock_entities_collection.count_documents({}) == 1
+    db_entity = mock_entities_collection.find_one({})
+    for key in db_entity:
+        if key == "_id":
+            continue
+        assert key in parsed_entity
+        assert db_entity[key] == parsed_entity[key]
+
+    # Create a new file with a change in the content
+    new_entity = deepcopy(parsed_entity)
+    new_entity["dimensions"]["n_skills"] = "Skill number."
+    assert new_entity != parsed_entity
+    new_entity_file = tmp_path / "Person.json"
+    new_entity_file.write_text(json.dumps(new_entity))
+
+    # First, let's check we skip the file if not wanting to update the version
+    result = cli.invoke(
+        APP,
+        f"upload --file {tmp_path / 'Person.json'}",
+        input="n\n",
+    )
+    assert (
+        result.exit_code == 0
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert (
+        "Entity already exists in the database, but they differ in their content."
+        in result.stdout.replace("\n", "")
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "Skipping file:" in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "No entities were uploaded." in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert not result.stderr
+
+    # Now, let's check we update the version if wanting to.
+    # Use default generated version. An existing version of '0.1' should generate
+    # '0.1.1'.
+    result = cli.invoke(
+        APP,
+        f"upload --file {tmp_path / 'Person.json'}",
+        input="y\n\n",
+    )
+    assert (
+        result.exit_code == 0
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert (
+        "Entity already exists in the database, but they differ in their content."
+        in result.stdout.replace("\n", "")
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "Skipping file:" not in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "Successfully uploaded 1 entity:" in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert not result.stderr
+
+    assert mock_entities_collection.count_documents({}) == 2
+    assert (
+        mock_entities_collection.find_one({"uri": f"{CONFIG.base_url}/0.1.1/Person"})
+        is not None
+    )
+
+    db_entities = list(mock_entities_collection.find({}))
+    assert len(db_entities) == 2
+    assert db_entity in db_entities
+    new_db_entity = next(_ for _ in db_entities if _ != db_entity)
+    for key in new_db_entity:
+        if key == "_id":
+            continue
+        if key == "uri":
+            assert new_db_entity[key] == f"{CONFIG.base_url}/0.1.1/Person"
+            continue
+        assert key in new_entity
+        assert new_db_entity[key] == new_entity[key]
+
+    # Now, let's check we update the version if wanting to.
+    # Use custom version.
+    result = cli.invoke(
+        APP,
+        f"upload --file {tmp_path / 'Person.json'}",
+        input="y\n0.2\n",
+    )
+    assert (
+        result.exit_code == 0
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert (
+        "Entity already exists in the database, but they differ in their content."
+        in result.stdout.replace("\n", "")
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "Skipping file:" not in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "Successfully uploaded 1 entity:" in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert not result.stderr
+
+    assert mock_entities_collection.count_documents({}) == 3
+    assert (
+        mock_entities_collection.find_one({"uri": f"{CONFIG.base_url}/0.2/Person"})
+        is not None
+    )

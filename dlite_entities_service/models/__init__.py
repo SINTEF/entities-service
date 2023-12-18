@@ -1,20 +1,14 @@
 """SOFT models."""
 from __future__ import annotations
 
-import re
 from typing import get_args
 
 from pydantic import ValidationError
 
-from .soft5 import SOFT5Entity
+from .soft5 import URI_REGEX, SOFT5Entity
 from .soft7 import SOFT7Entity
 
 VersionedSOFTEntity = SOFT7Entity | SOFT5Entity
-
-URI_REGEX = re.compile(
-    r"^(?P<namespace>https?://[^/]+)/(?P<version>[^/]+)/(?P<name>[^/#?]+)$"
-)
-"""Regular expression to parse a SOFT entity URI."""
 
 
 def soft_entity(
@@ -35,7 +29,7 @@ def soft_entity(
 
         raise ValueError(
             "Cannot instantiate entity. Errors:\n"
-            + "\n".join(str(error) for error in errors)
+            + "\n\n".join(str(error) for error in errors)
         )
     return new_object  # type: ignore[return-value]
 
