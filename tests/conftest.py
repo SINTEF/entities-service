@@ -58,13 +58,28 @@ def mongo_test_collection(static_dir: Path, live_backend: bool) -> Collection | 
     """Add MongoDB test data, returning the MongoDB collection."""
     import yaml
 
+    # Convert all '$ref' to 'ref' in the entities.yaml file
+    entities = yaml.safe_load((static_dir / "entities.yaml").read_text())
+    for entity in entities:
+        # SOFT5
+        if isinstance(entity["properties"], list):
+            for index, property_value in enumerate(list(entity["properties"])):
+                entity["properties"][index] = {
+                    key.replace("$", ""): value for key, value in property_value.items()
+                }
+
+        # SOFT7
+        else:
+            for property_name, property_value in list(entity["properties"].items()):
+                entity["properties"][property_name] = {
+                    key.replace("$", ""): value for key, value in property_value.items()
+                }
+
     if live_backend:
         from dlite_entities_service.service.backend import ENTITIES_COLLECTION
 
         # TODO: Handle authentication properly
-        ENTITIES_COLLECTION.insert_many(
-            yaml.safe_load((static_dir / "entities.yaml").read_text())
-        )
+        ENTITIES_COLLECTION.insert_many(entities)
 
         return None
 
@@ -87,9 +102,7 @@ def mongo_test_collection(static_dir: Path, live_backend: bool) -> Collection | 
         str(CONFIG.mongo_uri), **client_kwargs
     ).dlite.entities
 
-    MOCK_ENTITIES_COLLECTION.insert_many(
-        yaml.safe_load((static_dir / "entities.yaml").read_text())
-    )
+    MOCK_ENTITIES_COLLECTION.insert_many(entities)
 
     return MOCK_ENTITIES_COLLECTION
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 from pydantic.networks import AnyHttpUrl
 
 from dlite_entities_service.service.config import CONFIG
@@ -31,7 +31,8 @@ class SOFT7Property(BaseModel):
     ref: Annotated[
         AnyHttpUrl | None,
         Field(
-            alias="$ref",
+            validation_alias=AliasChoices("$ref", "ref"),
+            serialization_alias="$ref",
             description=(
                 "Formally a part of type. `$ref` is used together with the `ref` type, "
                 "which is a special datatype for referring to other instances."
