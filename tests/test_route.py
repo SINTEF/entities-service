@@ -1,6 +1,7 @@
 """Test the service's only route to retrieve DLite/SOFT entities."""
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -37,6 +38,10 @@ def test_get_entity(
     assert (resolved_entity := response.json()) == entity, resolved_entity
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12),
+    reason="DLite-Python does not support Python3.12 and above.",
+)
 @pytest.mark.parametrize(
     ("entity", "version", "name"),
     parameterize_get_entities(),
@@ -48,7 +53,7 @@ def test_get_entity_instance(
     name: str,
     client: TestClient,
 ) -> None:
-    """Validate that we can instantiate an Instance from the response"""
+    """Validate that we can instantiate a DLite Instance from the response"""
     from dlite import Instance
 
     with client as client:
