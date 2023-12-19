@@ -116,7 +116,7 @@ class SOFT7Entity(BaseModel):
         if not str(value).startswith(str(CONFIG.base_url)):
             error_message = (
                 "This service only works with DLite/SOFT entities at "
-                f"{CONFIG.base_url}."
+                f"{CONFIG.base_url}.\n"
             )
             raise ValueError(error_message)
         return value
@@ -128,7 +128,7 @@ class SOFT7Entity(BaseModel):
         if URI_REGEX.match(str(value)) is None:
             error_message = (
                 "The 'uri' is not a valid SOFT7 entity URI. It must be of the form "
-                f"{str(CONFIG.base_url).rstrip('/')}/{{version}}/{{name}}."
+                f"{str(CONFIG.base_url).rstrip('/')}/{{version}}/{{name}}.\n"
             )
             raise ValueError(error_message)
         return value
@@ -140,7 +140,7 @@ class SOFT7Entity(BaseModel):
         if str(value) != "http://onto-ns.com/meta/0.3/EntitySchema":
             error_message = (
                 "This service only works with DLite/SOFT entities using EntitySchema "
-                "v0.3 at onto-ns.com as the metadata entity."
+                "v0.3 at onto-ns.com as the metadata entity.\n"
             )
             raise ValueError(error_message)
         return value
@@ -156,7 +156,7 @@ class SOFT7Entity(BaseModel):
         ):
             error_message = (
                 "Either all of `name`, `version`, and `namespace` must be set "
-                "or all must be unset."
+                "or all must be unset.\n"
             )
             raise ValueError(error_message)
 
@@ -166,7 +166,7 @@ class SOFT7Entity(BaseModel):
             and data.get("uri") is None
         ):
             error_message = (
-                "Either `name`, `version`, and `namespace` or `uri` must be set."
+                "Either `name`, `version`, and `namespace` or `uri` must be set.\n"
             )
             raise ValueError(error_message)
 
@@ -177,15 +177,15 @@ class SOFT7Entity(BaseModel):
             and data["uri"] != f"{data['namespace']}/{data['version']}/{data['name']}"
         ):
             # Ensure that `uri` is consistent with `name`, `version`, and `namespace`.
-            diff = "\n".join(
+            diff = "\n  ".join(
                 difflib.ndiff(
-                    data["uri"],
-                    f"{data['namespace']}/{data['version']}/{data['name']}",
+                    [data["uri"]],
+                    [f"{data['namespace']}/{data['version']}/{data['name']}"],
                 )
             )
             error_message = (
                 "The `uri` is not consistent with `name`, `version`, and "
-                f"`namespace`:\n\n{diff}"
+                f"`namespace`:\n\n  {diff}\n\n"
             )
             raise ValueError(error_message)
         return data

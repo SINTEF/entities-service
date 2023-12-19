@@ -256,6 +256,7 @@ def upload(
                 "database, but they differ in their content.\nDifference between "
                 f"existing entity (first) and incoming entity (second) {filepath}:\n\n"
                 + pretty_compare_dicts(existing_entity, dumped_entity)
+                + "\n"
             )
 
             try:
@@ -264,7 +265,9 @@ def upload(
                     "new entity with an updated version?",
                     default=True,
                 )
-            except typer.Abort:
+            except typer.Abort:  # pragma: no cover
+                # Can only happen if the user presses Ctrl-C, which can not be tested
+                # currently
                 update_version = False
 
             if not update_version:
@@ -283,7 +286,9 @@ def upload(
                     default=get_updated_version(entity_model_or_errors),
                     type=str,
                 )
-            except typer.Abort:
+            except typer.Abort:  # pragma: no cover
+                # Can only happen if the user presses Ctrl-C, which can not be tested
+                # currently
                 print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
                 skipped.append(filepath)
                 continue

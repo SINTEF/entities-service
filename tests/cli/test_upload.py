@@ -353,6 +353,9 @@ def test_existing_entity_different_content(
     # Create a new file with a change in the content
     new_entity = deepcopy(parsed_entity)
     new_entity["dimensions"]["n_skills"] = "Skill number."
+    new_entity["namespace"] = str(CONFIG.base_url)
+    new_entity["version"] = "0.1"
+    new_entity["name"] = "Person"
     assert new_entity != parsed_entity
     new_entity_file = tmp_path / "Person.json"
     new_entity_file.write_text(json.dumps(new_entity))
@@ -417,6 +420,9 @@ def test_existing_entity_different_content(
         if key == "uri":
             assert new_db_entity[key] == f"{CONFIG.base_url}/0.1.1/Person"
             continue
+        if key == "version":
+            assert new_db_entity[key] == "0.1.1"
+            continue
         assert key in new_entity
         assert new_db_entity[key] == new_entity[key]
 
@@ -447,3 +453,106 @@ def test_existing_entity_different_content(
         mock_entities_collection.find_one({"uri": f"{CONFIG.base_url}/0.2/Person"})
         is not None
     )
+
+
+@pytest.mark.parametrize("fail_fast", [True, False])
+def test_existing_entity_errors(
+    cli: CliRunner,
+    static_dir: Path,
+    mock_entities_collection: Collection,
+    tmp_path: Path,
+    fail_fast: bool,
+) -> None:
+    """Test that an incoming entity with existing URI is correctly aborted in certain
+    cases."""
+    import json
+    from copy import deepcopy
+
+    from dlite_entities_service.cli.main import APP
+
+    raw_entity = (static_dir / "valid_entities" / "Person.json").read_text()
+    parsed_entity: dict[str, Any] = json.loads(raw_entity)
+
+    result = cli.invoke(
+        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    )
+    assert (
+        result.exit_code == 0
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+
+    assert mock_entities_collection.count_documents({}) == 1
+    db_entity = mock_entities_collection.find_one({})
+    for key in db_entity:
+        if key == "_id":
+            continue
+        assert key in parsed_entity
+        assert db_entity[key] == parsed_entity[key]
+
+    # Create a new file with a change in the content
+    new_entity = deepcopy(parsed_entity)
+    new_entity["dimensions"]["n_skills"] = "Skill number."
+    assert new_entity != parsed_entity
+    new_entity_file = tmp_path / "Person.json"
+    new_entity_file.write_text(json.dumps(new_entity))
+
+    # Let's check an error occurs if the version change is to the existing version.
+    # The existing version is '0.1'.
+    result = cli.invoke(
+        APP,
+        f"upload {'--fail-fast ' if fail_fast else ''}"
+        f"--file {tmp_path / 'Person.json'}",
+        input="y\n0.1\n",
+    )
+    assert (
+        result.exit_code == 1
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert (
+        "Entity already exists in the database, but they differ in their content."
+        in result.stdout.replace("\n", "")
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "Skipping file:" not in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert (
+        "New version (0.1) is the same as the existing version (0.1)."
+        in result.stderr.replace("\n", "")
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+
+    if fail_fast:
+        assert "Failed to upload 1 entity" not in result.stderr.replace(
+            "\n", ""
+        ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    else:
+        assert "Failed to upload 1 entity" in result.stderr.replace(
+            "\n", ""
+        ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+
+    # Let's check an error occurs if the version is not of the type MAJOR.MINOR.PATCH.
+    result = cli.invoke(
+        APP,
+        f"upload {'--fail-fast ' if fail_fast else ''}"
+        f"--file {tmp_path / 'Person.json'}",
+        input="y\nv0.1\n",
+    )
+    assert (
+        result.exit_code == 1
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert (
+        "Entity already exists in the database, but they differ in their content."
+        in result.stdout.replace("\n", "")
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "Skipping file:" not in result.stdout.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    assert "New version (v0.1) is not a valid SOFT version." in result.stderr.replace(
+        "\n", ""
+    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+
+    if fail_fast:
+        assert "Failed to upload 1 entity" not in result.stderr.replace(
+            "\n", ""
+        ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    else:
+        assert "Failed to upload 1 entity" in result.stderr.replace(
+            "\n", ""
+        ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
