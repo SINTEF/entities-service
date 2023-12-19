@@ -12,13 +12,13 @@ VersionedSOFTEntity = SOFT7Entity | SOFT5Entity
 
 
 def soft_entity(
-    *args, return_errors: bool = False, **kwargs
+    *, return_errors: bool = False, **fields
 ) -> VersionedSOFTEntity | list[ValidationError]:
     """Return the correct version of the SOFT Entity."""
     errors = []
     for versioned_entity_cls in get_args(VersionedSOFTEntity):
         try:
-            new_object = versioned_entity_cls(*args, **kwargs)
+            new_object = versioned_entity_cls(**fields)
             break
         except ValidationError as exc:
             errors.append(exc)
@@ -57,11 +57,20 @@ def get_updated_version(entity: VersionedSOFTEntity) -> str:
     """Return the updated version of the entity."""
     current_version = get_version(entity)
 
+    error_message = (
+        "Cannot parse version to get updated version. Expecting version to be "
+        "a simple MAJOR, MAJOR.MINOR, or MAJOR.MINOR.PATCH styling."
+    )
+
     # Do simple logic, expecting version to be either:
     #  - MAJOR
     #  - MAJOR.MINOR
     #  - MAJOR.MINOR.PATCH
     split_version = current_version.split(".")
+
+    # Check we are dealing with integers in split_version
+    if not all(version_part.isnumeric() for version_part in split_version):
+        raise ValueError(error_message)
 
     major_length = 1
     minor_length = 2
@@ -80,7 +89,4 @@ def get_updated_version(entity: VersionedSOFTEntity) -> str:
     if len(split_version) == patch_length:
         return f"{split_version[0]}.{split_version[1]}.{int(split_version[2]) + 1}"
 
-    raise ValueError(
-        "Cannot parse version to get updated version. Expecting version to be a "
-        "simple MAJOR, MAJOR.MINOR, or MAJOR.MINOR.PATCH styling."
-    )
+    raise ValueError(error_message)
