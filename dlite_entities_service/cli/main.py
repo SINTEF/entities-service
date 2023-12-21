@@ -25,8 +25,8 @@ except ImportError as exc:  # pragma: no cover
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
 
+import httpx
 import yaml
-from dotenv import dotenv_values
 from pydantic import AnyHttpUrl
 
 from dlite_entities_service.cli._utils.generics import (
@@ -34,7 +34,7 @@ from dlite_entities_service.cli._utils.generics import (
     pretty_compare_dicts,
     print,
 )
-from dlite_entities_service.cli._utils.global_settings import CONTEXT, global_options
+from dlite_entities_service.cli._utils.global_settings import global_options
 from dlite_entities_service.cli.config import APP as config_APP
 from dlite_entities_service.models import (
     URI_REGEX,
@@ -43,12 +43,10 @@ from dlite_entities_service.models import (
     get_version,
     soft_entity,
 )
-from dlite_entities_service.service.exceptions import BackendError
+from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
-
-    from pymongo.collection import Collection
 
 
 class EntityFileFormats(StrEnum):
@@ -74,33 +72,6 @@ APP = typer.Typer(
     callback=global_options,
 )
 APP.add_typer(config_APP, callback=global_options)
-
-
-def _get_backend() -> Collection:
-    """Return the backend."""
-    from dlite_entities_service.service.backend import (
-        ENTITIES_COLLECTION,
-        get_collection,
-    )
-
-    config_file = CONTEXT["dotenv_path"]
-
-    if config_file.exists():
-        config = dotenv_values(config_file)
-
-        # Turn all keys to uppercase
-        config = {key.upper(): value for key, value in config.items()}
-
-        backend_options = {
-            "uri": config.get("ENTITY_SERVICE_MONGO_URI"),
-            "username": config.get("ENTITY_SERVICE_MONGO_USER"),
-            "password": config.get("ENTITY_SERVICE_MONGO_PASSWORD"),
-        }
-
-        if any(_ is not None for _ in backend_options.values()):
-            return get_collection(**backend_options)
-
-    return ENTITIES_COLLECTION
 
 
 @APP.command(no_args_is_help=True)
@@ -225,22 +196,32 @@ def upload(
             failed.append(filepath)
             continue
 
-        backend = _get_backend()
-
         # Check if entity already exists
-        if TYPE_CHECKING:  # pragma: no cover
-            existing_entity: dict[str, Any]
+        with httpx.Client(follow_redirects=True) as client:
+            try:
+                response = client.get(get_uri(entity_model_or_errors))
+            except httpx.HTTPError as exc:
+                ERROR_CONSOLE.print(
+                    "[bold red]Error[/bold red]: Could not check if entity already "
+                    f"exists. HTTP exception: {exc}"
+                )
+                raise typer.Exit(1) from exc
 
-        if (
-            existing_entity := backend.find_one(
-                {"uri": get_uri(entity_model_or_errors)}
-            )
-        ) is not None:
+        existing_entity: dict[str, Any] | None = None
+        if response.is_success:
+            try:
+                existing_entity = response.json()
+            except json.JSONDecodeError as exc:
+                ERROR_CONSOLE.print(
+                    "[bold red]Error[/bold red]: Could not check if entity already "
+                    f"exists. JSON decode error: {exc}"
+                )
+                raise typer.Exit(1) from exc
+
+        if existing_entity is not None:
             # Compare existing model with new model
 
-            # Prepare entities: Remove _id from existing entity and dump new entity
-            # from model
-            existing_entity.pop("_id", None)
+            # Prepare entities: Dump new entity from model
             dumped_entity = entity_model_or_errors.model_dump(
                 by_alias=True, mode="json", exclude_unset=True
             )
@@ -373,15 +354,37 @@ def upload(
 
     # Upload entities
     if successes:
-        try:
-            backend.insert_many([entity for _, entity in successes])
-        except BackendError as exc:  # pragma: no cover
+        with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+            try:
+                response = client.post(
+                    "/_admin/create_many", json=[entity for _, entity in successes]
+                )
+            except httpx.HTTPError as exc:
+                ERROR_CONSOLE.print(
+                    "[bold red]Error[/bold red]: Could not upload "
+                    f"entit{'y' if len(successes) == 1 else 'ies'}. "
+                    f"HTTP exception: {exc}"
+                )
+                raise typer.Exit(1) from exc
+
+        if not response.is_success:
+            try:
+                error_message = response.json()
+            except json.JSONDecodeError as exc:
+                ERROR_CONSOLE.print(
+                    "[bold red]Error[/bold red]: Could not upload "
+                    f"entit{'y' if len(successes) == 1 else 'ies'}. "
+                    f"JSON decode error: {exc}"
+                )
+                raise typer.Exit(1) from exc
+
             ERROR_CONSOLE.print(
                 "[bold red]Error[/bold red]: Could not upload "
                 f"entit{'y' if len(successes) == 1 else 'ies'}. "
-                f"Backend exception: {exc}"
+                f"HTTP status code: {response.status_code}. "
+                f"Error message: {error_message}"
             )
-            raise typer.Exit(1) from exc
+            raise typer.Exit(1)
 
         print(
             f"[bold green]Successfully uploaded {len(successes)} "

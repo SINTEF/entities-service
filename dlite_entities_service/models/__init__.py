@@ -9,6 +9,7 @@ from .soft5 import URI_REGEX, SOFT5Entity
 from .soft7 import SOFT7Entity
 
 VersionedSOFTEntity = SOFT7Entity | SOFT5Entity
+SOFTModelTypes = (SOFT7Entity, SOFT5Entity)
 
 
 def soft_entity(
