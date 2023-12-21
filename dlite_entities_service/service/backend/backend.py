@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel
+
 from dlite_entities_service.models import SOFTModelTypes, VersionedSOFTEntity, get_uri
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -14,40 +16,47 @@ if TYPE_CHECKING:  # pragma: no cover
     from pydantic import AnyHttpUrl
 
 
+# Exceptions
+class BackendError(Exception):
+    """Any backend error exception."""
+
+
+class BackendWriteAccessError(BackendError):
+    """Exception raised when write access is denied."""
+
+
+# Data models
+class BackendSettings(BaseModel):
+    """Settings for the backend."""
+
+
+# Backend class
 class Backend(ABC):
     """Interface/ABC for a backend."""
 
-    def __init__(self, settings: dict[str, Any] | None = None) -> None:
-        self._settings = settings or {}
+    _settings_model: type[BackendSettings] = BackendSettings
+    _settings: BackendSettings
 
+    def __init__(
+        self, settings: BackendSettings | dict[str, Any] | None = None
+    ) -> None:
+        if isinstance(settings, dict):
+            settings = self._settings_model(**settings)
+
+        self._settings = settings or self._settings_model()
+
+    # Exceptions
     @property
-    def settings(self) -> dict[str, Any]:
-        """Get the settings."""
-        return self._settings
-
-    @settings.setter
-    def settings(self, settings: dict[str, Any]) -> None:
-        """Set the settings."""
-        self._settings = settings
-
-    @settings.deleter
-    def settings(self) -> None:
-        """Delete the settings."""
-        self._settings = {}
+    @abstractmethod
+    def write_access_exception(self) -> type[BackendWriteAccessError]:
+        """Get the exception type raised when write access is denied."""
+        raise NotImplementedError
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(settings={self.settings!r})"
+        return f"<{self}>"
 
     def __str__(self) -> str:
-        representation = self.__class__.__name__
-
-        if self.settings:
-            representation += ": "
-            representation += ", ".join(
-                f"{key}={value}" for key, value in self.settings.items()
-            )
-
-        return representation
+        return self.__class__.__name__
 
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:

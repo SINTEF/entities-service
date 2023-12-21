@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretBytes, SecretStr, field_validator
 from pydantic.networks import AnyHttpUrl, MultiHostUrl, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -36,6 +36,13 @@ class ServiceSettings(BaseSettings):
         ),
     ] = Backends.MONGODB
 
+    private_ssl_key: Annotated[
+        SecretBytes | None,
+        Field(
+            description="The loaded private SSL key.",
+        ),
+    ] = None
+
     # MongoDB settings
     mongo_uri: Annotated[
         MongoDsn,
@@ -51,6 +58,61 @@ class ServiceSettings(BaseSettings):
     mongo_password: Annotated[
         SecretStr | None, Field(description="Password for connecting to the MongoDB.")
     ] = None
+
+    mongo_db: Annotated[
+        str,
+        Field(
+            description=(
+                "Name of the MongoDB database for storing entities in the Entities "
+                "Service."
+            ),
+        ),
+    ] = "entities_service"
+
+    mongo_collection: Annotated[
+        str,
+        Field(
+            description="Name of the MongoDB collection for storing entities.",
+        ),
+    ] = "entities"
+
+    # Special admin DB settings for the Entities Service
+    # We will use the same MongoDB cluster/server for the admin DB
+    # as for the entities DB, but we will use a different database.
+    admin_user: Annotated[
+        SecretStr,
+        Field(
+            description=(
+                "Admin username for connecting to the Entities Service's admin DB."
+            ),
+        ),
+    ]
+
+    admin_password: Annotated[
+        SecretStr,
+        Field(
+            description=(
+                "Admin password for connecting to the Entities Service's admin DB."
+            ),
+        ),
+    ]
+
+    admin_db: Annotated[
+        str,
+        Field(
+            description=(
+                "Name of the MongoDB database for storing admin collections used in "
+                "the Entities Service."
+            ),
+        ),
+    ] = "entities_service_admin"
+
+    users_collection: Annotated[
+        str,
+        Field(
+            description="Name of the MongoDB collection for storing users.",
+        ),
+    ] = "users"
 
     @field_validator("base_url", mode="before")
     @classmethod

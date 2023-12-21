@@ -9,10 +9,11 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import FastAPI, HTTPException, Path, status
 
 from dlite_entities_service import __version__
-from dlite_entities_service.models import VersionedSOFTEntity, get_uri
+from dlite_entities_service.models import VersionedSOFTEntity
 from dlite_entities_service.service.backend import get_backend
 from dlite_entities_service.service.config import CONFIG
 from dlite_entities_service.service.logger import setup_logger
+from dlite_entities_service.service.routers import get_routers
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -44,8 +45,11 @@ APP = FastAPI(
     lifespan=lifespan,
 )
 
+# Add routers
+for router in get_routers():
+    APP.include_router(router)
 
-# Setup routes
+
 SEMVER_REGEX = (
     r"^(?P<major>0|[1-9]\d*)(?:\.(?P<minor>0|[1-9]\d*))?(?:\.(?P<patch>0|[1-9]\d*))?"
     r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
@@ -98,43 +102,3 @@ async def get_entity(
             detail=f"Could not find entity: uri={uri}",
         )
     return entity
-
-
-@APP.post(
-    "/_admin/create",
-    response_model=VersionedSOFTEntity,
-    response_model_by_alias=True,
-    response_model_exclude_unset=True,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_entity(entity: VersionedSOFTEntity) -> dict[str, Any]:
-    """Create a SOFT entity."""
-    created_entity = get_backend(CONFIG.backend).create([entity])
-    if created_entity is None or isinstance(created_entity, list):
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Could not create entity: uri={get_uri(entity)}",
-        )
-    return created_entity
-
-
-@APP.post(
-    "/_admin/create_many",
-    response_model=list[VersionedSOFTEntity],
-    response_model_by_alias=True,
-    response_model_exclude_unset=True,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_entities(entities: list[VersionedSOFTEntity]) -> list[dict[str, Any]]:
-    """Create a SOFT entity."""
-    created_entities = get_backend(CONFIG.backend).create(entities)
-    if created_entities is None:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Could not create entities.",
-        )
-
-    if not isinstance(created_entities, list):
-        created_entities = [created_entities]
-
-    return created_entities
