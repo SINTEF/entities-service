@@ -29,6 +29,7 @@ class Backends(StrEnum):
     """Backends."""
 
     MONGODB = "mongodb"
+    ADMIN = "admin"
 
     def get_class(self) -> type[Backend]:
         """Get the backend class."""
@@ -36,6 +37,11 @@ class Backends(StrEnum):
             from dlite_entities_service.service.backend.mongodb import MongoDBBackend
 
             return MongoDBBackend
+
+        if self == self.ADMIN:
+            from dlite_entities_service.service.backend.admin import AdminBackend
+
+            return AdminBackend
 
         raise NotImplementedError(f"Backend {self} not implemented")
 

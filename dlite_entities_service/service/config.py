@@ -1,7 +1,7 @@
 """Service app configuration."""
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, SecretBytes, SecretStr, field_validator
 from pydantic.networks import AnyHttpUrl, MultiHostUrl, UrlConstraints
@@ -37,10 +37,7 @@ class ServiceSettings(BaseSettings):
     ] = Backends.MONGODB
 
     private_ssl_key: Annotated[
-        SecretBytes | None,
-        Field(
-            description="The loaded private SSL key.",
-        ),
+        SecretStr | SecretBytes | None, Field(description="The loaded private SSL key.")
     ] = None
 
     # MongoDB settings
@@ -52,12 +49,13 @@ class ServiceSettings(BaseSettings):
     ] = MongoDsn("mongodb://localhost:27017")
 
     mongo_user: Annotated[
-        str | None, Field(description="Username for connecting to the MongoDB.")
-    ] = None
+        str, Field(description="Username for connecting to the MongoDB.")
+    ] = "guest"
 
     mongo_password: Annotated[
-        SecretStr | None, Field(description="Password for connecting to the MongoDB.")
-    ] = None
+        SecretStr | SecretBytes,
+        Field(description="Password for connecting to the MongoDB."),
+    ] = SecretStr("guest")
 
     mongo_db: Annotated[
         str,
@@ -79,23 +77,30 @@ class ServiceSettings(BaseSettings):
     # Special admin DB settings for the Entities Service
     # We will use the same MongoDB cluster/server for the admin DB
     # as for the entities DB, but we will use a different database.
+    admin_backend: Annotated[
+        Literal[Backends.ADMIN],
+        Field(
+            description="Backend to use for storing admin data.",
+        ),
+    ] = Backends.ADMIN
+
     admin_user: Annotated[
-        SecretStr,
+        SecretStr | SecretBytes | None,
         Field(
             description=(
                 "Admin username for connecting to the Entities Service's admin DB."
             ),
         ),
-    ]
+    ] = None
 
     admin_password: Annotated[
-        SecretStr,
+        SecretStr | SecretBytes | None,
         Field(
             description=(
                 "Admin password for connecting to the Entities Service's admin DB."
             ),
         ),
-    ]
+    ] = None
 
     admin_db: Annotated[
         str,

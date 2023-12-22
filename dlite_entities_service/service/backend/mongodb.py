@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretBytes, SecretStr
 from pymongo import MongoClient
 from pymongo.errors import (
     BulkWriteError,
@@ -66,12 +66,12 @@ class MongoDBSettings(BackendSettings):
         MongoDsn, Field(description="The MongoDB URI.")
     ] = CONFIG.mongo_uri
 
-    mongo_username: Annotated[str, Field(description="The MongoDB username.")] = (
-        CONFIG.mongo_user or "guest"
-    )
+    mongo_username: Annotated[
+        str, Field(description="The MongoDB username.")
+    ] = CONFIG.mongo_user
 
     mongo_password: Annotated[
-        SecretStr,
+        SecretStr | SecretBytes,
         Field(
             None,
             description=(
@@ -79,7 +79,7 @@ class MongoDBSettings(BackendSettings):
                 "from the environment variable MONGO_PASSWORD."
             ),
         ),
-    ] = CONFIG.mongo_password or SecretStr("guest")
+    ] = CONFIG.mongo_password
 
     mongo_db: Annotated[str, Field(description="The MongoDB database.")] = (
         CONFIG.mongo_db or "entities_service"
@@ -152,10 +152,14 @@ class MongoDBBackend(Backend):
     ) -> None:
         super().__init__(settings)
 
+        password = self._settings.mongo_password.get_secret_value()
+        if isinstance(password, bytes):
+            password = password.decode()
+
         self._collection = get_collection(
             uri=str(self._settings.mongo_uri),
             username=self._settings.mongo_username,
-            password=self._settings.mongo_password.get_secret_value(),
+            password=password,
             database=self._settings.mongo_db,
             collection=self._settings.mongo_collection,
         )

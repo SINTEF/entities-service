@@ -27,14 +27,14 @@ except ImportError as exc:  # pragma: no cover
 
 import httpx
 import yaml
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, ValidationError
 
 from dlite_entities_service.cli._utils.generics import (
     ERROR_CONSOLE,
     pretty_compare_dicts,
     print,
 )
-from dlite_entities_service.cli._utils.global_settings import global_options
+from dlite_entities_service.cli._utils.global_settings import CONTEXT, global_options
 from dlite_entities_service.cli.config import APP as config_APP
 from dlite_entities_service.models import (
     URI_REGEX,
@@ -43,6 +43,7 @@ from dlite_entities_service.models import (
     get_version,
     soft_entity,
 )
+from dlite_entities_service.models.auth import Token
 from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -143,6 +144,13 @@ def upload(
     if not unique_filepaths:
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: No files found with the given options."
+        )
+        raise typer.Exit(1)
+
+    if not CONTEXT["token"]:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: Missing authorization token. Please login "
+            "first by running 'entities-service login'."
         )
         raise typer.Exit(1)
 
@@ -354,7 +362,14 @@ def upload(
 
     # Upload entities
     if successes:
-        with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+        with httpx.Client(
+            base_url=str(CONFIG.base_url),
+            headers={
+                "Authorization": (
+                    f"{CONTEXT['token'].token_type} {CONTEXT['token'].access_token}"
+                ),
+            },
+        ) as client:
             try:
                 response = client.post(
                     "/_admin/create_many", json=[entity for _, entity in successes]
@@ -400,3 +415,86 @@ def upload(
             f"entit{'y' if len(skipped) == 1 else 'ies'}:[/bold yellow]\n"
             + "\n".join([str(entity_filepath) for entity_filepath in skipped])
         )
+
+
+@APP.command(no_args_is_help=True)
+def login(
+    username: OptionalStr = typer.Option(
+        None,
+        "--username",
+        "-u",
+        envvar="ENTITY_SERVICE_ADMIN_USER",
+        help="Username for user with write acces in the entities service.",
+        show_default=False,
+    ),
+    password: OptionalStr = typer.Option(
+        None,
+        "--password",
+        "-p",
+        envvar="ENTITY_SERVICE_ADMIN_PASSWORD",
+        help="Password for user with write access in the entities service.",
+        show_default=False,
+    ),
+) -> None:
+    """Login to the entities service."""
+    if username is None:
+        try:
+            username = typer.prompt("Username", type=str)
+        except typer.Abort as exc:
+            print("[bold blue]Info[/bold blue]: Login aborted.")
+            raise typer.Exit(1) from exc
+
+    if password is None:
+        try:
+            password = typer.prompt("Password", hide_input=True, type=str)
+        except typer.Abort as exc:
+            print("[bold blue]Info[/bold blue]: Login aborted.")
+            raise typer.Exit(1) from exc
+
+    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+        try:
+            response = client.post(
+                "/_admin/token",
+                data={
+                    "grant_type": "password",
+                    "username": username,
+                    "password": password,
+                },
+            )
+        except httpx.HTTPError as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not login. HTTP exception: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+    if not response.is_success:
+        try:
+            error_message = response.json()
+        except json.JSONDecodeError as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not login. JSON decode error: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not login. HTTP status code: "
+            f"{response.status_code}. Error message: {error_message}"
+        )
+        raise typer.Exit(1)
+
+    try:
+        token = Token(**response.json())
+    except json.JSONDecodeError as exc:
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not login. JSON decode error: {exc}"
+        )
+        raise typer.Exit(1) from exc
+    except ValidationError as exc:
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not login. Validation error: {exc}"
+        )
+        raise typer.Exit(1) from exc
+
+    CONTEXT["token"] = token
+
+    print("[bold green]Successfully logged in.[/bold green]")

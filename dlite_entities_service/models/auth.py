@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AliasChoices,
     AnyHttpUrl,
     BaseModel,
-    EmailStr,
     Field,
     SecretStr,
     ValidationInfo,
@@ -19,9 +18,16 @@ from pydantic import (
 class Token(BaseModel):
     """OAuth2 token."""
 
-    access_token: str
-    token_type: str
-    expires_in: int
+    access_token: Annotated[
+        str,
+        Field(
+            description="The access token string as issued by the authorization server."
+        ),
+    ]
+    token_type: Annotated[
+        Literal["Bearer"],
+        Field(description="The type of the token, typically just the string “Bearer”."),
+    ] = "Bearer"
 
 
 class TokenData(BaseModel):
@@ -93,9 +99,7 @@ class User(BaseModel):
     """User model."""
 
     username: str
-    email: EmailStr | None = None
     full_name: str | None = None
-    disabled: bool = True
 
 
 class UserInBackend(User):
