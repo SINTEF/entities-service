@@ -1,20 +1,35 @@
 """Admin backend for the Entities Service."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, TypedDict
 
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import (
+    BaseModel,
+    Field,
+    SecretBytes,
+    SecretStr,
+    TypeAdapter,
+    ValidationError,
+)
+from pymongo.errors import InvalidDocument, PyMongoError
 
-from dlite_entities_service.service.backend.backend import Backend, BackendSettings
+from dlite_entities_service.models.auth import NewUser
+from dlite_entities_service.service.backend.backend import (
+    Backend,
+    BackendError,
+    BackendSettings,
+    MalformedResource,
+)
 from dlite_entities_service.service.backend.mongodb import (
     MongoDBBackendWriteAccessError,
     get_client,
 )
 from dlite_entities_service.service.config import CONFIG, MongoDsn
+from dlite_entities_service.service.security import get_password_hash
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
-    from typing import Any
+    from typing import Any, cast
 
     from pydantic import AnyHttpUrl
     from pymongo.collection import Collection
@@ -22,6 +37,27 @@ if TYPE_CHECKING:  # pragma: no cover
     from dlite_entities_service.models import VersionedSOFTEntity
 
 
+class BackendUserDict(TypedDict):
+    """A new user."""
+
+    username: str
+    full_name: str | None
+    hashed_password: str | bytes
+
+
+# Exceptions
+class AdminBackendError(BackendError, PyMongoError, InvalidDocument):
+    """Any MongoDB backend error exception."""
+
+
+class AdminBackendWriteAccessError(
+    AdminBackendError,
+    MongoDBBackendWriteAccessError,
+):
+    """Exception raised when write access is denied."""
+
+
+# Data models
 class AdminBackendMongoCollections(BaseModel):
     """Names of the MongoDB collections for storing admin data."""
 
@@ -97,23 +133,74 @@ class AdminBackend(Backend):
 
     # Exceptions
     @property
-    def write_access_exception(self) -> type[MongoDBBackendWriteAccessError]:
-        return MongoDBBackendWriteAccessError
+    def write_access_exception(self) -> type[AdminBackendWriteAccessError]:
+        return AdminBackendWriteAccessError
 
     @property
     def _users_collection(self) -> Collection:
         """Get the MongoDB collection for users."""
         return self._db[self._settings.mongo_collections.users]
 
-    def get_user(self, username: str) -> dict[str, Any] | None:
+    def get_user(self, username: str) -> BackendUserDict | None:
         """Get user with given username."""
         return self._users_collection.find_one(
             {"username": username}, projection={"_id": False}
         )
 
-    def get_users(self) -> list[dict[str, Any]]:
+    def get_users(self) -> list[BackendUserDict]:
         """Get all users."""
         return list(self._users_collection.find(projection={"_id": False}))
+
+    def create_user(
+        self, user: NewUser | BackendUserDict | dict[str, Any]
+    ) -> BackendUserDict:
+        """Create a new user."""
+        if isinstance(user, NewUser):
+            user = {
+                "username": user.username,
+                "full_name": user.full_name,
+                "hashed_password": get_password_hash(user.password.get_secret_value()),
+            }
+
+        if isinstance(user, dict):
+            if "username" not in user:
+                raise ValueError("User must have a username.")
+
+            if "hashed_password" not in user and "password" not in user:
+                raise ValueError("User must have a password.")
+
+            if "hashed_password" not in user:
+                user["hashed_password"] = get_password_hash(user.pop("password"))
+
+            if "full_name" not in user:
+                user["full_name"] = None
+
+            if "password" in user:
+                del user["password"]  # type: ignore[typeddict-item]
+
+            if set(user) != {"username", "full_name", "hashed_password"}:
+                raise ValueError(
+                    "User must have the following keys: "
+                    "'username', 'full_name', 'hashed_password'."
+                )
+
+        # Check if we indeed have the correct dict
+        try:
+            TypeAdapter(BackendUserDict).validate_python(user)
+        except ValidationError as exc:
+            raise MalformedResource(user) from exc
+
+        if TYPE_CHECKING:  # pragma: no cover
+            user = cast(BackendUserDict, user)
+
+        self._users_collection.insert_one(user)
+
+        new_user = self.get_user(user["username"])
+
+        if new_user is None:
+            raise self.write_access_exception("Could not create user.")
+
+        return new_user
 
     # Unused must-implement methods
     def __contains__(self, item: Any) -> bool:

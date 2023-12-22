@@ -10,5 +10,6 @@ if TYPE_CHECKING:  # pragma: no cover
 def get_routers() -> list[APIRouter]:
     """Get the routers."""
     from .admin import ROUTER as ADMIN_ROUTER
+    from .auth import ROUTER as AUTH_ROUTER
 
-    return [ADMIN_ROUTER]
+    return [ADMIN_ROUTER, AUTH_ROUTER]

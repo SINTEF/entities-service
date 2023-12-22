@@ -14,11 +14,12 @@ from passlib.context import CryptContext
 
 from dlite_entities_service.models.auth import TokenData, UserInBackend
 from dlite_entities_service.service.backend import get_backend
-from dlite_entities_service.service.backend.admin import AdminBackend
 from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
+
+    from dlite_entities_service.service.backend.admin import AdminBackend
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -46,8 +47,8 @@ def get_user(username: str) -> UserInBackend | None:
     """Get a user from the admin backend."""
     backend = get_backend(CONFIG.admin_backend)
 
-    if not isinstance(backend, AdminBackend):
-        raise TypeError(f"Backend {backend} is not an AdminBackend")
+    if TYPE_CHECKING:  # pragma: no cover
+        assert isinstance(backend, AdminBackend)  # nosec
 
     if (user_dict := backend.get_user(username)) is not None:
         return UserInBackend(**user_dict)

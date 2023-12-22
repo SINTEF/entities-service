@@ -108,10 +108,7 @@ def set_config(
     ),
     value: OptionalStr = typer.Argument(
         None,
-        help=(
-            "Value to set. For sensitive values, this will be prompted for if not "
-            "provided."
-        ),
+        help="Value to set. This will be prompted for if not provided.",
         show_default=False,
     ),
 ) -> None:

@@ -25,6 +25,10 @@ class BackendWriteAccessError(BackendError):
     """Exception raised when write access is denied."""
 
 
+class MalformedResource(BackendError):
+    """Exception raised when a resource is malformed."""
+
+
 # Data models
 class BackendSettings(BaseModel):
     """Settings for the backend."""

@@ -8,7 +8,6 @@ COPY pyproject.toml LICENSE README.md ./
 # Install dependencies
 RUN python -m pip install -U pip && \
   pip install -U pip setuptools wheel flit && \
-  pip install -U uvicorn && \
   pip install -U -e . && \
   # Create log directory and file (if not existing already)
   mkdir -p logs && \

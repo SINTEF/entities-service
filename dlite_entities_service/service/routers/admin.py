@@ -21,7 +21,10 @@ from dlite_entities_service.service.security import current_user
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from dlite_entities_service.service.backend.admin import AdminBackend
+    from dlite_entities_service.service.backend.admin import (
+        AdminBackend,
+        BackendUserDict,
+    )
 
 
 ROUTER = APIRouter(
@@ -96,7 +99,7 @@ async def create_entities(entities: list[VersionedSOFTEntity]) -> list[dict[str,
 
 # Admin endpoints
 @ROUTER.get("/users", response_model=list[User])
-async def get_users() -> list[dict[str, Any]]:
+async def get_users() -> list[BackendUserDict]:
     """Get all users."""
     admin_backend = get_backend(CONFIG.admin_backend)
 

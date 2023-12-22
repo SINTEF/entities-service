@@ -9,8 +9,10 @@ from pydantic import (
     AnyHttpUrl,
     BaseModel,
     Field,
+    SecretBytes,
     SecretStr,
     ValidationInfo,
+    field_serializer,
     field_validator,
 )
 
@@ -105,4 +107,14 @@ class User(BaseModel):
 class UserInBackend(User):
     """User model with hashed password."""
 
-    hashed_password: SecretStr
+    hashed_password: SecretStr | SecretBytes
+
+
+class NewUser(User):
+    """New user model."""
+
+    password: SecretStr
+
+    @field_serializer("password", when_used="json")
+    def _dump_password(self, value: SecretStr) -> str:
+        return value.get_secret_value()
