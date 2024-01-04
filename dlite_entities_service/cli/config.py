@@ -46,7 +46,7 @@ class ConfigFields(StrEnum):
     _ignore_ = "ConfigFields config_name"
 
     ConfigFields = vars()
-    for config_name in CONFIG.model_fields:
+    for config_name in sorted(CONFIG.model_fields):
         ConfigFields[config_name.upper()] = config_name.lower()
 
     @classmethod
@@ -116,7 +116,9 @@ def set_config(
     if not value:
         try:
             value = typer.prompt(
-                f"Enter a value for {key}", hide_input=key.is_sensitive(), type=str
+                f"Enter a value for {key.upper()}",
+                hide_input=key.is_sensitive(),
+                type=str,
             )
         except typer.Abort as exc:
             print("[bold blue]Info[/bold blue]: Aborted.")

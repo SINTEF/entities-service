@@ -45,7 +45,7 @@ def test_set(
             result = cli.invoke(
                 config_app,
                 f"--dotenv-config={dotenv_file} set {field}",
-                input=f"{field}_test",
+                input=f"{field}_test\n",
             )
 
         assert result.exit_code == 0, result.stderr
@@ -199,8 +199,14 @@ def test_configfields_autocompletion() -> None:
     from dlite_entities_service.service.config import CONFIG
 
     test_values = {
-        "b": ["base_url"],
-        "m": ["mongo_uri", "mongo_user", "mongo_password"],
+        "b": ["base_url", "backend"],
+        "m": [
+            "mongo_uri",
+            "mongo_user",
+            "mongo_password",
+            "mongo_db",
+            "mongo_collection",
+        ],
         "mongo_u": ["mongo_uri", "mongo_user"],
         "mongo_p": ["mongo_password"],
         "mongo_ur": ["mongo_uri"],
@@ -208,7 +214,7 @@ def test_configfields_autocompletion() -> None:
     }
 
     for test_value, expected in test_values.items():
-        expected_values = list(
+        expected_values = sorted(
             zip(
                 expected,
                 [CONFIG.model_fields[_].description for _ in expected],

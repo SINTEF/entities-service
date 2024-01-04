@@ -9,8 +9,11 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
-    from pymongo.collection import Collection
+    from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
+
+
+pytestmark = pytest.mark.usefixtures("_use_valid_token")
 
 
 def test_upload_no_args(cli: CliRunner) -> None:
@@ -25,24 +28,35 @@ def test_upload_no_args(cli: CliRunner) -> None:
 
 
 def test_upload_filepath(
-    cli: CliRunner, static_dir: Path, mock_entities_collection: Collection
+    cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock
 ) -> None:
     """Test upload with a filepath."""
     import json
 
     from dlite_entities_service.cli import main
+    from dlite_entities_service.service.config import CONFIG
 
-    result = cli.invoke(
-        main.APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    entity_filepath = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    # Mock response for "Check if entity already exists"
+    assert "uri" in raw_entity
+    httpx_mock.add_response(
+        url=raw_entity["uri"],
+        status_code=404,  # not found
     )
+
+    # Mock response for "Upload entities"
+    httpx_mock.add_response(
+        url=f"{CONFIG.base_url}/_admin/create_many",
+        method="POST",
+        match_headers={"Authorization": "Bearer mock_token"},
+        match_json=[raw_entity],
+        status_code=201,  # created
+    )
+
+    result = cli.invoke(main.APP, f"upload --file {entity_filepath}")
     assert result.exit_code == 0, result.stderr
-
-    assert mock_entities_collection.count_documents({}) == 1
-    stored_entity: dict[str, Any] = mock_entities_collection.find_one({})
-    stored_entity.pop("_id")
-    assert stored_entity == json.loads(
-        (static_dir / "valid_entities" / "Person.json").read_bytes()
-    )
 
     assert "Successfully uploaded 1 entity:" in result.stdout
 
@@ -99,51 +113,39 @@ def test_upload_no_file_or_dir(cli: CliRunner) -> None:
 
 
 def test_upload_directory(
-    cli: CliRunner, static_dir: Path, mock_entities_collection: Collection
+    cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock
 ) -> None:
     """Test upload with a directory."""
     import json
 
     from dlite_entities_service.cli import main
+    from dlite_entities_service.service.config import CONFIG
 
     directory = static_dir / "valid_entities"
+    raw_entities: list[dict[str, Any]] = [
+        json.loads(filepath.read_bytes()) for filepath in directory.glob("*.json")
+    ]
+
+    # Mock response for "Check if entity already exists"
+    for raw_entity in raw_entities:
+        assert "uri" in raw_entity
+        httpx_mock.add_response(
+            url=raw_entity["uri"],
+            status_code=404,  # not found
+        )
+
+    # Mock response for "Upload entities"
+    httpx_mock.add_response(
+        url=f"{CONFIG.base_url}/_admin/create_many",
+        method="POST",
+        match_headers={"Authorization": "Bearer mock_token"},
+        status_code=201,  # created
+    )
 
     result = cli.invoke(main.APP, f"upload --dir {directory}")
     assert result.exit_code == 0, result.stderr
 
-    original_entities = list(directory.glob("*.json"))
-
-    assert mock_entities_collection.count_documents({}) == len(original_entities)
-
-    stored_entities = list(mock_entities_collection.find({}))
-    for stored_entity in stored_entities:
-        # Remove MongoDB ID
-        stored_entity.pop("_id")
-
-    for sample_file in original_entities:
-        # If the sample file contains a '$ref' key, it will be stored in the DB as 'ref'
-        # instead. This is due to the fact that MongoDB does not allow keys to start
-        # with a '$' character.
-        parsed_sample_file: dict[str, Any] = json.loads(sample_file.read_bytes())
-        if isinstance(parsed_sample_file["properties"], list):
-            for index, property_value in enumerate(
-                list(parsed_sample_file["properties"])
-            ):
-                if "$ref" in property_value:
-                    property_value["ref"] = property_value.pop("$ref")
-                    parsed_sample_file["properties"][index] = property_value
-        else:
-            # Expect "properties" to be a dict
-            for property_name, property_value in list(
-                parsed_sample_file["properties"].items()
-            ):
-                if "$ref" in property_value:
-                    property_value["ref"] = property_value.pop("$ref")
-                    parsed_sample_file["properties"][property_name] = property_value
-
-        assert parsed_sample_file in stored_entities
-
-    assert f"Successfully uploaded {len(original_entities)} entities:" in result.stdout
+    assert f"Successfully uploaded {len(raw_entities)} entities:" in result.stdout
 
 
 def test_upload_empty_dir(cli: CliRunner, tmp_path: Path) -> None:
@@ -254,59 +256,26 @@ def test_upload_directory_invalid_entities(
         )
 
 
-def test_get_backend(
-    cli: CliRunner,
-    dotenv_file: Path,
-    static_dir: Path,
-    mock_entities_collection: Collection,
-) -> None:
-    """Test that a found '.env' file is utilized."""
-    import json
-
-    from dotenv import set_key
-
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
-    from dlite_entities_service.cli.main import APP
-
-    # Create a temporary '.env' file
-    if not dotenv_file.exists():
-        dotenv_file.touch()
-    else:
-        dotenv_file.unlink()
-        dotenv_file.touch()
-    set_key(dotenv_file, "ENTITY_SERVICE_MONGO_URI", "mongodb://localhost:27017")
-
-    CONTEXT["dotenv_path"] = dotenv_file
-
-    result = cli.invoke(
-        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
-    )
-    assert result.exit_code == 0, result.stderr
-
-    assert mock_entities_collection.count_documents({}) == 1
-    stored_entity: dict[str, Any] = mock_entities_collection.find_one({})
-    stored_entity.pop("_id")
-    assert stored_entity == json.loads(
-        (static_dir / "valid_entities" / "Person.json").read_bytes()
-    )
-
-    assert "Successfully uploaded 1 entity:" in result.stdout, result.stdout
-
-
 def test_existing_entity(
-    cli: CliRunner, static_dir: Path, mock_entities_collection: Collection
+    cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock
 ) -> None:
     """Test that an existing entity is not overwritten."""
+    import json
+
     from dlite_entities_service.cli.main import APP
 
-    result = cli.invoke(
-        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
-    )
-    assert result.exit_code == 0, result.stderr
+    entity_filepath = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
 
-    result = cli.invoke(
-        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    # Mock response for "Check if entity already exists"
+    assert "uri" in raw_entity
+    httpx_mock.add_response(
+        url=raw_entity["uri"],
+        status_code=200,  # ok
+        json=raw_entity,
     )
+
+    result = cli.invoke(APP, f"upload --file {entity_filepath}")
     assert result.exit_code == 0, result.stderr
     assert "Entity already exists in the database." in result.stdout.replace(
         "\n", ""
@@ -316,13 +285,11 @@ def test_existing_entity(
     ), result.stderr
     assert not result.stderr
 
-    assert mock_entities_collection.count_documents({}) == 1
-
 
 def test_existing_entity_different_content(
     cli: CliRunner,
     static_dir: Path,
-    mock_entities_collection: Collection,
+    httpx_mock: HTTPXMock,
     tmp_path: Path,
 ) -> None:
     """Test that an incoming entity can be uploaded with a new version due to an
@@ -333,31 +300,24 @@ def test_existing_entity_different_content(
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
 
-    raw_entity = (static_dir / "valid_entities" / "Person.json").read_text()
-    parsed_entity: dict[str, Any] = json.loads(raw_entity)
+    entity_filepath = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
 
-    result = cli.invoke(
-        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    # Mock response for "Check if entity already exists"
+    assert "uri" in raw_entity
+    httpx_mock.add_response(
+        url=raw_entity["uri"],
+        status_code=200,  # ok
+        json=raw_entity,
     )
-    assert (
-        result.exit_code == 0
-    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-
-    assert mock_entities_collection.count_documents({}) == 1
-    db_entity = mock_entities_collection.find_one({})
-    for key in db_entity:
-        if key == "_id":
-            continue
-        assert key in parsed_entity
-        assert db_entity[key] == parsed_entity[key]
 
     # Create a new file with a change in the content
-    new_entity = deepcopy(parsed_entity)
+    new_entity = deepcopy(raw_entity)
     new_entity["dimensions"]["n_skills"] = "Skill number."
     new_entity["namespace"] = str(CONFIG.base_url)
     new_entity["version"] = "0.1"
     new_entity["name"] = "Person"
-    assert new_entity != parsed_entity
+    assert new_entity != raw_entity
     new_entity_file = tmp_path / "Person.json"
     new_entity_file.write_text(json.dumps(new_entity))
 
@@ -385,6 +345,19 @@ def test_existing_entity_different_content(
     # Now, let's check we update the version if wanting to.
     # Use default generated version. An existing version of '0.1' should generate
     # '0.1.1'.
+
+    # Mock response for "Upload entities"
+    new_entity_file_to_be_uploaded = deepcopy(new_entity)
+    new_entity_file_to_be_uploaded["version"] = "0.1.1"
+    new_entity_file_to_be_uploaded["uri"] = f"{CONFIG.base_url}/0.1.1/Person"
+    httpx_mock.add_response(
+        url=f"{CONFIG.base_url}/_admin/create_many",
+        method="POST",
+        match_headers={"Authorization": "Bearer mock_token"},
+        match_json=[new_entity_file_to_be_uploaded],
+        status_code=201,  # created
+    )
+
     result = cli.invoke(
         APP,
         f"upload --file {tmp_path / 'Person.json'}",
@@ -405,34 +378,27 @@ def test_existing_entity_different_content(
     ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
     assert not result.stderr
 
-    assert mock_entities_collection.count_documents({}) == 2
-    assert (
-        mock_entities_collection.find_one({"uri": f"{CONFIG.base_url}/0.1.1/Person"})
-        is not None
-    )
-
-    db_entities = list(mock_entities_collection.find({}))
-    assert len(db_entities) == 2
-    assert db_entity in db_entities
-    new_db_entity = next(_ for _ in db_entities if _ != db_entity)
-    for key in new_db_entity:
-        if key == "_id":
-            continue
-        if key == "uri":
-            assert new_db_entity[key] == f"{CONFIG.base_url}/0.1.1/Person"
-            continue
-        if key == "version":
-            assert new_db_entity[key] == "0.1.1"
-            continue
-        assert key in new_entity
-        assert new_db_entity[key] == new_entity[key]
-
     # Now, let's check we update the version if wanting to.
     # Use custom version.
+
+    custom_version = "0.2"
+
+    # Mock response for "Upload entities"
+    new_entity_file_to_be_uploaded = deepcopy(new_entity)
+    new_entity_file_to_be_uploaded["version"] = custom_version
+    new_entity_file_to_be_uploaded["uri"] = f"{CONFIG.base_url}/{custom_version}/Person"
+    httpx_mock.add_response(
+        url=f"{CONFIG.base_url}/_admin/create_many",
+        method="POST",
+        match_headers={"Authorization": "Bearer mock_token"},
+        match_json=[new_entity_file_to_be_uploaded],
+        status_code=201,  # created
+    )
+
     result = cli.invoke(
         APP,
         f"upload --file {tmp_path / 'Person.json'}",
-        input="y\n0.2\n",
+        input=f"y\n{custom_version}\n",
     )
     assert (
         result.exit_code == 0
@@ -449,18 +415,12 @@ def test_existing_entity_different_content(
     ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
     assert not result.stderr
 
-    assert mock_entities_collection.count_documents({}) == 3
-    assert (
-        mock_entities_collection.find_one({"uri": f"{CONFIG.base_url}/0.2/Person"})
-        is not None
-    )
-
 
 @pytest.mark.parametrize("fail_fast", [True, False])
 def test_existing_entity_errors(
     cli: CliRunner,
     static_dir: Path,
-    mock_entities_collection: Collection,
+    httpx_mock: HTTPXMock,
     tmp_path: Path,
     fail_fast: bool,
 ) -> None:
@@ -471,28 +431,21 @@ def test_existing_entity_errors(
 
     from dlite_entities_service.cli.main import APP
 
-    raw_entity = (static_dir / "valid_entities" / "Person.json").read_text()
-    parsed_entity: dict[str, Any] = json.loads(raw_entity)
+    entity_filepath = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
 
-    result = cli.invoke(
-        APP, f"upload --file {static_dir / 'valid_entities' / 'Person.json'}"
+    # Mock response for "Check if entity already exists"
+    assert "uri" in raw_entity
+    httpx_mock.add_response(
+        url=raw_entity["uri"],
+        status_code=200,  # ok
+        json=raw_entity,
     )
-    assert (
-        result.exit_code == 0
-    ), f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-
-    assert mock_entities_collection.count_documents({}) == 1
-    db_entity = mock_entities_collection.find_one({})
-    for key in db_entity:
-        if key == "_id":
-            continue
-        assert key in parsed_entity
-        assert db_entity[key] == parsed_entity[key]
 
     # Create a new file with a change in the content
-    new_entity = deepcopy(parsed_entity)
+    new_entity = deepcopy(raw_entity)
     new_entity["dimensions"]["n_skills"] = "Skill number."
-    assert new_entity != parsed_entity
+    assert new_entity != raw_entity
     new_entity_file = tmp_path / "Person.json"
     new_entity_file.write_text(json.dumps(new_entity))
 

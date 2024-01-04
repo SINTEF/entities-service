@@ -102,6 +102,7 @@ class AdminBackendSettings(BackendSettings):
     ] = AdminBackendMongoCollections()
 
 
+# Backend class
 class AdminBackend(Backend):
     """Admin backend for the Entities Service."""
 
@@ -202,7 +203,7 @@ class AdminBackend(Backend):
 
         return new_user
 
-    # Unused must-implement methods
+    # Unused must-implement "Backend" methods
     def __contains__(self, item: Any) -> bool:
         raise NotImplementedError
 

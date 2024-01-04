@@ -8,7 +8,6 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from pymongo.collection import Collection
     from typer import Typer
     from typer.testing import CliRunner
 
@@ -21,27 +20,6 @@ def cli() -> CliRunner:
     from typer.testing import CliRunner
 
     return CliRunner(mix_stderr=False, env=os.environ.copy())
-
-
-@pytest.fixture()
-def mock_entities_collection(monkeypatch: pytest.MonkeyPatch) -> Collection:
-    """Return a mock entities collection."""
-    from mongomock import MongoClient
-
-    from dlite_entities_service.service import backend
-    from dlite_entities_service.service.config import CONFIG
-
-    mongo_client = MongoClient(str(CONFIG.mongo_uri))
-    mock_entities_collection = mongo_client["dlite"]["entities"]
-
-    monkeypatch.setattr(backend, "ENTITIES_COLLECTION", mock_entities_collection)
-    monkeypatch.setattr(
-        backend,
-        "get_collection",
-        lambda *args, **kwargs: mock_entities_collection,  # noqa: ARG005
-    )
-
-    return mock_entities_collection
 
 
 @pytest.fixture(scope="session")
@@ -85,3 +63,12 @@ def _prefill_dotenv_config(dotenv_file: Path) -> None:
 
     for field in ConfigFields:
         set_key(dotenv_file, f"{env_prefix}{field}".upper(), f"{field}_test")
+
+
+@pytest.fixture()
+def _use_valid_token() -> None:
+    """Set the token to a valid one."""
+    from dlite_entities_service.cli._utils.global_settings import CONTEXT
+    from dlite_entities_service.models.auth import Token
+
+    CONTEXT["token"] = Token(access_token="mock_token")

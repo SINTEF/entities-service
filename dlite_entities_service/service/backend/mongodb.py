@@ -1,10 +1,9 @@
 """Backend implementation."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import Field, SecretBytes, SecretStr
-from pymongo import MongoClient
 from pymongo.errors import (
     BulkWriteError,
     InvalidDocument,
@@ -14,6 +13,7 @@ from pymongo.errors import (
 )
 
 from dlite_entities_service.models import URI_REGEX, SOFTModelTypes
+from dlite_entities_service.service.backend import Backends
 from dlite_entities_service.service.backend.backend import (
     Backend,
     BackendError,
@@ -27,6 +27,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypedDict
 
     from pydantic import AnyHttpUrl
+    from pymongo import MongoClient
     from pymongo.collection import Collection
 
     from dlite_entities_service.models import VersionedSOFTEntity
@@ -40,8 +41,16 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 MONGO_CLIENTS: dict[str, MongoClient] | None = None
+"""Global cache for MongoDB clients."""
 
 
+BACKEND_DRIVER_MAPPING: dict[Backends, Literal["pymongo", "mongomock"]] = {
+    Backends.MONGODB: "pymongo",
+    Backends.MONGOMOCK: "mongomock",
+}
+
+
+# Exceptions
 class MongoDBBackendError(BackendError, PyMongoError, InvalidDocument):
     """Any MongoDB backend error exception."""
 
@@ -89,19 +98,40 @@ class MongoDBSettings(BackendSettings):
         CONFIG.mongo_collection or "entities"
     )
 
+    mongo_driver: Annotated[
+        Literal["pymongo", "mongomock"],
+        Field(
+            description="The MongoDB driver to use. Either 'pymongo' or 'mongomock'.",
+        ),
+    ] = BACKEND_DRIVER_MAPPING.get(CONFIG.backend, "pymongo")
+
 
 def get_client(
     uri: str | None = None,
     username: str | None = None,
     password: str | None = None,
+    driver: str | None = None,
 ) -> MongoClient:
     """Get the MongoDB client."""
+    if driver is None:
+        driver = "pymongo"
+
+    if driver == "pymongo":
+        from pymongo import MongoClient
+    elif driver == "mongomock":
+        from mongomock import MongoClient
+    else:
+        raise ValueError(
+            f"Invalid MongoDB driver: {driver}. "
+            "Should be either 'pymongo' or 'mongomock'."
+        )
+
     global MONGO_CLIENTS  # noqa: PLW0603
 
     uri = uri or str(CONFIG.mongo_uri)
     username = username or CONFIG.mongo_user
 
-    cache_key = f"{uri}{username}"
+    cache_key = f"{driver}{uri}{username}"
 
     if MONGO_CLIENTS is not None and cache_key in MONGO_CLIENTS:
         return MONGO_CLIENTS[cache_key]
@@ -135,9 +165,10 @@ def get_collection(
     password: str | None = None,
     database: str | None = None,
     collection: str | None = None,
+    driver: str | None = None,
 ) -> Collection:
     """Get the MongoDB collection for entities."""
-    mongo_client = get_client(uri, username, password)
+    mongo_client = get_client(uri, username, password, driver)
     return mongo_client[database][collection]
 
 
@@ -162,6 +193,7 @@ class MongoDBBackend(Backend):
             password=password,
             database=self._settings.mongo_db,
             collection=self._settings.mongo_collection,
+            driver=self._settings.mongo_driver,
         )
 
     def __str__(self) -> str:

@@ -31,9 +31,12 @@ class Backends(StrEnum):
     MONGODB = "mongodb"
     ADMIN = "admin"
 
+    # Testing
+    MONGOMOCK = "mongomock"
+
     def get_class(self) -> type[Backend]:
         """Get the backend class."""
-        if self == self.MONGODB:
+        if self in (self.MONGODB, self.MONGOMOCK):
             from dlite_entities_service.service.backend.mongodb import MongoDBBackend
 
             return MongoDBBackend
@@ -47,9 +50,14 @@ class Backends(StrEnum):
 
 
 def get_backend(
-    backend: Backends | str, settings: dict[str, Any] | None = None
+    backend: Backends | str | None = None, settings: dict[str, Any] | None = None
 ) -> Backend:
     """Get a backend instance."""
+    from dlite_entities_service.service.config import CONFIG
+
+    if backend is None:
+        backend = CONFIG.backend
+
     try:
         backend = Backends(backend)
     except ValueError as exc:

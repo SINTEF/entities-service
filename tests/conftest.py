@@ -9,7 +9,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from fastapi.testclient import TestClient
-    from pymongo.collection import Collection
+
+    from dlite_entities_service.service.backend.mongodb import MongoDBBackend
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -19,6 +20,16 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store_true",
         default=False,
         help="Run the tests with a live backend (real MongoDB).",
+    )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Configure pytest - set ENTITY_SERVICE_BACKEND env var."""
+    import os
+
+    # Set the environment variable for the MongoDB database name
+    os.environ["ENTITY_SERVICE_BACKEND"] = (
+        "mongodb" if config.getoption("--live-backend") else "mongomock"
     )
 
 
@@ -42,6 +53,10 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
             f"{', '.join(required_environment_variables)}"
         )
 
+    # Sanity check - the ENTITY_SERVICE_BACKEND should be set to 'pymongo' if
+    # the tests are run with a live backend, and 'mongomock' otherwise
+    assert os.getenv("ENTITY_SERVICE_BACKEND") == ("mongodb" if value else "mongomock")
+
     return value
 
 
@@ -53,10 +68,13 @@ def static_dir() -> Path:
     return (Path(__file__).parent / "static").resolve()
 
 
-@pytest.fixture(scope="session")
-def mongo_test_collection(static_dir: Path, live_backend: bool) -> Collection | None:
-    """Add MongoDB test data, returning the MongoDB collection."""
+@pytest.fixture(scope="session", autouse=True)
+def _mongo_test_collection(static_dir: Path, live_backend: bool) -> None:
+    """Add MongoDB test data to the chosen backend."""
     import yaml
+
+    from dlite_entities_service.service.backend import Backends, get_backend
+    from dlite_entities_service.service.config import CONFIG
 
     # Convert all '$ref' to 'ref' in the entities.yaml file
     entities = yaml.safe_load((static_dir / "entities.yaml").read_text())
@@ -75,48 +93,17 @@ def mongo_test_collection(static_dir: Path, live_backend: bool) -> Collection | 
                     key.replace("$", ""): value for key, value in property_value.items()
                 }
 
-    if live_backend:
-        from dlite_entities_service.service.backend import ENTITIES_COLLECTION
+    assert CONFIG.backend == (
+        Backends.MONGODB if live_backend else Backends.MONGOMOCK
+    ), (
+        "The backend should be set to 'mongodb' if the tests are run with a live "
+        "backend, and 'mongomock' otherwise."
+    )
 
-        # TODO: Handle authentication properly
-        ENTITIES_COLLECTION.insert_many(entities)
+    # TODO: Handle authentication properly
+    backend: MongoDBBackend = get_backend()
 
-        return None
-
-    # else
-    from mongomock import MongoClient
-
-    from dlite_entities_service.service.config import CONFIG
-
-    client_kwargs = {
-        "username": CONFIG.mongo_user,
-        "password": CONFIG.mongo_password.get_secret_value()
-        if CONFIG.mongo_password is not None
-        else None,
-    }
-    for key, value in list(client_kwargs.items()):
-        if value is None:
-            client_kwargs.pop(key, None)
-
-    MOCK_ENTITIES_COLLECTION = MongoClient(
-        str(CONFIG.mongo_uri), **client_kwargs
-    ).dlite.entities
-
-    MOCK_ENTITIES_COLLECTION.insert_many(entities)
-
-    return MOCK_ENTITIES_COLLECTION
-
-
-@pytest.fixture(autouse=True)
-def _mock_backend_entities_collection(
-    monkeypatch: pytest.MonkeyPatch, mongo_test_collection: Collection | None
-) -> None:
-    if mongo_test_collection is None:
-        return
-
-    from dlite_entities_service.service import backend
-
-    monkeypatch.setattr(backend, "ENTITIES_COLLECTION", mongo_test_collection)
+    backend._collection.insert_many(entities)
 
 
 @pytest.fixture()
