@@ -29,7 +29,8 @@ def get_version_name(uri: str) -> tuple[str, str]:
     assert match is not None, (
         f"Could not retrieve version and name from {uri!r}. "
         "URI must be of the form: "
-        "http://onto-ns.com/meta/{version}/{name}"
+        f"{namespace}/{{version}}/{{name}}\n\n"
+        "Hint: Did you (inadvertently) set the base_url to something?"
     )
 
     return match.group("version") or "", match.group("name") or ""
