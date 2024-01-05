@@ -121,4 +121,9 @@ filterwarnings = [
 
     # mongomock uses pkg_resources
     "ignore:.*pkg_resources is deprecated as an API.*:DeprecationWarning",
+
+    # passlib uses crypt
+    # See this issue for how this is being solved:
+    # https://foss.heptapod.net/python-libs/passlib/-/issues/148
+    "ignore:.*'crypt' is deprecated.*:DeprecationWarning",
 ]
