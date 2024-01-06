@@ -34,7 +34,6 @@ from dlite_entities_service.cli._utils.generics import (
     print,
 )
 from dlite_entities_service.cli._utils.global_settings import CONTEXT, global_options
-from dlite_entities_service.cli.admin import APP as admin_APP
 from dlite_entities_service.cli.config import APP as config_APP
 from dlite_entities_service.models import (
     URI_REGEX,
@@ -72,7 +71,6 @@ APP = typer.Typer(
     pretty_exceptions_show_locals=False,
     callback=global_options,
 )
-APP.add_typer(admin_APP, callback=global_options)
 APP.add_typer(config_APP, callback=global_options)
 
 

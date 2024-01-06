@@ -8,12 +8,13 @@ The endpoints in this router are not documented in the OpenAPI schema.
 """
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from dlite_entities_service.models import VersionedSOFTEntity, get_uri
-from dlite_entities_service.models.auth import User
+from dlite_entities_service.models.auth import User, UserInBackend
 from dlite_entities_service.service.backend import get_backend
 from dlite_entities_service.service.config import CONFIG
 from dlite_entities_service.service.security import current_user
@@ -27,9 +28,12 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 ROUTER = APIRouter(
     prefix="/_admin",
-    include_in_schema=False,
+    include_in_schema=CONFIG.debug,
     dependencies=[Depends(current_user)],
 )
 
@@ -42,12 +46,22 @@ ROUTER = APIRouter(
     response_model_exclude_unset=True,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_entity(entity: VersionedSOFTEntity) -> dict[str, Any]:
+async def create_entity(
+    entity: VersionedSOFTEntity,
+    current_user: Annotated[User, Depends(current_user)],
+) -> dict[str, Any]:
     """Create a SOFT entity."""
-    entities_backend = get_backend(CONFIG.backend)
+    entities_backend = get_backend(
+        CONFIG.backend,
+        settings={
+            "mongo_username": current_user.username,
+        },
+    )
     try:
         created_entity = entities_backend.create([entity])
     except entities_backend.write_access_exception as err:
+        LOGGER.error("Could not create entity: uri=%s", get_uri(entity))
+        LOGGER.exception(err)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Could not create entity: uri={get_uri(entity)}",
@@ -86,6 +100,11 @@ async def create_entities(entities: list[VersionedSOFTEntity]) -> list[dict[str,
     try:
         created_entities = entities_backend.create(entities)
     except entities_backend.write_access_exception as err:
+        LOGGER.error(
+            "Could not create entities: uris=%s",
+            ", ".join(get_uri(entity) for entity in entities),
+        )
+        LOGGER.exception(err)
         raise write_fail_exception from err
 
     if created_entities is None:
@@ -106,10 +125,12 @@ async def get_users() -> list[BackendUserDict]:
     if TYPE_CHECKING:  # pragma: no cover
         assert isinstance(admin_backend, AdminBackend)  # nosec
 
-    return admin_backend.get_users()
+    return list(admin_backend.get_users())
 
 
-@ROUTER.get("/users/me", response_model=User)
-async def get_users_me(current_user: Annotated[User, Depends(current_user)]) -> User:
+@ROUTER.get("/users/me", response_model=UserInBackend)
+async def get_users_me(
+    current_user: Annotated[UserInBackend, Depends(current_user)]
+) -> UserInBackend:
     """Get the current user."""
     return current_user

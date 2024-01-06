@@ -10,13 +10,15 @@ from fastapi import FastAPI, HTTPException, Path, status
 
 from dlite_entities_service import __version__
 from dlite_entities_service.models import VersionedSOFTEntity
-from dlite_entities_service.service.backend import get_backend
+from dlite_entities_service.service.backend import clear_caches, get_backend
 from dlite_entities_service.service.config import CONFIG
 from dlite_entities_service.service.logger import setup_logger
 from dlite_entities_service.service.routers import get_routers
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
+
+    from dlite_entities_service.service.backend.admin import AdminBackend
 
 
 LOGGER = logging.getLogger("dlite_entities_service")
@@ -30,6 +32,13 @@ async def lifespan(_: FastAPI):
     setup_logger()
 
     LOGGER.debug("Starting service with config: %s", CONFIG)
+
+    # Initialize backend
+    admin_backend: AdminBackend = get_backend(CONFIG.admin_backend)  # type: ignore[assignment]
+    admin_backend.initialize_entities_backend()
+
+    # Clear caches
+    clear_caches()
 
     # Run application
     yield

@@ -52,7 +52,7 @@ class Backend(ABC):
     # Exceptions
     @property
     @abstractmethod
-    def write_access_exception(self) -> type[BackendWriteAccessError]:
+    def write_access_exception(self) -> tuple:
         """Get the exception type raised when write access is denied."""
         raise NotImplementedError
 
@@ -78,6 +78,12 @@ class Backend(ABC):
 
     @abstractmethod
     def __len__(self) -> int:
+        raise NotImplementedError
+
+    # Backend methods (initialization)
+    @abstractmethod
+    def initialize(self) -> None:
+        """Initialize the backend."""
         raise NotImplementedError
 
     # Backend methods (CRUD)

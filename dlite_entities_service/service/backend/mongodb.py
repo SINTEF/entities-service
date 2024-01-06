@@ -1,12 +1,14 @@
 """Backend implementation."""
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import Field, SecretBytes, SecretStr
 from pymongo.errors import (
     BulkWriteError,
     InvalidDocument,
+    OperationFailure,
     PyMongoError,
     WriteConcernError,
     WriteError,
@@ -40,6 +42,9 @@ if TYPE_CHECKING:  # pragma: no cover
         name: str
 
 
+LOGGING = logging.getLogger(__name__)
+
+
 MONGO_CLIENTS: dict[str, MongoClient] | None = None
 """Global cache for MongoDB clients."""
 
@@ -55,14 +60,15 @@ class MongoDBBackendError(BackendError, PyMongoError, InvalidDocument):
     """Any MongoDB backend error exception."""
 
 
-class MongoDBBackendWriteAccessError(
+MongoDBBackendWriteAccessError = (
     MongoDBBackendError,
     BackendWriteAccessError,
     WriteConcernError,
     BulkWriteError,
     WriteError,
-):
-    """Exception raised when write access is denied."""
+    OperationFailure,
+)
+"""Exception raised when write access is denied."""
 
 
 class MongoDBSettings(BackendSettings):
@@ -82,7 +88,6 @@ class MongoDBSettings(BackendSettings):
     mongo_password: Annotated[
         SecretStr | SecretBytes,
         Field(
-            None,
             description=(
                 "The MongoDB password. If not provided, the password will be read "
                 "from the environment variable MONGO_PASSWORD."
@@ -128,10 +133,9 @@ def get_client(
 
     global MONGO_CLIENTS  # noqa: PLW0603
 
-    uri = uri or str(CONFIG.mongo_uri)
     username = username or CONFIG.mongo_user
 
-    cache_key = f"{driver}{uri}{username}"
+    cache_key = username
 
     if MONGO_CLIENTS is not None and cache_key in MONGO_CLIENTS:
         return MONGO_CLIENTS[cache_key]
@@ -149,7 +153,7 @@ def get_client(
         if value is None:
             client_kwargs.pop(key, None)
 
-    new_client = MongoClient(uri, **client_kwargs)
+    new_client = MongoClient(uri or str(CONFIG.mongo_uri), **client_kwargs)
 
     if MONGO_CLIENTS is None:
         MONGO_CLIENTS = {cache_key: new_client}
@@ -157,6 +161,15 @@ def get_client(
         MONGO_CLIENTS[cache_key] = new_client
 
     return MONGO_CLIENTS[cache_key]
+
+
+def discard_client_for_user(username: str) -> None:
+    """Discard a MongoDB client."""
+    cache_key = username
+
+    if MONGO_CLIENTS is not None and cache_key in MONGO_CLIENTS:
+        MONGO_CLIENTS[cache_key].close()
+        MONGO_CLIENTS.pop(cache_key)
 
 
 def get_collection(
@@ -201,7 +214,7 @@ class MongoDBBackend(Backend):
 
     # Exceptions
     @property
-    def write_access_exception(self) -> type[MongoDBBackendWriteAccessError]:
+    def write_access_exception(self) -> tuple:
         return MongoDBBackendWriteAccessError
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
@@ -210,10 +223,20 @@ class MongoDBBackend(Backend):
     def __len__(self) -> int:
         return self._collection.count_documents({})
 
+    def initialize(self) -> None:
+        """Initialize the MongoDB backend."""
+        # Create a unique index for the URI
+        self._collection.create_index(
+            ["uri", "namespace", "version", "name"], unique=True, name="URI"
+        )
+
     def create(
         self, entities: Sequence[VersionedSOFTEntity | dict[str, Any]]
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
         """Create one or more entities in the MongoDB."""
+        LOGGING.info("Creating entities: %s", entities)
+        LOGGING.info("Creatin user: %s", self._settings.mongo_username)
+
         entities = [
             entity.model_dump(by_alias=True, mode="json", exclude_unset=True)
             if isinstance(entity, SOFTModelTypes)

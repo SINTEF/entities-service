@@ -69,3 +69,10 @@ def get_backend(
     backend_class = backend.get_class()
 
     return backend_class(settings)
+
+
+def clear_caches() -> None:
+    """Clear all internal service caches."""
+    from dlite_entities_service.service.backend import mongodb
+
+    mongodb.MONGO_CLIENTS = None

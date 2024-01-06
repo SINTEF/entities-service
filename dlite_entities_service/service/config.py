@@ -22,6 +22,13 @@ class ServiceSettings(BaseSettings):
         env_prefix="entity_service_", env_file=".env", extra="ignore"
     )
 
+    debug: Annotated[
+        bool,
+        Field(
+            description="Enable debug mode.",
+        ),
+    ] = False
+
     base_url: Annotated[
         AnyHttpUrl,
         Field(

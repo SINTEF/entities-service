@@ -1,40 +1,39 @@
 """Admin backend for the Entities Service."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, TypedDict
+import logging
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
 
 from pydantic import (
     BaseModel,
     Field,
     SecretBytes,
     SecretStr,
-    TypeAdapter,
-    ValidationError,
 )
 from pymongo.errors import InvalidDocument, PyMongoError
 
-from dlite_entities_service.models.auth import NewUser
 from dlite_entities_service.service.backend.backend import (
     Backend,
     BackendError,
     BackendSettings,
-    MalformedResource,
 )
 from dlite_entities_service.service.backend.mongodb import (
     MongoDBBackendWriteAccessError,
     get_client,
 )
 from dlite_entities_service.service.config import CONFIG, MongoDsn
-from dlite_entities_service.service.security import get_password_hash
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
-    from typing import Any, cast
+    from typing import Any
 
     from pydantic import AnyHttpUrl
-    from pymongo.collection import Collection
 
     from dlite_entities_service.models import VersionedSOFTEntity
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BackendUserDict(TypedDict):
@@ -42,7 +41,7 @@ class BackendUserDict(TypedDict):
 
     username: str
     full_name: str | None
-    hashed_password: str | bytes
+    roles: list[dict[str, str]]
 
 
 # Exceptions
@@ -50,11 +49,11 @@ class AdminBackendError(BackendError, PyMongoError, InvalidDocument):
     """Any MongoDB backend error exception."""
 
 
-class AdminBackendWriteAccessError(
+AdminBackendWriteAccessError = (
     AdminBackendError,
     MongoDBBackendWriteAccessError,
-):
-    """Exception raised when write access is denied."""
+)
+"""Exception raised when write access is denied."""
 
 
 # Data models
@@ -85,14 +84,14 @@ class AdminBackendSettings(BackendSettings):
     ] = (CONFIG.admin_password or CONFIG.mongo_password)
 
     mongo_db: Annotated[
-        str,
+        Literal["admin"],
         Field(
             description=(
                 "Name of the MongoDB database for storing admin data in the Entities "
                 "Service."
             ),
         ),
-    ] = CONFIG.admin_db
+    ] = "admin"
 
     mongo_collections: Annotated[
         AdminBackendMongoCollections,
@@ -134,74 +133,59 @@ class AdminBackend(Backend):
 
     # Exceptions
     @property
-    def write_access_exception(self) -> type[AdminBackendWriteAccessError]:
+    def write_access_exception(self) -> tuple:
         return AdminBackendWriteAccessError
-
-    @property
-    def _users_collection(self) -> Collection:
-        """Get the MongoDB collection for users."""
-        return self._db[self._settings.mongo_collections.users]
 
     def get_user(self, username: str) -> BackendUserDict | None:
         """Get user with given username."""
-        return self._users_collection.find_one(
-            {"username": username}, projection={"_id": False}
-        )
+        raw_user: list[dict[str, Any]] = self._db.command(
+            "usersInfo", usersInfo=username, showCustomData=True
+        )["users"]
 
-    def get_users(self) -> list[BackendUserDict]:
+        if not raw_user:
+            return None
+
+        if len(raw_user) > 1:
+            raise AdminBackendError(f"Multiple users with username {username!r} found.")
+
+        raw_single_user = raw_user[0]
+
+        user: BackendUserDict = {
+            "username": raw_single_user["user"],
+            "full_name": raw_single_user.get("customData", {}).get("full_name", None),
+            "roles": raw_single_user["roles"],
+        }
+
+        return user
+
+    def get_users(self) -> Generator[BackendUserDict, None, None]:
         """Get all users."""
-        return list(self._users_collection.find(projection={"_id": False}))
+        raw_users: list[dict[str, Any]] = self._db.command(
+            "usersInfo", usersInfo=1, showCustomData=True
+        )["users"]
 
-    def create_user(
-        self, user: NewUser | BackendUserDict | dict[str, Any]
-    ) -> BackendUserDict:
-        """Create a new user."""
-        if isinstance(user, NewUser):
-            user = {
-                "username": user.username,
-                "full_name": user.full_name,
-                "hashed_password": get_password_hash(user.password.get_secret_value()),
+        for raw_user in raw_users:
+            user: BackendUserDict = {
+                "username": raw_user["user"],
+                "full_name": raw_user.get("customData", {}).get("full_name", None),
+                "roles": raw_user["roles"],
             }
 
-        if isinstance(user, dict):
-            if "username" not in user:
-                raise ValueError("User must have a username.")
+            yield user
 
-            if "hashed_password" not in user and "password" not in user:
-                raise ValueError("User must have a password.")
+    def initialize_entities_backend(self) -> None:
+        """Initialize the entities backend."""
+        from dlite_entities_service.service.backend.mongodb import MongoDBBackend
 
-            if "hashed_password" not in user:
-                user["hashed_password"] = get_password_hash(user.pop("password"))
-
-            if "full_name" not in user:
-                user["full_name"] = None
-
-            if "password" in user:
-                del user["password"]  # type: ignore[typeddict-item]
-
-            if set(user) != {"username", "full_name", "hashed_password"}:
-                raise ValueError(
-                    "User must have the following keys: "
-                    "'username', 'full_name', 'hashed_password'."
-                )
-
-        # Check if we indeed have the correct dict
-        try:
-            TypeAdapter(BackendUserDict).validate_python(user)
-        except ValidationError as exc:
-            raise MalformedResource(user) from exc
-
-        if TYPE_CHECKING:  # pragma: no cover
-            user = cast(BackendUserDict, user)
-
-        self._users_collection.insert_one(user)
-
-        new_user = self.get_user(user["username"])
-
-        if new_user is None:
-            raise self.write_access_exception("Could not create user.")
-
-        return new_user
+        entities_backend = MongoDBBackend(
+            settings={
+                "mongo_username": CONFIG.admin_user.get_secret_value()
+                if CONFIG.admin_user is not None
+                else CONFIG.mongo_user,
+                "mongo_password": CONFIG.admin_password,
+            }
+        )
+        entities_backend.initialize()
 
     # Unused must-implement "Backend" methods
     def __contains__(self, item: Any) -> bool:
@@ -211,6 +195,10 @@ class AdminBackend(Backend):
         raise NotImplementedError
 
     def __len__(self) -> int:
+        raise NotImplementedError
+
+    def initialize(self) -> None:
+        """Initialize the backend."""
         raise NotImplementedError
 
     def create(
