@@ -52,6 +52,7 @@ jobs:
       ENTITY_SERVICE_MONGO_URI: mongodb://localhost:27017
       ENTITY_SERVICE_MONGO_USER: root
       ENTITY_SERVICE_MONGO_PASSWORD: root
+      # These are used in the Dockerfile as well as in pytest
       ENTITY_SERVICE_HOST: localhost
       ENTITY_SERVICE_PORT: 8000
 

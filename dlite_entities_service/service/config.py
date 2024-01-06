@@ -119,13 +119,6 @@ class ServiceSettings(BaseSettings):
         ),
     ] = "entities_service_admin"
 
-    users_collection: Annotated[
-        str,
-        Field(
-            description="Name of the MongoDB collection for storing users.",
-        ),
-    ] = "users"
-
     @field_validator("base_url", mode="before")
     @classmethod
     def _strip_ending_slashes(cls, value: Any) -> AnyHttpUrl:

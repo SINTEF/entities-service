@@ -3,10 +3,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Generator
-from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
+from typing import TYPE_CHECKING, Annotated, TypedDict
 
 from pydantic import (
-    BaseModel,
     Field,
     SecretBytes,
     SecretStr,
@@ -57,17 +56,6 @@ AdminBackendWriteAccessError = (
 
 
 # Data models
-class AdminBackendMongoCollections(BaseModel):
-    """Names of the MongoDB collections for storing admin data."""
-
-    users: Annotated[
-        str,
-        Field(
-            description="Name of the MongoDB collection for storing users.",
-        ),
-    ] = CONFIG.users_collection
-
-
 class AdminBackendSettings(BackendSettings):
     """Settings for the admin backend."""
 
@@ -84,21 +72,14 @@ class AdminBackendSettings(BackendSettings):
     ] = (CONFIG.admin_password or CONFIG.mongo_password)
 
     mongo_db: Annotated[
-        Literal["admin"],
+        str,
         Field(
             description=(
                 "Name of the MongoDB database for storing admin data in the Entities "
                 "Service."
             ),
         ),
-    ] = "admin"
-
-    mongo_collections: Annotated[
-        AdminBackendMongoCollections,
-        Field(
-            description="Names of the MongoDB collections for storing admin data.",
-        ),
-    ] = AdminBackendMongoCollections()
+    ] = CONFIG.admin_db
 
 
 # Backend class
@@ -179,10 +160,8 @@ class AdminBackend(Backend):
 
         entities_backend = MongoDBBackend(
             settings={
-                "mongo_username": CONFIG.admin_user.get_secret_value()
-                if CONFIG.admin_user is not None
-                else CONFIG.mongo_user,
-                "mongo_password": CONFIG.admin_password,
+                "mongo_username": self._settings.mongo_username.get_secret_value(),
+                "mongo_password": self._settings.mongo_password,
             }
         )
         entities_backend.initialize()

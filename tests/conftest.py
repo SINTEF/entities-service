@@ -103,7 +103,24 @@ def _mongo_test_collection(static_dir: Path, live_backend: bool) -> None:
     # TODO: Handle authentication properly
     backend: MongoDBBackend = get_backend()
 
+    print("Inserting entities")
     backend._collection.insert_many(entities)
+
+
+@pytest.fixture(autouse=True)
+def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock the AdminBackend.initialize_entities_backend() method."""
+    # Only mock the lifespan context manager if the tests are not run with a live
+    # backend
+    if not live_backend:
+        monkeypatch.setattr(
+            "dlite_entities_service.service.backend.admin.AdminBackend.initialize_entities_backend",
+            lambda _: None,
+        )
+    # Always remove the usability of clear_caches()
+    monkeypatch.setattr(
+        "dlite_entities_service.service.backend.clear_caches", lambda: None
+    )
 
 
 @pytest.fixture()
