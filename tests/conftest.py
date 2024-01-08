@@ -7,10 +7,22 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any, Literal, Protocol
 
     from fastapi.testclient import TestClient
+    from httpx import Client
 
+    from dlite_entities_service.service.backend.admin import AdminBackend
     from dlite_entities_service.service.backend.mongodb import MongoDBBackend
+
+    class ClientFixture(Protocol):
+        """Protocol for the client fixture."""
+
+        def __call__(
+            self, auth_role: Literal["read", "readWrite"] | None = None
+        ) -> TestClient | Client:
+            ...
+
 
 ## Pytest configuration functions and hooks ##
 
@@ -30,9 +42,8 @@ def pytest_configure(config: pytest.Config) -> None:
     import os
 
     # Set the environment variable for the MongoDB database name
-    os.environ["ENTITY_SERVICE_BACKEND"] = (
-        "mongodb" if config.getoption("--live-backend") else "mongomock"
-    )
+    live_backend: bool = config.getoption("--live-backend")
+    os.environ["ENTITY_SERVICE_BACKEND"] = "mongodb" if live_backend else "mongomock"
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
@@ -44,6 +55,11 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     """
     import shutil
     from pathlib import Path
+
+    if session.config.getoption("--live-backend"):
+        # If the tests are run with a live backend, there is no need to rename the
+        # local '.env' file
+        return
 
     local_env_file = Path(session.startpath).resolve() / ".env"
 
@@ -77,6 +93,11 @@ def pytest_sessionfinish(
     import shutil
     from pathlib import Path
 
+    if session.config.getoption("--live-backend"):
+        # If the tests are run with a live backend, there is no need to return the
+        # local '.env' file
+        return
+
     local_env_file = Path(session.startpath).resolve() / ".env"
 
     if local_env_file.exists():
@@ -106,25 +127,27 @@ def pytest_sessionfinish(
 def live_backend(request: pytest.FixtureRequest) -> bool:
     """Return whether to run the tests with a live backend."""
     import os
+    import warnings
 
     required_environment_variables = (
-        "ENTITY_SERVICE_MONGO_USER",
-        "ENTITY_SERVICE_MONGO_PASSWORD",
+        "ENTITY_SERVICE_HOST",
+        "ENTITY_SERVICE_PORT",
     )
 
     value = request.config.getoption("--live-backend")
 
-    if value:
-        # Check certain environment variables are set
-        assert not any(os.getenv(_) is None for _ in required_environment_variables), (
+    # Check certain environment variables are set
+    if value and not any(os.getenv(_) is None for _ in required_environment_variables):
+        warnings.warn(
             "All required environment variables were not found to be set. "
             "Please set the following environment variables: "
-            f"{', '.join(required_environment_variables)}"
+            f"{', '.join(required_environment_variables)}",
+            stacklevel=1,
         )
 
     # Sanity check - the ENTITY_SERVICE_BACKEND should be set to 'pymongo' if
     # the tests are run with a live backend, and 'mongomock' otherwise
-    assert os.getenv("ENTITY_SERVICE_BACKEND") == ("mongodb" if value else "mongomock")
+    assert os.getenv("ENTITY_SERVICE_BACKEND") == "mongodb" if value else "mongomock"
 
     return value
 
@@ -140,13 +163,16 @@ def static_dir() -> Path:
 @pytest.fixture(scope="session", autouse=True)
 def _mongo_test_collection(static_dir: Path, live_backend: bool) -> None:
     """Add MongoDB test data to the chosen backend."""
+
     import yaml
 
     from dlite_entities_service.service.backend import Backends, get_backend
     from dlite_entities_service.service.config import CONFIG
 
     # Convert all '$ref' to 'ref' in the entities.yaml file
-    entities = yaml.safe_load((static_dir / "entities.yaml").read_text())
+    entities: list[dict[str, Any]] = yaml.safe_load(
+        (static_dir / "entities.yaml").read_text()
+    )
     for entity in entities:
         # SOFT5
         if isinstance(entity["properties"], list):
@@ -156,11 +182,16 @@ def _mongo_test_collection(static_dir: Path, live_backend: bool) -> None:
                 }
 
         # SOFT7
-        else:
+        elif isinstance(entity["properties"], dict):
             for property_name, property_value in list(entity["properties"].items()):
                 entity["properties"][property_name] = {
                     key.replace("$", ""): value for key, value in property_value.items()
                 }
+
+        else:
+            raise TypeError(
+                f"Invalid type for entity['properties']: {type(entity['properties'])}"
+            )
 
     assert CONFIG.backend == (
         Backends.MONGODB if live_backend else Backends.MONGOMOCK
@@ -169,10 +200,56 @@ def _mongo_test_collection(static_dir: Path, live_backend: bool) -> None:
         "backend, and 'mongomock' otherwise."
     )
 
-    # TODO: Handle authentication properly
-    backend: MongoDBBackend = get_backend()
+    backend_settings = {}
+    if live_backend:
+        # Add test users to the database
+        admin_backend: AdminBackend = get_backend(
+            "admin",
+            settings={
+                "mongo_username": CONFIG.admin_user.get_secret_value()
+                if CONFIG.admin_user is not None
+                else "root",
+                "mongo_password": CONFIG.admin_password.get_secret_value()
+                if CONFIG.admin_password is not None
+                else "root",
+            },
+        )
 
-    print("Inserting entities")
+        existing_users: list[str] = [
+            user["user"]
+            for user in admin_backend._db.command("usersInfo", usersInfo=1)["users"]
+        ]
+
+        if CONFIG.mongo_user not in existing_users:
+            admin_backend._db.command(
+                "createUser",
+                createUser=CONFIG.mongo_user,
+                pwd=CONFIG.mongo_password.get_secret_value(),
+                roles=[{"role": "read", "db": CONFIG.mongo_db}],
+            )
+
+        if "test_write_user" not in existing_users:
+            admin_backend._db.command(
+                "createUser",
+                createUser="test_write_user",
+                pwd="writer",
+                roles=[{"role": "readWrite", "db": CONFIG.mongo_db}],
+            )
+
+        # Use backend settings with write rights
+        backend_settings = {
+            "mongo_username": "test_write_user",
+            "mongo_password": "writer",
+        }
+
+    # Get entities backend
+    backend: MongoDBBackend = get_backend(settings=backend_settings)
+
+    if live_backend:
+        # Remove the test entities from the database
+        backend._collection.delete_many({})
+
+    # Add the test entities to the database
     backend._collection.insert_many(entities)
 
 
@@ -186,33 +263,85 @@ def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
             "dlite_entities_service.service.backend.admin.AdminBackend.initialize_entities_backend",
             lambda _: None,
         )
-    # Always remove the usability of clear_caches()
-    monkeypatch.setattr(
-        "dlite_entities_service.service.backend.clear_caches", lambda: None
-    )
+
+        monkeypatch.setattr(
+            "dlite_entities_service.service.backend.clear_caches", lambda: None
+        )
 
 
 @pytest.fixture()
-def client(live_backend: bool) -> TestClient:
+def client(live_backend: bool) -> ClientFixture:
     """Return the test client."""
     import os
 
     from fastapi.testclient import TestClient
+    from httpx import Client
 
     from dlite_entities_service.main import APP
+    from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
 
-    if live_backend:
+    def _client(
+        auth_role: Literal["read", "readWrite"] | None = None
+    ) -> TestClient | Client:
+        """Return the test client with the given authentication role."""
+        if not live_backend:
+            return TestClient(
+                app=APP,
+                base_url=str(CONFIG.base_url),
+            )
+
+        if auth_role is None:
+            auth_role = "read"
+
+        if auth_role not in ("read", "readWrite"):
+            raise ValueError(
+                f"Invalid authentication role '{auth_role}'. Must be either 'read' or "
+                "'readWrite'."
+            )
+
         host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
             "ENTITY_SERVICE_PORT", "8000"
         )
 
-        return TestClient(
-            app=APP,
-            base_url=f"http://{host}:{port}",
+        base_url = f"http://{host}"
+
+        if port:
+            base_url += f":{port}"
+
+        username = CONFIG.mongo_user if auth_role == "read" else "test_write_user"
+        password = (
+            CONFIG.mongo_password.get_secret_value()
+            if auth_role == "read"
+            else "writer"
         )
 
-    return TestClient(
-        app=APP,
-        base_url=str(CONFIG.base_url),
-    )
+        with Client(base_url=base_url) as temp_client:
+            response = temp_client.post(
+                "/_auth/token",
+                data={
+                    "grant_type": "password",
+                    "username": username,
+                    "password": password,
+                },
+            )
+
+        assert response.is_success, response.text
+        try:
+            token = Token(**response.json())
+        except Exception as exc:
+            raise ValueError(
+                "Could not parse the response from the token endpoint. "
+                f"Response:\n{response.text}"
+            ) from exc
+
+        authentication_header = {
+            "Authorization": f"{token.token_type} {token.access_token}"
+        }
+
+        return Client(
+            base_url=f"http://{host}:{port}",
+            headers=authentication_header,
+        )
+
+    return _client

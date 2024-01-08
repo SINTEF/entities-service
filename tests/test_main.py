@@ -9,7 +9,7 @@ import pytest
 if TYPE_CHECKING:
     from typing import Any
 
-    from fastapi.testclient import TestClient
+    from .conftest import ClientFixture
 
 
 class ParameterizeGetEntities(NamedTuple):
@@ -85,13 +85,13 @@ def test_get_entity(
     entity: dict[str, Any],
     version: str,
     name: str,
-    client: TestClient,
+    client: ClientFixture,
 ) -> None:
     """Test the route to retrieve a DLite/SOFT entity."""
     from fastapi import status
 
-    with client as client:
-        response = client.get(f"/{version}/{name}", timeout=5)
+    with client() as client_:
+        response = client_.get(f"/{version}/{name}", timeout=5)
 
     assert (
         response.is_success
@@ -113,26 +113,26 @@ def test_get_entity_instance(
     entity: dict[str, Any],
     version: str,
     name: str,
-    client: TestClient,
+    client: ClientFixture,
 ) -> None:
     """Validate that we can instantiate a DLite Instance from the response"""
     from dlite import Instance
 
-    with client as client:
-        response = client.get(f"/{version}/{name}", timeout=5)
+    with client() as client_:
+        response = client_.get(f"/{version}/{name}", timeout=5)
 
     assert (resolve_entity := response.json()) == entity, resolve_entity
 
     Instance.from_dict(resolve_entity)
 
 
-def test_get_entity_not_found(client: TestClient) -> None:
+def test_get_entity_not_found(client: ClientFixture) -> None:
     """Test that the route returns a Not Found (404) for non existant URIs."""
     from fastapi import status
 
     version, name = "0.0", "NonExistantEntity"
-    with client as client:
-        response = client.get(f"/{version}/{name}", timeout=5)
+    with client() as client_:
+        response = client_.get(f"/{version}/{name}", timeout=5)
 
     assert not response.is_success, "Non existant (valid) URI returned an OK response!"
     assert (
@@ -140,7 +140,7 @@ def test_get_entity_not_found(client: TestClient) -> None:
     ), f"Response:\n\n{response.json()}"
 
 
-def test_get_entity_invalid_uri(client: TestClient) -> None:
+def test_get_entity_invalid_uri(client: ClientFixture) -> None:
     """Test that the service raises a pydantic ValidationError and returns an
     Unprocessable Entity (422) for invalid URIs.
 
@@ -149,8 +149,8 @@ def test_get_entity_invalid_uri(client: TestClient) -> None:
     from fastapi import status
 
     version, name = "1.0", "EntityName"
-    with client as client:
-        response = client.get(f"/{name}/{version}", timeout=5)
+    with client() as client_:
+        response = client_.get(f"/{name}/{version}", timeout=5)
 
     assert not response.is_success, "Invalid URI returned an OK response!"
     assert (

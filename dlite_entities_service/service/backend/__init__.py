@@ -75,4 +75,10 @@ def clear_caches() -> None:
     """Clear all internal service caches."""
     from dlite_entities_service.service.backend import mongodb
 
+    if mongodb.MONGO_CLIENTS is None:
+        return
+
+    for client in mongodb.MONGO_CLIENTS.values():
+        client.close()
+
     mongodb.MONGO_CLIENTS = None

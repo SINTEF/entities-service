@@ -33,12 +33,12 @@ async def lifespan(_: FastAPI):
 
     LOGGER.debug("Starting service with config: %s", CONFIG)
 
+    # Clear caches
+    clear_caches()
+
     # Initialize backend
     admin_backend: AdminBackend = get_backend(CONFIG.admin_backend)  # type: ignore[assignment]
     admin_backend.initialize_entities_backend()
-
-    # Clear caches
-    clear_caches()
 
     # Run application
     yield

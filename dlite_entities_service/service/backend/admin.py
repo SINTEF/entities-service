@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Generator
-from typing import TYPE_CHECKING, Annotated, TypedDict
+from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
 
 from pydantic import (
     Field,
@@ -18,7 +18,9 @@ from dlite_entities_service.service.backend.backend import (
     BackendSettings,
 )
 from dlite_entities_service.service.backend.mongodb import (
+    BACKEND_DRIVER_MAPPING,
     MongoDBBackendWriteAccessError,
+    discard_client_for_user,
     get_client,
 )
 from dlite_entities_service.service.config import CONFIG, MongoDsn
@@ -81,6 +83,13 @@ class AdminBackendSettings(BackendSettings):
         ),
     ] = CONFIG.admin_db
 
+    mongo_driver: Annotated[
+        Literal["pymongo", "mongomock"],
+        Field(
+            description="The MongoDB driver to use. Either 'pymongo' or 'mongomock'.",
+        ),
+    ] = BACKEND_DRIVER_MAPPING.get(CONFIG.backend, "pymongo")
+
 
 # Backend class
 class AdminBackend(Backend):
@@ -107,6 +116,7 @@ class AdminBackend(Backend):
             uri=str(self._settings.mongo_uri),
             username=username,
             password=password,
+            driver=self._settings.mongo_driver,
         )[self._settings.mongo_db]
 
     def __str__(self) -> str:
@@ -165,6 +175,20 @@ class AdminBackend(Backend):
             }
         )
         entities_backend.initialize()
+
+    def close(self) -> None:
+        """Close the backend if using production backend."""
+        if self._settings.mongo_driver == "mongomock":
+            return
+
+        super().close()
+
+        username = self._settings.mongo_username.get_secret_value()
+
+        if isinstance(username, bytes):
+            username = username.decode()
+
+        discard_client_for_user(username)
 
     # Unused must-implement "Backend" methods
     def __contains__(self, item: Any) -> bool:

@@ -453,7 +453,7 @@ def login(
     with httpx.Client(base_url=str(CONFIG.base_url)) as client:
         try:
             response = client.post(
-                "/_admin/token",
+                "/_auth/token",
                 data={
                     "grant_type": "password",
                     "username": username,

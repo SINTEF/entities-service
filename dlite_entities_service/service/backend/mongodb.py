@@ -225,6 +225,25 @@ class MongoDBBackend(Backend):
 
     def initialize(self) -> None:
         """Initialize the MongoDB backend."""
+        # Check index exists
+        if "URI" in (indices := self._collection.index_information()):
+            if not indices["URI"].get("unique", False):
+                LOGGING.warning(
+                    "The URI index in the MongoDB collection is not unique. "
+                    "This may cause problems when creating entities."
+                )
+            if indices["URI"].get("key", False) != [
+                ("uri", 1),
+                ("namespace", 1),
+                ("version", 1),
+                ("name", 1),
+            ]:
+                LOGGING.warning(
+                    "The URI index in the MongoDB collection is not as expected. "
+                    "This may cause problems when creating entities."
+                )
+            return
+
         # Create a unique index for the URI
         self._collection.create_index(
             ["uri", "namespace", "version", "name"], unique=True, name="URI"
@@ -288,6 +307,14 @@ class MongoDBBackend(Backend):
             raise TypeError(f"Query must be a dict for {self.__class__.__name__}.")
 
         return self._collection.count_documents(query)
+
+    def close(self) -> None:
+        """Close the MongoDB connection if using production backend."""
+        if self._settings.mongo_driver == "mongomock":
+            return
+
+        super().close()
+        discard_client_for_user(self._settings.mongo_username)
 
     # MongoDBBackend specific methods
     def _single_uri_query(self, uri: str) -> dict[str, Any]:

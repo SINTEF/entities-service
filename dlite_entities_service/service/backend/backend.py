@@ -48,6 +48,7 @@ class Backend(ABC):
             settings = self._settings_model(**settings)
 
         self._settings = settings or self._settings_model()
+        self._is_closed: bool = False
 
     # Exceptions
     @property
@@ -56,11 +57,15 @@ class Backend(ABC):
         """Get the exception type raised when write access is denied."""
         raise NotImplementedError
 
+    # Standard magic methods
     def __repr__(self) -> str:
         return f"<{self}>"
 
     def __str__(self) -> str:
         return self.__class__.__name__
+
+    # def __del__(self) -> None:
+    #     self.close()
 
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:
@@ -119,3 +124,16 @@ class Backend(ABC):
     def count(self, query: Any = None) -> int:
         """Count entities."""
         raise NotImplementedError
+
+    # Backend methods (close)
+    @property
+    def is_closed(self) -> bool:
+        """Return True if the backend is closed."""
+        return self._is_closed
+
+    def close(self) -> None:
+        """Close the backend."""
+        if self.is_closed:
+            raise BackendError("Backend is already closed")
+
+        self._is_closed = True
