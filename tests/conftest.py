@@ -12,6 +12,8 @@ if TYPE_CHECKING:
 
     from dlite_entities_service.service.backend.mongodb import MongoDBBackend
 
+## Pytest configuration functions and hooks ##
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Add the command line option to run the tests with a live backend."""
@@ -31,6 +33,73 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ["ENTITY_SERVICE_BACKEND"] = (
         "mongodb" if config.getoption("--live-backend") else "mongomock"
     )
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Called after the Session object has been created and before performing
+    collection and entering the run test loop.
+
+    Used together with `pytest_sessionfinish()` to temporarily rename a local `.env`
+    file.
+    """
+    import shutil
+    from pathlib import Path
+
+    local_env_file = Path(session.startpath).resolve() / ".env"
+
+    if local_env_file.exists():
+        temporary_env_file = (
+            Path(session.startpath).resolve() / ".env.temp_while_testing"
+        )
+        if temporary_env_file.exists():
+            raise FileExistsError(
+                "Could not temporarily rename local '.env' file to "
+                f"'{temporary_env_file}'. File already exists."
+            )
+
+        shutil.move(local_env_file, temporary_env_file)
+
+        if local_env_file.exists() or not temporary_env_file.exists():
+            raise FileNotFoundError(
+                "Could not move local '.env' file to a temporary naming."
+            )
+
+
+def pytest_sessionfinish(
+    session: pytest.Session, exitstatus: int  # noqa: ARG001
+) -> None:
+    """Called after whole test run finished, right before returning the exit status to
+    the system.
+
+    Used together with `pytest_sessionstart()` to temporarily return a local `.env`
+    file.
+    """
+    import shutil
+    from pathlib import Path
+
+    local_env_file = Path(session.startpath).resolve() / ".env"
+
+    if local_env_file.exists():
+        raise FileExistsError(
+            "The local '.env' file could not be returned to its original name "
+            "because the file already exists."
+        )
+
+    temporary_env_file = Path(session.startpath).resolve() / ".env.temp_while_testing"
+    if not temporary_env_file.exists():
+        # The temporary file does not exist, so there is nothing to do
+        return
+
+    shutil.move(temporary_env_file, local_env_file)
+
+    if not local_env_file.exists() or temporary_env_file.exists():
+        raise FileNotFoundError(
+            "Could not move local temporary '.env.temp_while_testing' file to the "
+            "original '.env' naming."
+        )
+
+
+## Pytest fixtures ##
 
 
 @pytest.fixture(scope="session")
