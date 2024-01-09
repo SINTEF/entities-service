@@ -131,7 +131,7 @@ and finally
 openssl rand -hex 32
 ```
 
-Then run the Docker images and then the tests:
+Then run (up) the Docker Compose file and subsequently the tests:
 
 ```shell
 docker compose --env-file .env up -d

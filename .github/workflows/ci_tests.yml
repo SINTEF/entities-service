@@ -49,7 +49,11 @@ jobs:
           MONGO_INITDB_ROOT_PASSWORD: root
 
     env:
+      # "Regular" entities service configuration values
       ENTITY_SERVICE_MONGO_URI: mongodb://localhost:27017
+      ENTITY_SERVICE_ADMIN_USER: "root"  # should be the same as MONGO_INITDB_ROOT_USERNAME above
+      ENTITY_SERVICE_ADMIN_PASSWORD: "root"  # should be the same as MONGO_INITDB_ROOT_PASSWORD above
+      ENTITY_SERVICE_ADMIN_DB: admin
       # These are used in the Dockerfile as well as in pytest
       ENTITY_SERVICE_HOST: localhost
       ENTITY_SERVICE_PORT: 8000
@@ -75,6 +79,10 @@ jobs:
         run: |
           docker run --rm -d \
             --env ENTITY_SERVICE_MONGO_URI \
+            --env ENTITY_SERVICE_ADMIN_USER \
+            --env ENTITY_SERVICE_ADMIN_PASSWORD \
+            --env ENTITY_SERVICE_ADMIN_DB \
+            --env ENTITY_SERVICE_PRIVATE_SSL_KEY=$(openssl rand -hex 32) \
             --env PORT=${ENTITY_SERVICE_PORT} \
             --name "entity-service" \
             --network "host" \

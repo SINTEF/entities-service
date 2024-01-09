@@ -117,7 +117,7 @@ class ServiceSettings(BaseSettings):
                 "the Entities Service."
             ),
         ),
-    ] = "entities_service_admin"
+    ] = "admin"
 
     @field_validator("base_url", mode="before")
     @classmethod
