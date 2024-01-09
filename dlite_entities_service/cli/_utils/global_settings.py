@@ -61,7 +61,7 @@ def global_options(
         resolve_path=True,
         help=(
             "Use the .env file at the given location for the current command. "
-            "By default it will point to an .env file in the current directory."
+            "By default it will point to the .env file in the current directory."
         ),
         show_default=False,
         rich_help_panel="Global options",
