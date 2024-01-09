@@ -12,13 +12,18 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
 
+    from ..conftest import GetBackendUserFixture
+
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
 
 @pytest.mark.parametrize("input_method", ["cli_option", "stdin", "env"])
 def test_login(
-    cli: CliRunner, input_method: Literal["cli_option", "stdin"], httpx_mock: HTTPXMock
+    cli: CliRunner,
+    input_method: Literal["cli_option", "stdin"],
+    httpx_mock: HTTPXMock,
+    get_backend_user: GetBackendUserFixture,
 ) -> None:
     """Test the `entities-service login` CLI command."""
     import re
@@ -27,8 +32,10 @@ def test_login(
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
 
-    username = "testuser"
-    password = "testpassword"
+    backend_user = get_backend_user()
+
+    username = backend_user["username"]
+    password = backend_user["password"]
 
     mock_token = Token(access_token="test_token")
 
@@ -74,6 +81,7 @@ def test_token_persistence(
     httpx_mock: HTTPXMock,
     static_dir: Path,
     random_valid_entity: dict[str, Any],
+    get_backend_user: GetBackendUserFixture,
 ) -> None:
     """Test that the token is persisted to the config file."""
     import re
@@ -82,8 +90,10 @@ def test_token_persistence(
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
 
-    username = "testuser"
-    password = "testpassword"
+    backend_user = get_backend_user(auth_role="readWrite")
+
+    username = backend_user["username"]
+    password = backend_user["password"]
 
     mock_token = Token(access_token="test_token")
 
@@ -164,7 +174,9 @@ def test_token_persistence(
     assert CONTEXT["token"] == mock_token, CONTEXT
 
 
-def test_login_invalid_credentials(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
+def test_login_invalid_credentials(
+    cli: CliRunner, httpx_mock: HTTPXMock, get_backend_user: GetBackendUserFixture
+) -> None:
     """Test that the command fails with invalid credentials."""
     import re
 
@@ -173,6 +185,13 @@ def test_login_invalid_credentials(cli: CliRunner, httpx_mock: HTTPXMock) -> Non
 
     username = "testuser"
     password = "testpassword"
+
+    # Ensure the test credentials are not the same as the ones used for the backend
+    for auth_role in ["read", "readWrite"]:
+        assert (
+            username != get_backend_user(auth_role=auth_role)["username"]
+            or password != get_backend_user(auth_role=auth_role)["password"]
+        )
 
     assert CONTEXT["token"] is None, CONTEXT
 
@@ -201,6 +220,7 @@ def test_login_invalid_credentials(cli: CliRunner, httpx_mock: HTTPXMock) -> Non
     assert CONTEXT["token"] is None, CONTEXT
 
 
+@pytest.mark.skip_if_live_backend("Does not raise HTTP errors in this case.")
 def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if an HTTP error occurs."""
     import re
@@ -242,6 +262,7 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
 @pytest.mark.parametrize(
     "return_status_code", [200, 500], ids=["OK", "Internal Server Error"]
 )
+@pytest.mark.skip_if_live_backend("Does not raise JSON decode errors in this case.")
 def test_json_decode_errors(
     cli: CliRunner, httpx_mock: HTTPXMock, return_status_code: Literal[200, 500]
 ) -> None:
@@ -278,6 +299,9 @@ def test_json_decode_errors(
     assert CONTEXT["token"] is None, CONTEXT
 
 
+@pytest.mark.skip_if_live_backend(
+    "Does not raise pydantic.ValidationErrors in this case."
+)
 def test_validation_error(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if the response cannot be parsed as a
     valid token."""
