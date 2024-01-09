@@ -112,17 +112,17 @@ class SOFT5Entity(BaseModel):
         list[SOFT5Property], Field(description="A list of properties.")
     ]
 
-    @field_validator("uri", "namespace")
-    @classmethod
-    def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
-        """Validate `uri` starts with the current base URL for the service."""
-        if not str(value).startswith(str(CONFIG.base_url)):
-            error_message = (
-                "This service only works with DLite/SOFT entities at "
-                f"{CONFIG.base_url}.\n"
-            )
-            raise ValueError(error_message)
-        return value
+    # @field_validator("uri", "namespace", mode="after")
+    # @classmethod
+    # def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
+    #     """Validate `uri` starts with the current base URL for the service."""
+    #     if not str(value).startswith(str(CONFIG.base_url)):
+    #         error_message = (
+    #             "This service only works with DLite/SOFT entities at "
+    #             f"{CONFIG.base_url}.\n"
+    #         )
+    #         raise ValueError(error_message)
+    #     return value
 
     @field_validator("uri", mode="after")
     @classmethod
@@ -136,7 +136,7 @@ class SOFT5Entity(BaseModel):
             raise ValueError(error_message)
         return value
 
-    @field_validator("meta")
+    @field_validator("meta", mode="after")
     @classmethod
     def _only_support_onto_ns(cls, value: AnyHttpUrl) -> AnyHttpUrl:
         """Validate `meta` only refers to onto-ns.com EntitySchema v0.3."""

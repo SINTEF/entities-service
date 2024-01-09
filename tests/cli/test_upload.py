@@ -327,6 +327,7 @@ def test_existing_entity_different_content(
     from copy import deepcopy
 
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.models import URI_REGEX
     from dlite_entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
@@ -340,12 +341,16 @@ def test_existing_entity_different_content(
         json=raw_entity,
     )
 
+    original_uri_match = URI_REGEX.match(raw_entity["uri"])
+    assert original_uri_match is not None
+    original_uri_match_dict = original_uri_match.groupdict()
+
     # Create a new file with a change in the content
     new_entity = deepcopy(raw_entity)
     new_entity["dimensions"]["n_skills"] = "Skill number."
-    new_entity["namespace"] = str(CONFIG.base_url)
-    new_entity["version"] = "0.1"
-    new_entity["name"] = "Person"
+    new_entity["namespace"] = original_uri_match_dict["namespace"]
+    new_entity["version"] = original_uri_match_dict["version"]
+    new_entity["name"] = original_uri_match_dict["name"]
     assert new_entity != raw_entity
     new_entity_file = tmp_path / "Person.json"
     new_entity_file.write_text(json.dumps(new_entity))
@@ -378,9 +383,10 @@ def test_existing_entity_different_content(
     # Mock response for "Upload entities"
     new_entity_file_to_be_uploaded = deepcopy(new_entity)
     new_entity_file_to_be_uploaded["version"] = "0.1.1"
-    new_entity_file_to_be_uploaded[
-        "uri"
-    ] = f"{str(CONFIG.base_url).rstrip('/')}/0.1.1/Person"
+    new_entity_file_to_be_uploaded["uri"] = (
+        f"{original_uri_match_dict['namespace']}/0.1.1"
+        f"/{original_uri_match_dict['name']}"
+    )
     httpx_mock.add_response(
         url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",
@@ -417,9 +423,10 @@ def test_existing_entity_different_content(
     # Mock response for "Upload entities"
     new_entity_file_to_be_uploaded = deepcopy(new_entity)
     new_entity_file_to_be_uploaded["version"] = custom_version
-    new_entity_file_to_be_uploaded[
-        "uri"
-    ] = f"{str(CONFIG.base_url).rstrip('/')}/{custom_version}/Person"
+    new_entity_file_to_be_uploaded["uri"] = (
+        f"{original_uri_match_dict['namespace']}/{custom_version}"
+        f"/{original_uri_match_dict['name']}"
+    )
     httpx_mock.add_response(
         url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",

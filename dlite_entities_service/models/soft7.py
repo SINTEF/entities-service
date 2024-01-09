@@ -108,18 +108,18 @@ class SOFT7Entity(BaseModel):
         ),
     ]
 
-    @field_validator("uri", "namespace", mode="after")
-    @classmethod
-    def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
-        """Validate `uri` and `namespace` starts with the current base URL for the
-        service."""
-        if not str(value).startswith(str(CONFIG.base_url)):
-            error_message = (
-                "This service only works with DLite/SOFT entities at "
-                f"{CONFIG.base_url}.\n"
-            )
-            raise ValueError(error_message)
-        return value
+    # @field_validator("uri", "namespace", mode="after")
+    # @classmethod
+    # def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
+    #     """Validate `uri` and `namespace` starts with the current base URL for the
+    #     service."""
+    #     if not str(value).startswith(str(CONFIG.base_url)):
+    #         error_message = (
+    #             "This service only works with DLite/SOFT entities at "
+    #             f"{CONFIG.base_url}.\n"
+    #         )
+    #         raise ValueError(error_message)
+    #     return value
 
     @field_validator("uri", mode="after")
     @classmethod

@@ -138,6 +138,33 @@ docker compose --env-file .env up -d
 pytest --live-backend
 ```
 
+### Extra pytest markers
+
+There are two custom pytest markers:
+
+- `skip_if_live_backend`: skips the test if the `--live-backend` flag is set.
+  Add this marker to tests that should not be run against a live backend.
+  Either because they are not relevant for a live backend, or because they currently impossible to replicate within a live backend.
+
+  A reason can be specified as an argument to the marker, e.g.:
+
+  ```python
+  @pytest.mark.skip_if_live_backend(reason="Cannot force an HTTP error")
+  def test_something():
+      ...
+  ```
+
+  **Availability**: This marker is available for all tests.
+
+- `no_token`: run test without a mock authentication token set.
+  Add this marker to tests that should be run without an automatic mock authentication token set.
+  This is useful for testing the service's behaviour when no token is provided or to test letting the service set a token.
+
+  This marker is meant to be used together with the `_use_valid_token` fixture, which will automatically set a valid mock authentication token for a test.
+  The `_use_valid_token` fixture is used for all tests by default in the `cli.test_upload` file.
+
+  **Availability**: This marker is only available for tests in the `cli` test module (folder), and sub-modules (sub-folders) therein.
+
 ## Licensing & copyright
 
 All files in this repository are [MIT licensed](LICENSE).  
