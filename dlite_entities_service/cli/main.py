@@ -129,7 +129,7 @@ def upload(
         help=(
             "Path to directory with entities. All files matching the given "
             "format(s) in the directory will be uploaded. "
-            "Subdirectories will be ignored. Can be provided multiple times."
+            "Subdirectories will be ignored. This option can be provided multiple times (i.e., for including specified subdirectories)."
         ),
         show_default=False,
     ),
@@ -191,7 +191,7 @@ def upload(
 
             if file_format in EntityFileFormats.__members__.values():
                 print(
-                    f"[bold blue]Info[/bold blue]: File format {file_format!r} can be "
+                    f"[bold blue]Info[/bold blue]: Entities using the file format {file_format!r} can be "
                     f"uploaded by adding the option: --format={file_format}"
                 )
             else:
@@ -262,7 +262,7 @@ def upload(
             try:
                 update_version = typer.confirm(
                     "You cannot overwrite existing entities. Do you wish to upload the "
-                    "new entity with an updated version?",
+                    "new entity with an updated version number?",
                     default=True,
                 )
             except typer.Abort:  # pragma: no cover
