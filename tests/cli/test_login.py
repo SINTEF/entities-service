@@ -53,7 +53,12 @@ def test_login(
     if input_method == "cli_option":
         result = cli.invoke(APP, f"login --username {username} --password {password}")
     elif input_method == "stdin":
-        result = cli.invoke(APP, "login", input=f"{username}\n{password}\n")
+        result = cli.invoke(
+            APP,
+            "login",
+            input=f"{username}\n{password}\n",
+            env={"ENTITY_SERVICE_ADMIN_USER": "", "ENTITY_SERVICE_ADMIN_PASSWORD": ""},
+        )
     elif input_method == "env":
         result = cli.invoke(
             APP,
