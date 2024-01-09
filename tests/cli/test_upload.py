@@ -190,7 +190,8 @@ def test_upload_files_with_unchosen_format(cli: CliRunner, static_dir: Path) -> 
     )
     assert (
         result.stdout.replace("\n", "").count(
-            "File format 'json' can be uploaded by adding the option: --format=json"
+            "Entities using the file format 'json' can be uploaded by adding the "
+            "option: --format=json"
         )
         == 1
     )
