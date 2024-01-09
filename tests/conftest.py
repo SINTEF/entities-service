@@ -138,12 +138,14 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
 
     # Check certain environment variables are set
     if value and any(os.getenv(_) is None for _ in required_environment_variables):
-        warnings.warn(
-            "All required environment variables were not found to be set. "
-            "Please set the following environment variables: "
-            f"{', '.join(required_environment_variables)}",
-            stacklevel=1,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("default")
+            warnings.warn(
+                "All required environment variables were not found to be set. "
+                "Please set the following environment variables: "
+                f"{', '.join(required_environment_variables)}",
+                stacklevel=1,
+            )
 
     # Sanity check - the ENTITY_SERVICE_BACKEND should be set to 'pymongo' if
     # the tests are run with a live backend, and 'mongomock' otherwise
@@ -345,3 +347,14 @@ def client(live_backend: bool) -> ClientFixture:
         )
 
     return _client
+
+
+@pytest.fixture()
+def non_mocked_hosts(live_backend: bool) -> list[str]:
+    """Return a list of hosts that are not mocked by 'pytest-httpx."""
+    import os
+
+    if live_backend:
+        return [os.getenv("ENTITY_SERVICE_HOST", "localhost")]
+
+    return []

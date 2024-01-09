@@ -146,7 +146,7 @@ def upload(
         )
         raise typer.Exit(1)
 
-    if not CONTEXT["token"]:
+    if CONTEXT["token"] is None:
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Missing authorization token. Please login "
             "first by running 'entities-service login'."
@@ -439,14 +439,18 @@ def login(
     if username is None:
         try:
             username = typer.prompt("Username", type=str)
-        except typer.Abort as exc:
+        except typer.Abort as exc:  # pragma: no cover
+            # Can only happen if the user presses Ctrl-C, which can not be tested
+            # currently
             print("[bold blue]Info[/bold blue]: Login aborted.")
             raise typer.Exit(1) from exc
 
     if password is None:
         try:
             password = typer.prompt("Password", hide_input=True, type=str)
-        except typer.Abort as exc:
+        except typer.Abort as exc:  # pragma: no cover
+            # Can only happen if the user presses Ctrl-C, which can not be tested
+            # currently
             print("[bold blue]Info[/bold blue]: Login aborted.")
             raise typer.Exit(1) from exc
 

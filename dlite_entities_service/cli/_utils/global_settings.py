@@ -12,7 +12,6 @@ except ImportError as exc:  # pragma: no cover
         f"{Path(__file__).resolve().parent.parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
-from pydantic import ValidationError
 
 from dlite_entities_service import __version__
 from dlite_entities_service.cli._utils.generics import print
@@ -85,13 +84,21 @@ def global_options(
         CONTEXT["dotenv_path"] = dotenv_path
 
     if token:
-        try:
-            access_token = Token(access_token=token)
-        except ValidationError as exc:
-            raise typer.BadParameter(
-                f"Invalid token: {token}",
-                param=token,
-                param_hint="Token should be given as a string.",
-            ) from exc
+        access_token = Token(access_token=token)
+
+        # I cannot come up with a scenario where this would not validate.
+        # The only scenario in which it would happen is if `token` is not a string.
+        # But it can never not be a string due to the way the input is parsed.
+        # Even the `if token:` sentence ensures that it will never be an empty string at
+        # that...
+        # However, should a case ever come up, the following lines should be the
+        # 'except' part of a 'try/except'-block for generating the `Token()`:
+
+        # except ValidationError as exc:
+        #     raise typer.BadParameter(
+        #         f"Invalid token: {token}",
+        #         param=token,
+        #         param_hint="Token should be given as a string.",
+        #     ) from exc
 
         CONTEXT["token"] = access_token

@@ -81,7 +81,10 @@ class ConfigFields(StrEnum):
                 else:
                     sensitive_fields[getattr(cls, config_name.upper())] = False
 
-            elif annotation in (SecretStr, SecretBytes):
+            elif annotation in (SecretStr, SecretBytes):  # pragma: no cover
+                # Currently there is no config value that fits this test.
+                # But we keep it here to be future-proof and more clear about the usage
+                # of `typing.get-args()`.
                 sensitive_fields[getattr(cls, config_name.upper())] = True
 
             else:
@@ -120,7 +123,9 @@ def set_config(
                 hide_input=key.is_sensitive(),
                 type=str,
             )
-        except typer.Abort as exc:
+        except typer.Abort as exc:  # pragma: no cover
+            # Can only happen if the user presses Ctrl-C, which can not be tested
+            # currently
             print("[bold blue]Info[/bold blue]: Aborted.")
             raise typer.Exit(1) from exc
 

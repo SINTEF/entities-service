@@ -7,9 +7,15 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any
 
     from typer import Typer
     from typer.testing import CliRunner
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Add custom markers to pytest."""
+    config.addinivalue_line("markers", "no_token: mark test to not use an auth token")
 
 
 @pytest.fixture()
@@ -66,9 +72,77 @@ def _prefill_dotenv_config(dotenv_file: Path) -> None:
 
 
 @pytest.fixture()
-def _use_valid_token() -> None:
+def _use_valid_token(request: pytest.FixtureRequest) -> None:
     """Set the token to a valid one."""
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.models.auth import Token
 
-    CONTEXT["token"] = Token(access_token="mock_token")
+    if request.node.get_closest_marker("no_token"):
+        CONTEXT["token"] = None
+    else:
+        CONTEXT["token"] = Token(access_token="mock_token")
+
+
+@pytest.fixture()
+def random_valid_entity(static_dir: Path) -> dict[str, Any]:
+    """Return a random valid entity."""
+    import json
+    from random import choice
+
+    random_entity: Path = choice(list((static_dir / "valid_entities").glob("*.json")))
+    entity: dict[str, Any] = json.loads(random_entity.read_bytes())
+
+    assert "properties" in entity
+
+    # SOFT5
+    if isinstance(entity["properties"], list):
+        entity["properties"] = [
+            {key.replace("$ref", "ref"): value for key, value in property_.items()}
+            for property_ in entity["properties"]
+        ]
+
+    # SOFT7
+    else:
+        for property_name, property_value in list(entity["properties"].items()):
+            entity["properties"][property_name] = {
+                key.replace("$ref", "ref"): value
+                for key, value in property_value.items()
+            }
+
+    return entity
+
+
+@pytest.fixture(autouse=True)
+def _reset_context(pytestconfig: pytest.Config) -> None:
+    """Reset the context."""
+    from dlite_entities_service.cli._utils.global_settings import CONTEXT
+    from dlite_entities_service.service.config import CONFIG
+
+    CONTEXT["dotenv_path"] = (
+        pytestconfig.invocation_params.dir / str(CONFIG.model_config["env_file"])
+    ).resolve()
+    CONTEXT["token"] = None
+
+
+@pytest.fixture(autouse=True)
+def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -> None:
+    """Mock the base url if using a live backend."""
+    if not live_backend:
+        return
+
+    import os
+
+    from pydantic import AnyHttpUrl
+
+    from dlite_entities_service.service.config import CONFIG
+
+    host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
+        "ENTITY_SERVICE_PORT", "8000"
+    )
+
+    live_base_url = f"http://{host}"
+
+    if port:
+        live_base_url += f":{port}"
+
+    monkeypatch.setattr(CONFIG, "base_url", AnyHttpUrl(live_base_url))
