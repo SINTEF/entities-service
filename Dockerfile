@@ -18,6 +18,8 @@ FROM base as development
 ENV PORT=80
 EXPOSE ${PORT}
 
+ENV ENTITY_SERVICE_DEBUG=1
+
 ENTRYPOINT uvicorn --host 0.0.0.0 --port ${PORT} --log-level debug --no-server-header --header "Server:DLiteEntitiesService" --reload dlite_entities_service.main:APP
 
 FROM base as production
@@ -26,5 +28,7 @@ RUN pip install gunicorn
 
 ENV PORT=80
 EXPOSE ${PORT}
+
+ENV ENTITY_SERVICE_DEBUG=0
 
 ENTRYPOINT gunicorn --bind "0.0.0.0:${PORT}" --workers 1 --worker-class dlite_entities_service.uvicorn.UvicornWorker dlite_entities_service.main:APP
