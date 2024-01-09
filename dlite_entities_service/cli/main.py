@@ -129,7 +129,8 @@ def upload(
         help=(
             "Path to directory with entities. All files matching the given "
             "format(s) in the directory will be uploaded. "
-            "Subdirectories will be ignored. This option can be provided multiple times (i.e., for including specified subdirectories)."
+            "Subdirectories will be ignored. This option can be provided multiple "
+            "times, e.g., to include multiple subdirectories."
         ),
         show_default=False,
     ),
@@ -191,8 +192,9 @@ def upload(
 
             if file_format in EntityFileFormats.__members__.values():
                 print(
-                    f"[bold blue]Info[/bold blue]: Entities using the file format {file_format!r} can be "
-                    f"uploaded by adding the option: --format={file_format}"
+                    "[bold blue]Info[/bold blue]: Entities using the file format "
+                    f"{file_format!r} can be uploaded by adding the option: "
+                    f"--format={file_format}"
                 )
             else:
                 ERROR_CONSOLE.print(
