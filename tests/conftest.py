@@ -137,7 +137,7 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
     value = request.config.getoption("--live-backend")
 
     # Check certain environment variables are set
-    if value and not any(os.getenv(_) is None for _ in required_environment_variables):
+    if value and any(os.getenv(_) is None for _ in required_environment_variables):
         warnings.warn(
             "All required environment variables were not found to be set. "
             "Please set the following environment variables: "
