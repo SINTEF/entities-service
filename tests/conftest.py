@@ -463,6 +463,11 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
     import os
 
     if live_backend:
-        return [os.getenv("ENTITY_SERVICE_HOST", "localhost")]
+        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
+            "ENTITY_SERVICE_PORT", "8000"
+        )
+
+        localhost = host + (f":{port}" if port else "")
+        return [localhost]
 
     return []

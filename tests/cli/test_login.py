@@ -24,13 +24,13 @@ def test_login(
     input_method: Literal["cli_option", "stdin"],
     httpx_mock: HTTPXMock,
     get_backend_user: GetBackendUserFixture,
+    live_backend: bool,
 ) -> None:
     """Test the `entities-service login` CLI command."""
-    import re
-
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
+    from dlite_entities_service.service.config import CONFIG
 
     backend_user = get_backend_user()
 
@@ -43,7 +43,7 @@ def test_login(
 
     # Mock the HTTPX response
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_auth\/token\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
         method="POST",
         match_content=f"grant_type=password&username={username}&password={password}".encode(),
         json=mock_token.model_dump(),
@@ -73,7 +73,10 @@ def test_login(
         assert "Username: " in result.stdout
         assert "Password: " in result.stdout
 
-    assert CONTEXT["token"] == mock_token, CONTEXT
+    assert CONTEXT["token"] is not None, CONTEXT
+
+    if not live_backend:
+        assert CONTEXT["token"] == mock_token, CONTEXT
 
 
 def test_token_persistence(
@@ -82,13 +85,13 @@ def test_token_persistence(
     static_dir: Path,
     random_valid_entity: dict[str, Any],
     get_backend_user: GetBackendUserFixture,
+    live_backend: bool,
 ) -> None:
     """Test that the token is persisted to the config file."""
-    import re
-
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
+    from dlite_entities_service.service.config import CONFIG
 
     backend_user = get_backend_user(auth_role="readWrite")
 
@@ -111,7 +114,7 @@ def test_token_persistence(
 
     # Mock the login HTTPX response
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_auth\/token\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
         method="POST",
         match_content=f"grant_type=password&username={username}&password={password}".encode(),
         json=mock_token.model_dump(),
@@ -123,7 +126,7 @@ def test_token_persistence(
         status_code=404,  # not found, i.e., entity does not already exist
     )
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_admin\/create_many\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",
         match_headers={
             "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
@@ -156,7 +159,10 @@ def test_token_persistence(
         stdout=result.stdout, stderr=result.stderr
     )
     assert "Successfully logged in." in result.stdout.replace("\n", "")
-    assert CONTEXT["token"] == mock_token, CONTEXT
+    assert CONTEXT["token"] is not None, CONTEXT
+
+    if not live_backend:
+        assert CONTEXT["token"] == mock_token, CONTEXT
 
     # Run the upload command again
     result = cli.invoke(
@@ -171,17 +177,19 @@ def test_token_persistence(
     )
     assert "Successfully uploaded 1 entity:" in result.stdout.replace("\n", "")
     assert not result.stderr
-    assert CONTEXT["token"] == mock_token, CONTEXT
+    assert CONTEXT["token"] is not None, CONTEXT
+
+    if not live_backend:
+        assert CONTEXT["token"] == mock_token, CONTEXT
 
 
 def test_login_invalid_credentials(
     cli: CliRunner, httpx_mock: HTTPXMock, get_backend_user: GetBackendUserFixture
 ) -> None:
     """Test that the command fails with invalid credentials."""
-    import re
-
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     username = "testuser"
     password = "testpassword"
@@ -197,7 +205,7 @@ def test_login_invalid_credentials(
 
     # Mock the HTTPX response
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_auth\/token\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
         method="POST",
         match_content=f"grant_type=password&username={username}&password={password}".encode(),
         status_code=401,  # unauthorized
@@ -223,12 +231,11 @@ def test_login_invalid_credentials(
 @pytest.mark.skip_if_live_backend("Does not raise HTTP errors in this case.")
 def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if an HTTP error occurs."""
-    import re
-
     from httpx import HTTPError
 
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     username = "testuser"
     password = "testpassword"
@@ -240,7 +247,7 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     # Mock the login HTTPX response
     httpx_mock.add_exception(
         HTTPError(error_message),
-        url=re.compile(r"^.*\/_auth\/token\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
         method="POST",
         match_content=f"grant_type=password&username={username}&password={password}".encode(),
     )
@@ -267,10 +274,9 @@ def test_json_decode_errors(
     cli: CliRunner, httpx_mock: HTTPXMock, return_status_code: Literal[200, 500]
 ) -> None:
     """Ensure proper error messages are given if a JSON decode error occurs."""
-    import re
-
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     username = "testuser"
     password = "testpassword"
@@ -279,7 +285,7 @@ def test_json_decode_errors(
 
     # Mock the login HTTPX response
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_auth\/token\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
         method="POST",
         match_content=f"grant_type=password&username={username}&password={password}".encode(),
         status_code=return_status_code,
@@ -305,10 +311,9 @@ def test_json_decode_errors(
 def test_validation_error(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if the response cannot be parsed as a
     valid token."""
-    import re
-
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     username = "testuser"
     password = "testpassword"
@@ -317,7 +322,7 @@ def test_validation_error(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
 
     # Mock the login HTTPX response
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_auth\/token\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
         method="POST",
         match_content=f"grant_type=password&username={username}&password={password}".encode(),
         status_code=200,

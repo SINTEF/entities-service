@@ -103,7 +103,7 @@ async def get_entity(
     ],
 ) -> dict[str, Any]:
     """Get a SOFT entity."""
-    uri = f"{CONFIG.base_url}/{version}/{name}"
+    uri = f"{str(CONFIG.base_url).rstrip('/')}/{version}/{name}"
     entity = get_backend().read(uri)
     if entity is None:
         raise HTTPException(

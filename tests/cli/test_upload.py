@@ -38,9 +38,9 @@ def test_upload_filepath(
 ) -> None:
     """Test upload with a filepath."""
     import json
-    import re
 
     from dlite_entities_service.cli import main
+    from dlite_entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
@@ -54,7 +54,7 @@ def test_upload_filepath(
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_admin\/create_many\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",
         match_headers={"Authorization": "Bearer mock_token"},
         match_json=[raw_entity],
@@ -152,7 +152,7 @@ def test_upload_directory(
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
-        url=f"{CONFIG.base_url}/_admin/create_many",
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",
         match_headers={"Authorization": "Bearer mock_token"},
         status_code=201,  # created
@@ -378,9 +378,11 @@ def test_existing_entity_different_content(
     # Mock response for "Upload entities"
     new_entity_file_to_be_uploaded = deepcopy(new_entity)
     new_entity_file_to_be_uploaded["version"] = "0.1.1"
-    new_entity_file_to_be_uploaded["uri"] = f"{CONFIG.base_url}/0.1.1/Person"
+    new_entity_file_to_be_uploaded[
+        "uri"
+    ] = f"{str(CONFIG.base_url).rstrip('/')}/0.1.1/Person"
     httpx_mock.add_response(
-        url=f"{CONFIG.base_url}/_admin/create_many",
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",
         match_headers={"Authorization": "Bearer mock_token"},
         match_json=[new_entity_file_to_be_uploaded],
@@ -415,9 +417,11 @@ def test_existing_entity_different_content(
     # Mock response for "Upload entities"
     new_entity_file_to_be_uploaded = deepcopy(new_entity)
     new_entity_file_to_be_uploaded["version"] = custom_version
-    new_entity_file_to_be_uploaded["uri"] = f"{CONFIG.base_url}/{custom_version}/Person"
+    new_entity_file_to_be_uploaded[
+        "uri"
+    ] = f"{str(CONFIG.base_url).rstrip('/')}/{custom_version}/Person"
     httpx_mock.add_response(
-        url=f"{CONFIG.base_url}/_admin/create_many",
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",
         match_headers={"Authorization": "Bearer mock_token"},
         match_json=[new_entity_file_to_be_uploaded],
@@ -565,11 +569,10 @@ def test_http_errors(
     random_valid_entity: dict[str, Any],
 ) -> None:
     """Ensure proper error messages are given if an HTTP error occurs."""
-    import re
-
     from httpx import HTTPError
 
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     error_message = "Generic HTTP Error"
 
@@ -609,7 +612,8 @@ def test_http_errors(
         status_code=404,  # not found, i.e., entity does not already exist
     )
     httpx_mock.add_exception(
-        HTTPError(error_message), url=re.compile(r"^.*_admin/create_many/?$")
+        HTTPError(error_message),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
     )
 
     result = cli.invoke(
@@ -637,9 +641,8 @@ def test_json_decode_errors(
     random_valid_entity: dict[str, Any],
 ) -> None:
     """Ensure proper error messages are given if a JSONDecodeError occurs."""
-    import re
-
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     if "uri" in random_valid_entity:
         entity_uri: str = random_valid_entity["uri"]
@@ -677,7 +680,7 @@ def test_json_decode_errors(
         status_code=404,  # not found, i.e., entity does not already exist
     )
     httpx_mock.add_response(
-        url=re.compile(r"^.*_admin/create_many/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         status_code=400,
         content=b"not json",
     )
@@ -708,9 +711,9 @@ def test_unable_to_upload(
 ) -> None:
     """Ensure a proper error message is given if an entity cannot be uploaded."""
     import json
-    import re
 
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     if "uri" in random_valid_entity:
         entity_uri: str = random_valid_entity["uri"]
@@ -730,7 +733,7 @@ def test_unable_to_upload(
         status_code=404,  # not found, i.e., entity does not already exist
     )
     httpx_mock.add_response(
-        url=re.compile(r"^.*\/_admin\/create_many\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         status_code=400,
         json=error_message,
     )
@@ -764,11 +767,10 @@ def test_global_option_token(
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test that the token is correctly used when supplied using `--token`."""
-    import re
-
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
+    from dlite_entities_service.service.config import CONFIG
 
     if "uri" in random_valid_entity:
         entity_uri: str = random_valid_entity["uri"]
@@ -792,7 +794,7 @@ def test_global_option_token(
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
-        url=re.compile(r".*\/_admin\/create_many\/?$"),
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
         method="POST",
         match_headers={
             "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
