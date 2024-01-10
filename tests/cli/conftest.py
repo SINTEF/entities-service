@@ -146,3 +146,44 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
         live_base_url += f":{port}"
 
     monkeypatch.setattr(CONFIG, "base_url", AnyHttpUrl(live_base_url))
+
+
+@pytest.fixture(params=["external", "test_client"])
+def _use_test_client(
+    monkeypatch: pytest.MonkeyPatch, live_backend: bool, request: pytest.FixtureRequest
+) -> None:
+    """Use both a test client as well as a proper external call when testing against a
+    live backend."""
+    if not live_backend or request.param == "external":
+        return
+
+    from fastapi.testclient import TestClient as FastAPITestClient
+
+    from dlite_entities_service.cli.main import httpx
+
+    class TestClient(FastAPITestClient):
+        """Test client that uses the FastAPI APP."""
+
+        def __init__(self, **kwargs) -> None:
+            """Initialize the test client."""
+            from dlite_entities_service.main import APP
+
+            super().__init__(APP, **kwargs)
+
+    monkeypatch.setattr(httpx, "Client", TestClient)
+
+
+@pytest.fixture()
+def non_mocked_hosts(live_backend: bool) -> list[str]:
+    """Return a list of hosts that are not mocked by 'pytest-httpx."""
+    import os
+
+    if live_backend:
+        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
+            "ENTITY_SERVICE_PORT", "8000"
+        )
+
+        localhost = host + (f":{port}" if port else "")
+        return [localhost, host]
+
+    return []

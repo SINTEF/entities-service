@@ -14,7 +14,10 @@ except ImportError as exc:  # pragma: no cover
 
 
 from dlite_entities_service import __version__
-from dlite_entities_service.cli._utils.generics import print
+from dlite_entities_service.cli._utils.generics import (
+    get_cached_access_token,
+    print,
+)
 from dlite_entities_service.models.auth import Token
 from dlite_entities_service.service.config import CONFIG
 
@@ -30,7 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 CONTEXT: ContextDict = {
     "dotenv_path": (Path().cwd() / str(CONFIG.model_config["env_file"])).resolve(),
-    "token": None,
+    "token": get_cached_access_token(),
 }
 """Global context for the CLI used to communicate global options."""
 

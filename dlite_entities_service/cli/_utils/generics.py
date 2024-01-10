@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import difflib
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,6 +19,9 @@ except ImportError as exc:  # pragma: no cover
 
 from rich.console import Console
 
+from dlite_entities_service.models.auth import Token
+from dlite_entities_service.service.security import get_token_data
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TextIO
 
@@ -29,6 +34,13 @@ EXC_MSG_INSTALL_PACKAGE = (
 
 OUTPUT_CONSOLE = get_console()
 ERROR_CONSOLE = Console(stderr=True)
+
+CACHE_DIRECTORY: Path = Path(
+    os.getenv(
+        "ENTITY_SERVICE_CLI_CACHE_DIR", str(Path.home() / ".cache" / "entities-service")
+    )
+).resolve()
+"""The directory where the CLI caches data."""
 
 
 def print(
@@ -57,3 +69,33 @@ def pretty_compare_dicts(
             rich.pretty.pretty_repr(dict_second).splitlines(),
         ),
     )
+
+
+def get_cached_access_token() -> Token | None:
+    """Return the cached access token."""
+    token_path = CACHE_DIRECTORY / "access_token"
+    if token_path.exists():
+        token = token_path.read_text()
+
+        # Check if the cached token is still valid
+        token_data = get_token_data(token)
+        if token_data.expires_at is not None and token_data.expires_at > datetime.now(
+            tz=timezone.utc
+        ):
+            # No longer valid
+            token_path.unlink()
+            return None
+
+        return Token(access_token=token)
+
+    return None
+
+
+def cache_access_token(token: str | Token) -> None:
+    """Cache the access token."""
+    if isinstance(token, Token):
+        token = token.access_token
+
+    CACHE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    token_path = CACHE_DIRECTORY / "access_token"
+    token_path.write_text(token)

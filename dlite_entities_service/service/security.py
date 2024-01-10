@@ -89,10 +89,22 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     )
 
     if CONFIG.private_ssl_key is None:
-        raise TypeError("Set the private SSL key in the configuration.")
+        raise ValueError("Set the private SSL key in the configuration.")
 
     return jwt.encode(
         to_encode, CONFIG.private_ssl_key.get_secret_value(), algorithm=ALGORITHM
+    )
+
+
+def get_token_data(token: str) -> TokenData:
+    """Get token data."""
+    if CONFIG.private_ssl_key is None:
+        raise ValueError("Set the private SSL key in the configuration.")
+
+    return TokenData(
+        **jwt.decode(
+            token, CONFIG.private_ssl_key.get_secret_value(), algorithms=[ALGORITHM]
+        )
     )
 
 
@@ -112,11 +124,7 @@ async def current_user(token: Annotated[str, Depends(OAUTH2_SCHEME)]) -> UserInB
         )
 
     try:
-        token_data = TokenData(
-            **jwt.decode(
-                token, CONFIG.private_ssl_key.get_secret_value(), algorithms=[ALGORITHM]
-            )
-        )
+        token_data = get_token_data(token)
         if token_data.username is None:
             raise credentials_exception
     except JWTError as exc:

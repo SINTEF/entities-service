@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from ..conftest import GetBackendUserFixture
 
 
+pytestmark = pytest.mark.usefixtures("_use_test_client")
+
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
 
@@ -41,17 +43,22 @@ def test_login(
 
     assert CONTEXT["token"] is None, CONTEXT
 
-    # Mock the HTTPX response
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
-        method="POST",
-        match_content=f"grant_type=password&username={username}&password={password}".encode(),
-        json=mock_token.model_dump(),
-    )
+    if not live_backend:
+        # Mock the HTTPX response
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
+            method="POST",
+            match_content=f"grant_type=password&username={username}&password={password}".encode(),
+            json=mock_token.model_dump(),
+        )
 
     # Run the CLI command
     if input_method == "cli_option":
-        result = cli.invoke(APP, f"login --username {username} --password {password}")
+        result = cli.invoke(
+            APP,
+            f"login --username {username} --password {password}",
+            catch_exceptions=False,
+        )
     elif input_method == "stdin":
         result = cli.invoke(
             APP,
@@ -117,28 +124,32 @@ def test_token_persistence(
         )
         entity_name = random_valid_entity["name"]
 
-    # Mock the login HTTPX response
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
-        method="POST",
-        match_content=f"grant_type=password&username={username}&password={password}".encode(),
-        json=mock_token.model_dump(),
-    )
+    if not live_backend:
+        # Mock the login HTTPX response
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
+            method="POST",
+            match_content=f"grant_type=password&username={username}&password={password}".encode(),
+            json=mock_token.model_dump(),
+        )
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
         url=entity_uri,
         status_code=404,  # not found, i.e., entity does not already exist
     )
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create_many",
-        method="POST",
-        match_headers={
-            "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
-        },
-        match_json=[random_valid_entity],
-        status_code=201,  # created
-    )
+
+    if not live_backend:
+        # Mock response for "Create entities"
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+            method="POST",
+            match_headers={
+                "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
+            },
+            match_json=[random_valid_entity],
+            status_code=201,  # created
+        )
 
     # Run the upload CLI command - ensuring an error is raised due to the missing token
     result = cli.invoke(
@@ -189,7 +200,10 @@ def test_token_persistence(
 
 
 def test_login_invalid_credentials(
-    cli: CliRunner, httpx_mock: HTTPXMock, get_backend_user: GetBackendUserFixture
+    cli: CliRunner,
+    httpx_mock: HTTPXMock,
+    get_backend_user: GetBackendUserFixture,
+    live_backend: bool,
 ) -> None:
     """Test that the command fails with invalid credentials."""
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
@@ -208,15 +222,16 @@ def test_login_invalid_credentials(
 
     assert CONTEXT["token"] is None, CONTEXT
 
-    # Mock the HTTPX response
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
-        method="POST",
-        match_content=f"grant_type=password&username={username}&password={password}".encode(),
-        status_code=401,  # unauthorized
-        headers={"WWW-Authenticate": "Bearer"},
-        json={"detail": "Incorrect username or password"},
-    )
+    if not live_backend:
+        # Mock the HTTPX response
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
+            method="POST",
+            match_content=f"grant_type=password&username={username}&password={password}".encode(),
+            status_code=401,  # unauthorized
+            headers={"WWW-Authenticate": "Bearer"},
+            json={"detail": "Incorrect username or password"},
+        )
 
     # Run the CLI command
     result = cli.invoke(APP, f"login --username {username} --password {password}")

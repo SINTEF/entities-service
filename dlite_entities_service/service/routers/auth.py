@@ -34,7 +34,7 @@ async def login_for_access_token(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    LOGGER.info("Authenticating user: username=%s", form_data.username)
+    LOGGER.debug("Authenticating user: username=%s", form_data.username)
 
     try:
         user = authenticate_user(form_data.username, form_data.password)

@@ -455,19 +455,3 @@ def client(
         )
 
     return _client
-
-
-@pytest.fixture()
-def non_mocked_hosts(live_backend: bool) -> list[str]:
-    """Return a list of hosts that are not mocked by 'pytest-httpx."""
-    import os
-
-    if live_backend:
-        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
-            "ENTITY_SERVICE_PORT", "8000"
-        )
-
-        localhost = host + (f":{port}" if port else "")
-        return [localhost]
-
-    return []

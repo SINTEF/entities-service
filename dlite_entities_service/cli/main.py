@@ -30,6 +30,7 @@ from pydantic import AnyHttpUrl, ValidationError
 
 from dlite_entities_service.cli._utils.generics import (
     ERROR_CONSOLE,
+    cache_access_token,
     pretty_compare_dicts,
     print,
 )
@@ -371,7 +372,7 @@ def upload(
         ) as client:
             try:
                 response = client.post(
-                    "/_admin/create_many", json=[entity for _, entity in successes]
+                    "/_admin/create", json=[entity for _, entity in successes]
                 )
             except httpx.HTTPError as exc:
                 ERROR_CONSOLE.print(
@@ -499,5 +500,6 @@ def login(
         raise typer.Exit(1) from exc
 
     CONTEXT["token"] = token
+    cache_access_token(token)
 
     print("[bold green]Successfully logged in.[/bold green]")

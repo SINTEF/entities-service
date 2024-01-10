@@ -41,62 +41,42 @@ ROUTER = APIRouter(
 # Entity-related endpoints
 @ROUTER.post(
     "/create",
-    response_model=VersionedSOFTEntity,
+    response_model=list[VersionedSOFTEntity] | VersionedSOFTEntity,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_entity(
-    entity: VersionedSOFTEntity,
+async def create_entities(
+    entities: list[VersionedSOFTEntity] | VersionedSOFTEntity,
     current_user: Annotated[User, Depends(current_user)],
-) -> dict[str, Any]:
-    """Create a SOFT entity."""
+) -> list[dict[str, Any]] | dict[str, Any]:
+    """Create on or more SOFT entities."""
+    # Parse 'entities'
+    if isinstance(entities, list):
+        # Check if there are any entities to create
+        if not entities:
+            return []
+    else:
+        entities = [entities]
+
+    write_fail_exception = HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=(
+            "Could not create entit{suffix_entit} with uri{suffix_uri}: {uris}".format(
+                suffix_entit="y" if len(entities) == 1 else "ies",
+                suffix_uri="" if len(entities) == 1 else "s",
+                uris=", ".join(get_uri(entity) for entity in entities),
+            )
+        ),
+    )
+
     entities_backend = get_backend(
         CONFIG.backend,
         settings={
             "mongo_username": current_user.username,
         },
     )
-    try:
-        created_entity = entities_backend.create([entity])
-    except entities_backend.write_access_exception as err:
-        LOGGER.error("Could not create entity: uri=%s", get_uri(entity))
-        LOGGER.exception(err)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Could not create entity: uri={get_uri(entity)}",
-        ) from err
 
-    if created_entity is None or isinstance(created_entity, list):
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Could not create entity: uri={get_uri(entity)}",
-        )
-    return created_entity
-
-
-@ROUTER.post(
-    "/create_many",
-    response_model=list[VersionedSOFTEntity],
-    response_model_by_alias=True,
-    response_model_exclude_unset=True,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_entities(entities: list[VersionedSOFTEntity]) -> list[dict[str, Any]]:
-    """Create many SOFT entities."""
-    write_fail_exception = HTTPException(
-        status_code=status.HTTP_502_BAD_GATEWAY,
-        detail="Could not create entities with uris: {}".format(
-            ", ".join(get_uri(entity) for entity in entities)
-        ),
-    )
-
-    # Check if there are any entities to create
-    if not entities:
-        return []
-
-    # Create entities
-    entities_backend = get_backend(CONFIG.backend)
     try:
         created_entities = entities_backend.create(entities)
     except entities_backend.write_access_exception as err:
@@ -107,11 +87,12 @@ async def create_entities(entities: list[VersionedSOFTEntity]) -> list[dict[str,
         LOGGER.exception(err)
         raise write_fail_exception from err
 
-    if created_entities is None:
+    if (
+        created_entities is None
+        or (len(entities) == 1 and isinstance(created_entities, list))
+        or (len(entities) > 1 and not isinstance(created_entities, list))
+    ):
         raise write_fail_exception
-
-    if not isinstance(created_entities, list):
-        created_entities = [created_entities]
 
     return created_entities
 
