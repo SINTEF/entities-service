@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from typer import Typer
     from typer.testing import CliRunner
 
+    from ..conftest import GetBackendUserFixture
+
 
 def pytest_configure(config: pytest.Config) -> None:
     """Add custom markers to pytest."""
@@ -40,6 +42,16 @@ def config_app() -> Typer:
     APP.callback()(global_options)
 
     return APP
+
+
+@pytest.fixture(autouse=True)
+def _function_specific_cli_cache_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Set the CLI cache directory to a temporary one."""
+    from dlite_entities_service.cli._utils import generics
+
+    monkeypatch.setattr(generics, "CACHE_DIRECTORY", tmp_path / ".cache")
 
 
 @pytest.fixture()
@@ -72,15 +84,39 @@ def _prefill_dotenv_config(dotenv_file: Path) -> None:
 
 
 @pytest.fixture()
-def _use_valid_token(request: pytest.FixtureRequest) -> None:
+def _use_valid_token(
+    request: pytest.FixtureRequest,
+    get_backend_user: GetBackendUserFixture,
+    live_backend: bool,
+) -> None:
     """Set the token to a valid one."""
+    from httpx import Client
+
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.models.auth import Token
+    from dlite_entities_service.service.config import CONFIG
 
     if request.node.get_closest_marker("no_token"):
         CONTEXT["token"] = None
-    else:
-        CONTEXT["token"] = Token(access_token="mock_token")
+        return
+
+    if live_backend:
+        write_access_user = get_backend_user("readWrite")
+
+        with Client(base_url=str(CONFIG.base_url)) as client:
+            response = client.post(
+                "/_auth/token",
+                data={
+                    "grant_type": "password",
+                    "username": write_access_user["username"],
+                    "password": write_access_user["password"],
+                },
+            )
+
+        CONTEXT["token"] = Token(**response.json())
+        return
+
+    CONTEXT["token"] = Token(access_token="mock_token")
 
 
 @pytest.fixture()
@@ -148,13 +184,34 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
     monkeypatch.setattr(CONFIG, "base_url", AnyHttpUrl(live_base_url))
 
 
+@pytest.fixture()
+def non_mocked_hosts(live_backend: bool) -> list[str]:
+    """Return a list of hosts that are not mocked by 'pytest-httpx."""
+    import os
+
+    from dlite_entities_service.service.config import CONFIG
+
+    if live_backend:
+        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
+            "ENTITY_SERVICE_PORT", "8000"
+        )
+
+        localhost = host + (f":{port}" if port else "")
+        hosts = [localhost, host]
+        if CONFIG.base_url.host:
+            hosts.append(CONFIG.base_url.host)
+        return hosts
+
+    return []
+
+
 @pytest.fixture(params=["external", "test_client"])
 def _use_test_client(
     monkeypatch: pytest.MonkeyPatch, live_backend: bool, request: pytest.FixtureRequest
 ) -> None:
     """Use both a test client as well as a proper external call when testing against a
     live backend."""
-    if not live_backend or request.param == "external":
+    if (not live_backend) or request.param == "external":
         return
 
     from fastapi.testclient import TestClient as FastAPITestClient
@@ -171,19 +228,3 @@ def _use_test_client(
             super().__init__(APP, **kwargs)
 
     monkeypatch.setattr(httpx, "Client", TestClient)
-
-
-@pytest.fixture()
-def non_mocked_hosts(live_backend: bool) -> list[str]:
-    """Return a list of hosts that are not mocked by 'pytest-httpx."""
-    import os
-
-    if live_backend:
-        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
-            "ENTITY_SERVICE_PORT", "8000"
-        )
-
-        localhost = host + (f":{port}" if port else "")
-        return [localhost, host]
-
-    return []

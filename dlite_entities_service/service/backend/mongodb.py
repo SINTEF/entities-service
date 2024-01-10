@@ -254,7 +254,7 @@ class MongoDBBackend(Backend):
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
         """Create one or more entities in the MongoDB."""
         LOGGING.info("Creating entities: %s", entities)
-        LOGGING.info("The creator's user: %s", self._settings.mongo_username)
+        LOGGING.info("The creator's user name: %s", self._settings.mongo_username)
 
         entities = [
             entity.model_dump(by_alias=True, mode="json", exclude_unset=True)

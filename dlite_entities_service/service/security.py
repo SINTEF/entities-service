@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 
 from dlite_entities_service.models.auth import TokenData, UserInBackend
 from dlite_entities_service.service.backend import get_backend
@@ -103,7 +103,10 @@ def get_token_data(token: str) -> TokenData:
 
     return TokenData(
         **jwt.decode(
-            token, CONFIG.private_ssl_key.get_secret_value(), algorithms=[ALGORITHM]
+            token,
+            CONFIG.private_ssl_key.get_secret_value(),
+            algorithms=[ALGORITHM],
+            issuer=str(CONFIG.base_url),
         )
     )
 
@@ -112,7 +115,7 @@ async def current_user(token: Annotated[str, Depends(OAUTH2_SCHEME)]) -> UserInB
     """Verify a client user."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials.",
+        detail="Could not validate credentials. Please log in.",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -125,10 +128,19 @@ async def current_user(token: Annotated[str, Depends(OAUTH2_SCHEME)]) -> UserInB
 
     try:
         token_data = get_token_data(token)
-        if token_data.username is None:
-            raise credentials_exception
-    except JWTError as exc:
+    except ExpiredSignatureError as exc:
+        LOGGER.error("Token is expired: token=%s", token)
+        LOGGER.exception(exc)
+        credentials_exception.detail = "Token has expired. Please log in again."
         raise credentials_exception from exc
+    except JWTError as exc:
+        LOGGER.error("Could not validate token: token=%s", token)
+        LOGGER.exception(exc)
+        raise credentials_exception from exc
+
+    # Validate token data that is not already validated through the JWT decoding
+    if token_data.username is None or token_data.client_id != CONFIG.base_url:
+        raise credentials_exception
 
     user = get_user(username=token_data.username)
 

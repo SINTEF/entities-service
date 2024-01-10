@@ -91,6 +91,7 @@ def test_login(
         assert CONTEXT["token"] == mock_token, CONTEXT
 
 
+@pytest.mark.usefixtures("_empty_backend_collection")
 def test_token_persistence(
     cli: CliRunner,
     httpx_mock: HTTPXMock,
@@ -98,8 +99,12 @@ def test_token_persistence(
     random_valid_entity: dict[str, Any],
     get_backend_user: GetBackendUserFixture,
     live_backend: bool,
+    tmp_path: Path,
+    request: pytest.FixtureRequest,
 ) -> None:
     """Test that the token is persisted to the config file."""
+    import traceback
+
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
@@ -111,6 +116,8 @@ def test_token_persistence(
     password = backend_user["password"]
 
     mock_token = Token(access_token="test_token")
+
+    cached_access_token_file = tmp_path / ".cache" / "access_token"
 
     assert CONTEXT["token"] is None, CONTEXT
 
@@ -124,14 +131,13 @@ def test_token_persistence(
         )
         entity_name = random_valid_entity["name"]
 
-    if not live_backend:
-        # Mock the login HTTPX response
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
-            method="POST",
-            match_content=f"grant_type=password&username={username}&password={password}".encode(),
-            json=mock_token.model_dump(),
-        )
+    # Mock the login HTTPX response
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
+        method="POST",
+        match_content=f"grant_type=password&username={username}&password={password}".encode(),
+        json=mock_token.model_dump(),
+    )
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
@@ -139,17 +145,16 @@ def test_token_persistence(
         status_code=404,  # not found, i.e., entity does not already exist
     )
 
-    if not live_backend:
-        # Mock response for "Create entities"
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_headers={
-                "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
-            },
-            match_json=[random_valid_entity],
-            status_code=201,  # created
-        )
+    # Mock response for "Create entities"
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_headers={
+            "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
+        },
+        match_json=[random_valid_entity],
+        status_code=201,  # created
+    )
 
     # Run the upload CLI command - ensuring an error is raised due to the missing token
     result = cli.invoke(
@@ -158,24 +163,39 @@ def test_token_persistence(
             "upload --file "
             f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
         ),
+        env={"ENTITY_SERVICE_CLI_CACHE_DIR": str(tmp_path / ".cache")},
     )
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
+    ) + (
+        "\n\nEXCEPTION:\n"
+        f"{''.join(traceback.format_exception(result.exception)) if result.exception else ''}"  # noqa: E501
     )
     assert (
         "Error: Missing authorization token. Please login first by running "
         "'entities-service login'." in result.stderr.replace("\n", "")
     )
-    assert not result.stdout
+    if "[test_client]" not in request.node.name:
+        assert not result.stdout
     assert CONTEXT["token"] is None, CONTEXT
+    assert not cached_access_token_file.exists()
 
     # Run the login CLI command
-    result = cli.invoke(APP, f"login --username {username} --password {password}")
+    result = cli.invoke(
+        APP,
+        f"login --username {username} --password {password}",
+        env={"ENTITY_SERVICE_CLI_CACHE_DIR": str(tmp_path / ".cache")},
+    )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
+    ) + (
+        "\n\nEXCEPTION:\n"
+        f"{''.join(traceback.format_exception(result.exception)) if result.exception else ''}"  # noqa: E501
     )
     assert "Successfully logged in." in result.stdout.replace("\n", "")
-    assert CONTEXT["token"] is not None, CONTEXT
+    assert isinstance(CONTEXT["token"], Token), CONTEXT
+    assert cached_access_token_file.exists()
+    assert cached_access_token_file.read_text() == CONTEXT["token"].access_token
 
     if not live_backend:
         assert CONTEXT["token"] == mock_token, CONTEXT
@@ -187,13 +207,19 @@ def test_token_persistence(
             "upload --file "
             f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
         ),
+        env={"ENTITY_SERVICE_CLI_CACHE_DIR": str(tmp_path / ".cache")},
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
+    ) + (
+        "\n\nEXCEPTION:\n"
+        f"{''.join(traceback.format_exception(result.exception)) if result.exception else ''}"  # noqa: E501
     )
     assert "Successfully uploaded 1 entity:" in result.stdout.replace("\n", "")
     assert not result.stderr
-    assert CONTEXT["token"] is not None, CONTEXT
+    assert isinstance(CONTEXT["token"], Token), CONTEXT
+    assert cached_access_token_file.exists()
+    assert cached_access_token_file.read_text() == CONTEXT["token"].access_token
 
     if not live_backend:
         assert CONTEXT["token"] == mock_token, CONTEXT
@@ -204,6 +230,7 @@ def test_login_invalid_credentials(
     httpx_mock: HTTPXMock,
     get_backend_user: GetBackendUserFixture,
     live_backend: bool,
+    request: pytest.FixtureRequest,
 ) -> None:
     """Test that the command fails with invalid credentials."""
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
@@ -244,7 +271,8 @@ def test_login_invalid_credentials(
         "{'detail': 'Incorrect username or password'}"
         in result.stderr.replace("\n", "")
     )
-    assert not result.stdout
+    if "[test_client]" not in request.node.name:
+        assert not result.stdout
     assert CONTEXT["token"] is None, CONTEXT
 
 

@@ -318,7 +318,6 @@ def _mongo_test_collection(
         "backend, and 'mongomock' otherwise."
     )
 
-    backend_settings = {}
     if live_backend:
         # Add test users to the database
         admin_backend: AdminBackend = get_backend(
@@ -349,21 +348,50 @@ def _mongo_test_collection(
                     roles=user_full_info["roles"],
                 )
 
-            if auth_role == "readWrite":
-                # Use backend settings with write rights
-                backend_settings = {
-                    "mongo_username": user_full_info["username"],
-                    "mongo_password": user_full_info["password"],
+
+@pytest.fixture(autouse=True)
+def _reset_mongo_test_collection(
+    live_backend: bool, get_backend_user: GetBackendUserFixture, static_dir: Path
+) -> None:
+    """Purge the MongoDB test collection."""
+    import yaml
+
+    from dlite_entities_service.service.backend import get_backend
+
+    # Convert all '$ref' to 'ref' in the entities.yaml file
+    entities: list[dict[str, Any]] = yaml.safe_load(
+        (static_dir / "entities.yaml").read_text()
+    )
+    for entity in entities:
+        # SOFT5
+        if isinstance(entity["properties"], list):
+            for index, property_value in enumerate(list(entity["properties"])):
+                entity["properties"][index] = {
+                    key.replace("$", ""): value for key, value in property_value.items()
                 }
 
-    # Get entities backend
-    backend: MongoDBBackend = get_backend(settings=backend_settings)
+        # SOFT7
+        elif isinstance(entity["properties"], dict):
+            for property_name, property_value in list(entity["properties"].items()):
+                entity["properties"][property_name] = {
+                    key.replace("$", ""): value for key, value in property_value.items()
+                }
 
+        else:
+            raise TypeError(
+                f"Invalid type for entity['properties']: {type(entity['properties'])}"
+            )
+
+    backend_settings = {}
     if live_backend:
-        # Remove the test entities from the database
-        backend._collection.delete_many({})
+        backend_user = get_backend_user("readWrite")
+        backend_settings = {
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        }
 
-    # Add the test entities to the database
+    backend: MongoDBBackend = get_backend(settings=backend_settings)
+    backend._collection.delete_many({})
     backend._collection.insert_many(entities)
 
 
@@ -381,6 +409,26 @@ def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "dlite_entities_service.service.backend.clear_caches", lambda: None
         )
+
+
+@pytest.fixture()
+def _empty_backend_collection(
+    live_backend: bool, get_backend_user: GetBackendUserFixture
+) -> None:
+    """Empty the backend collection."""
+    from dlite_entities_service.service.backend import get_backend
+
+    backend_settings = {}
+    if live_backend:
+        backend_user = get_backend_user("readWrite")
+        backend_settings = {
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        }
+
+    backend: MongoDBBackend = get_backend(settings=backend_settings)
+    backend._collection.delete_many({})
+    assert backend._collection.count_documents({}) == 0
 
 
 @pytest.fixture()

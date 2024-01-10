@@ -2,25 +2,26 @@
 from __future__ import annotations
 
 import difflib
+import logging
 import os
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 try:
+    import httpx
     import rich.pretty
-    from rich import get_console
-    from rich import print as rich_print
 except ImportError as exc:  # pragma: no cover
     raise ImportError(
         "Please install the DLite entities service utility CLI with 'pip install "
         f"{Path(__file__).resolve().parent.parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
+from rich import get_console
+from rich import print as rich_print
 from rich.console import Console
 
 from dlite_entities_service.models.auth import Token
-from dlite_entities_service.service.security import get_token_data
+from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TextIO
@@ -41,6 +42,8 @@ CACHE_DIRECTORY: Path = Path(
     )
 ).resolve()
 """The directory where the CLI caches data."""
+
+LOGGER = logging.getLogger(__name__)
 
 
 def print(
@@ -78,15 +81,26 @@ def get_cached_access_token() -> Token | None:
         token = token_path.read_text()
 
         # Check if the cached token is still valid
-        token_data = get_token_data(token)
-        if token_data.expires_at is not None and token_data.expires_at > datetime.now(
-            tz=timezone.utc
-        ):
-            # No longer valid
-            token_path.unlink()
-            return None
+        with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+            print(client.__class__.__name__)
+            try:
+                response = client.get(
+                    "/_admin/users/me",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            except httpx.HTTPError as exc:
+                LOGGER.error("Could not validate cached access token.")
+                LOGGER.exception(exc)
+                # No longer valid
+                token_path.unlink()
+                return None
 
-        return Token(access_token=token)
+        if response.is_success:
+            return Token(access_token=token)
+
+        # Not a successful response, so the token is no longer valid
+        token_path.unlink()
+        return None
 
     return None
 
@@ -99,3 +113,5 @@ def cache_access_token(token: str | Token) -> None:
     CACHE_DIRECTORY.mkdir(parents=True, exist_ok=True)
     token_path = CACHE_DIRECTORY / "access_token"
     token_path.write_text(token)
+
+    LOGGER.debug("Cached access token at %s.", token_path)
