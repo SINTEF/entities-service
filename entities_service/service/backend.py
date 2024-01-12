@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from entities_service.service.config import CONFIG
 from pymongo import MongoClient
+
+from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from pymongo.collection import Collection

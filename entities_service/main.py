@@ -6,12 +6,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path as sysPath
 from typing import TYPE_CHECKING, Annotated
 
+from fastapi import FastAPI, HTTPException, Path, status
+
 from entities_service import __version__
 from entities_service.models import VersionedSOFTEntity
 from entities_service.service.backend import ENTITIES_COLLECTION
 from entities_service.service.config import CONFIG
 from entities_service.service.logger import setup_logger
-from fastapi import FastAPI, HTTPException, Path, status
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

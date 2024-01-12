@@ -27,6 +27,8 @@ except ImportError as exc:  # pragma: no cover
 
 import yaml
 from dotenv import dotenv_values
+from pydantic import AnyHttpUrl
+
 from entities_service.cli._utils.generics import (
     ERROR_CONSOLE,
     pretty_compare_dicts,
@@ -42,7 +44,6 @@ from entities_service.models import (
     soft_entity,
 )
 from entities_service.service.exceptions import BackendError
-from pydantic import AnyHttpUrl
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

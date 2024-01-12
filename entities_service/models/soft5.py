@@ -5,9 +5,10 @@ import difflib
 import re
 from typing import Annotated, Any
 
-from entities_service.service.config import CONFIG
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 from pydantic.networks import AnyHttpUrl
+
+from entities_service.service.config import CONFIG
 
 URI_REGEX = re.compile(
     r"^(?P<namespace>https?://.+)/(?P<version>\d(?:\.\d+){0,2})/(?P<name>[^/#?]+)$"

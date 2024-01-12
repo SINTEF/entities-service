@@ -22,6 +22,7 @@ except ImportError as exc:  # pragma: no cover
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
 from dotenv import dotenv_values, set_key, unset_key
+
 from entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from entities_service.cli._utils.global_settings import CONTEXT
 from entities_service.service.config import CONFIG
