@@ -28,8 +28,8 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
     import os
 
     required_environment_variables = (
-        "ENTITY_SERVICE_MONGO_USER",
-        "ENTITY_SERVICE_MONGO_PASSWORD",
+        "ENTITIES_SERVICE_MONGO_USER",
+        "ENTITIES_SERVICE_MONGO_PASSWORD",
     )
 
     value = request.config.getoption("--live-backend")
@@ -84,8 +84,9 @@ def mongo_test_collection(static_dir: Path, live_backend: bool) -> Collection | 
         return None
 
     # else
-    from entities_service.service.config import CONFIG
     from mongomock import MongoClient
+
+    from entities_service.service.config import CONFIG
 
     client_kwargs = {
         "username": CONFIG.mongo_user,
@@ -123,13 +124,14 @@ def client(live_backend: bool) -> TestClient:
     """Return the test client."""
     import os
 
-    from entities_service.main import APP
-    from entities_service.service.config import CONFIG
     from fastapi.testclient import TestClient
 
+    from entities_service.main import APP
+    from entities_service.service.config import CONFIG
+
     if live_backend:
-        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
-            "ENTITY_SERVICE_PORT", "8000"
+        host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
+            "ENTITIES_SERVICE_PORT", "8000"
         )
 
         return TestClient(

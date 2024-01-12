@@ -264,6 +264,7 @@ def test_get_backend(
     import json
 
     from dotenv import set_key
+
     from entities_service.cli._utils.global_settings import CONTEXT
     from entities_service.cli.main import APP
 
@@ -273,7 +274,7 @@ def test_get_backend(
     else:
         dotenv_file.unlink()
         dotenv_file.touch()
-    set_key(dotenv_file, "ENTITY_SERVICE_MONGO_URI", "mongodb://localhost:27017")
+    set_key(dotenv_file, "ENTITIES_SERVICE_MONGO_URI", "mongodb://localhost:27017")
 
     CONTEXT["dotenv_path"] = dotenv_file
 

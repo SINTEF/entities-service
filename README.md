@@ -30,7 +30,7 @@ Then build and run the Entities Service Docker image:
 ```shell
 docker build --pull -t entity-service --target development .
 docker run --rm -d \
-  --env "entity_service_mongo_uri=mongodb://localhost:27017" \
+  --env "entities_service_mongo_uri=mongodb://localhost:27017" \
   --name "entity-service" \
   -p "8000:80" \
   entity-service
@@ -42,7 +42,7 @@ Then go to [localhost:8000/docs](http://localhost:8000/docs) and try out retriev
 
 ---
 
-For production, use a public MongoDB, and follow the same instructions above for building and running the Entities Service Docker image, but exchange the `--target` value with `production`, put in the proper value for the `entity_service_mongo_uri` environment value, possibly add the `entity_service_mongo_user` and `entity_service_mongo_password` environment variables as well, if needed.
+For production, use a public MongoDB, and follow the same instructions above for building and running the Entities Service Docker image, but exchange the `--target` value with `production`, put in the proper value for the `entities_service_mongo_uri` environment value, possibly add the `entities_service_mongo_user` and `entities_service_mongo_password` environment variables as well, if needed.
 
 ### Using Docker Compose
 
@@ -53,10 +53,10 @@ docker compose pull
 docker compose up --build
 ```
 
-By default the `development` target will be built, to change this, set the `entity_service_docker_target` environment variable accordingly, e.g.:
+By default the `development` target will be built, to change this, set the `entities_service_docker_target` environment variable accordingly, e.g.:
 
 ```shell
-entity_service_docker_target=production docker compose up --build
+entities_service_docker_target=production docker compose up --build
 ```
 
 Furthermore, the used `localhost` port can be changed via the `PORT` environment variable.

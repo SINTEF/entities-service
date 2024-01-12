@@ -33,10 +33,11 @@ def test_soft_entity_error(static_dir: Path) -> None:
     """Test soft_entity function errors as expected."""
     import json
 
+    from pydantic import ValidationError
+
     from entities_service.models import soft_entity
     from entities_service.models.soft5 import SOFT5Entity
     from entities_service.models.soft7 import SOFT7Entity
-    from pydantic import ValidationError
 
     # Test that the function returns the correct version of the entity
     invalid_model_file = static_dir / "invalid_entities" / "Cat.json"

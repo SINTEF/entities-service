@@ -92,9 +92,9 @@ def _get_backend() -> Collection:
         config = {key.upper(): value for key, value in config.items()}
 
         backend_options = {
-            "uri": config.get("ENTITY_SERVICE_MONGO_URI"),
-            "username": config.get("ENTITY_SERVICE_MONGO_USER"),
-            "password": config.get("ENTITY_SERVICE_MONGO_PASSWORD"),
+            "uri": config.get("ENTITIES_SERVICE_MONGO_URI"),
+            "username": config.get("ENTITIES_SERVICE_MONGO_USER"),
+            "password": config.get("ENTITIES_SERVICE_MONGO_PASSWORD"),
         }
 
         if any(_ is not None for _ in backend_options.values()):

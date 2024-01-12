@@ -75,6 +75,7 @@ def test_unset(
 ) -> None:
     """Test `entities-service config unset` CLI command."""
     from dotenv import dotenv_values
+
     from entities_service.cli.config import ConfigFields
     from entities_service.service.config import CONFIG
 
@@ -144,6 +145,7 @@ def test_show(
 ) -> None:
     """Test `entities-service config show` CLI command."""
     from dotenv import dotenv_values
+
     from entities_service.cli.config import ConfigFields
     from entities_service.service.config import CONFIG
 

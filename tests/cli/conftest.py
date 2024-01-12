@@ -26,9 +26,10 @@ def cli() -> CliRunner:
 @pytest.fixture()
 def mock_entities_collection(monkeypatch: pytest.MonkeyPatch) -> Collection:
     """Return a mock entities collection."""
+    from mongomock import MongoClient
+
     from entities_service.service import backend
     from entities_service.service.config import CONFIG
-    from mongomock import MongoClient
 
     mongo_client = MongoClient(str(CONFIG.mongo_uri))
     mock_entities_collection = mongo_client["entities_service"]["entities"]
@@ -73,6 +74,7 @@ def dotenv_file(tmp_path: Path) -> Path:
 def _prefill_dotenv_config(dotenv_file: Path) -> None:
     """'Pre'-fill the monkeypatched dotenv config paths."""
     from dotenv import set_key
+
     from entities_service.cli.config import ConfigFields
     from entities_service.service.config import CONFIG
 

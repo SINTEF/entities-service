@@ -49,11 +49,11 @@ jobs:
           MONGO_INITDB_ROOT_PASSWORD: root
 
     env:
-      ENTITY_SERVICE_MONGO_URI: mongodb://localhost:27017
-      ENTITY_SERVICE_MONGO_USER: root
-      ENTITY_SERVICE_MONGO_PASSWORD: root
-      ENTITY_SERVICE_HOST: localhost
-      ENTITY_SERVICE_PORT: 8000
+      ENTITIES_SERVICE_MONGO_URI: mongodb://localhost:27017
+      ENTITIES_SERVICE_MONGO_USER: root
+      ENTITIES_SERVICE_MONGO_PASSWORD: root
+      ENTITIES_SERVICE_HOST: localhost
+      ENTITIES_SERVICE_PORT: 8000
 
     steps:
       - name: Checkout ${{ github.repository }}
@@ -75,10 +75,10 @@ jobs:
       - name: Run Docker container
         run: |
           docker run --rm -d \
-            --env ENTITY_SERVICE_MONGO_URI \
-            --env ENTITY_SERVICE_MONGO_USER \
-            --env ENTITY_SERVICE_MONGO_PASSWORD \
-            --env PORT=${ENTITY_SERVICE_PORT} \
+            --env ENTITIES_SERVICE_MONGO_URI \
+            --env ENTITIES_SERVICE_MONGO_USER \
+            --env ENTITIES_SERVICE_MONGO_PASSWORD \
+            --env PORT=${ENTITIES_SERVICE_PORT} \
             --name "entity-service" \
             --network "host" \
             --volume "${PWD}:/app" \
