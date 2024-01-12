@@ -55,10 +55,10 @@ dev = [
 entities-service = "entities_service.cli.main:APP"
 
 [project.urls]
-Home = "https://github.com/CasperWA/entities-service"
+Home = "https://github.com/SINTEF/entities-service"
 Documentation = "https://CasperWA.github.io/entities-service"
-Source = "https://github.com/CasperWA/entities-service"
-"Issue Tracker" = "https://github.com/CasperWA/entities-service/issues"
+Source = "https://github.com/SINTEF/entities-service"
+"Issue Tracker" = "https://github.com/SINTEF/entities-service/issues"
 Changelog = "https://CasperWA.github.io/entities-service/latest/CHANGELOG"
 
 [tool.mypy]
