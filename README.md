@@ -28,12 +28,12 @@ docker run -d --name "mongodb" -p "27017:27017" mongo:6
 Then build and run the Entities Service Docker image:
 
 ```shell
-docker build --pull -t entity-service --target development .
+docker build --pull -t entities-service --target development .
 docker run --rm -d \
   --env "entities_service_mongo_uri=mongodb://localhost:27017" \
-  --name "entity-service" \
+  --name "entities-service" \
   -p "8000:80" \
-  entity-service
+  entities-service
 ```
 
 Now, fill up the MongoDB with valid entities at the `entities_service` database in the `entities` collection.

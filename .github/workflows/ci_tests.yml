@@ -68,7 +68,7 @@ jobs:
         run: |
           docker build \
             --pull \
-            --tag entity-service \
+            --tag entities-service \
             --target ${{ matrix.docker_target }} \
             .
 
@@ -79,11 +79,11 @@ jobs:
             --env ENTITIES_SERVICE_MONGO_USER \
             --env ENTITIES_SERVICE_MONGO_PASSWORD \
             --env PORT=${ENTITIES_SERVICE_PORT} \
-            --name "entity-service" \
+            --name "entities-service" \
             --network "host" \
             --volume "${PWD}:/app" \
             --user "$(id -u):$(id -g)" \
-            entity-service
+            entities-service
           sleep 5
 
       - name: Install test dependencies
@@ -98,7 +98,7 @@ jobs:
             pytest -vv --live-backend --cov-report=xml
           } || {
             echo "Failed! Here's the Docker logs for the service:" &&
-            docker logs entity-service &&
+            docker logs entities-service &&
 
             echo -e "\nAnd the service log:" &&
             cat logs/entities_service.log &&
