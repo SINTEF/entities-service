@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from entities_service.service.config import CONFIG
 from pymongo import MongoClient
-
-from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from pymongo.collection import Collection
@@ -32,7 +31,7 @@ def get_collection(
         uri or str(CONFIG.mongo_uri),
         **client_kwargs,
     )
-    return mongo_client.dlite.entities
+    return mongo_client.entities_service.entities
 
 
 ENTITIES_COLLECTION = get_collection()

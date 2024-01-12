@@ -101,7 +101,7 @@ jobs:
             docker logs entity-service &&
 
             echo -e "\nAnd the service log:" &&
-            cat logs/dlite_entities_service.log &&
+            cat logs/entities_service.log &&
 
             exit 1
           }

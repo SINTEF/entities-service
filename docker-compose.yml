@@ -1,7 +1,7 @@
 version: "3"
 
 services:
-  dlite_entities_service:
+  entities_service:
     build:
       context: "."
       target: "${ENTITY_SERVICE_DOCKER_TARGET:-development}"
@@ -16,7 +16,7 @@ services:
     depends_on:
       - mongodb
     networks:
-      - dlite_entities_net
+      - entities_service_net
     volumes:
       - "${PWD}:/app"
 
@@ -29,7 +29,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-root}
     networks:
-      - dlite_entities_net
+      - entities_service_net
 
 networks:
-  dlite_entities_net:
+  entities_service_net:
