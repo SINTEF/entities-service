@@ -1,4 +1,4 @@
-"""Typer CLI for doing SOFT entities service stuff."""
+"""Typer CLI for doing Entities Service stuff."""
 from __future__ import annotations
 
 import json
@@ -68,7 +68,7 @@ OptionalStr = Optional[str]
 
 APP = typer.Typer(
     name="entities-service",
-    help="SOFT entities service utility CLI",
+    help="Entities Service utility CLI",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
     callback=global_options,
