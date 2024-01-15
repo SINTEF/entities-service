@@ -50,6 +50,9 @@ testing = [
     "pyyaml ~=6.0",
     "dlite-entities-service[cli]",
 ]
+production = [
+    "gunicorn ~=21.2",
+]
 dev = [
     "pre-commit ~=3.6",
     "dlite-entities-service[cli,testing]",
