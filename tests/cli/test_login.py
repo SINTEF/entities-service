@@ -29,6 +29,8 @@ def test_login(
     live_backend: bool,
 ) -> None:
     """Test the `entities-service login` CLI command."""
+    import os
+
     from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
@@ -52,28 +54,38 @@ def test_login(
             json=mock_token.model_dump(),
         )
 
+    cli_run_env = os.environ.copy()
+
     # Run the CLI command
     if input_method == "cli_option":
         result = cli.invoke(
             APP,
             f"login --username {username} --password {password}",
             catch_exceptions=False,
+            env=cli_run_env,
         )
     elif input_method == "stdin":
+        cli_run_env.update(
+            {"ENTITY_SERVICE_ADMIN_USER": "", "ENTITY_SERVICE_ADMIN_PASSWORD": ""}
+        )
+
         result = cli.invoke(
             APP,
             "login",
             input=f"{username}\n{password}\n",
-            env={"ENTITY_SERVICE_ADMIN_USER": "", "ENTITY_SERVICE_ADMIN_PASSWORD": ""},
+            env=cli_run_env,
         )
     elif input_method == "env":
+        cli_run_env.update(
+            {
+                "ENTITY_SERVICE_ADMIN_USER": username,
+                "ENTITY_SERVICE_ADMIN_PASSWORD": password,
+            }
+        )
         result = cli.invoke(
             APP,
             "login",
-            env={
-                "ENTITY_SERVICE_ADMIN_USER": username,
-                "ENTITY_SERVICE_ADMIN_PASSWORD": password,
-            },
+            env=cli_run_env,
         )
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
