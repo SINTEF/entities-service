@@ -23,6 +23,8 @@ EXPOSE ${PORT}
 # Set debug mode, since we're running in development mode
 ENV ENTITY_SERVICE_DEBUG=1
 
+COPY *entrypoint.sh ./
+
 ENTRYPOINT uvicorn --host 0.0.0.0 --port ${PORT} --log-level debug --no-server-header --header "Server:DLiteEntitiesService" --reload dlite_entities_service.main:APP
 
 ## PRODUCTION target

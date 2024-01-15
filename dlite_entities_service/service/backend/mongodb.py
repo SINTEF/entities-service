@@ -149,9 +149,6 @@ def get_client(
             else None
         ),
     }
-    for key, value in list(client_kwargs.items()):
-        if value is None:
-            client_kwargs.pop(key, None)
 
     new_client = MongoClient(uri or str(CONFIG.mongo_uri), **client_kwargs)
 

@@ -27,6 +27,7 @@ services:
       - dlite_entities_net
     volumes:
       - "${PWD}:/app"
+    entrypoint: ["./coverage_entrypoint.sh"]
 
   mongodb:
     image: mongo:7

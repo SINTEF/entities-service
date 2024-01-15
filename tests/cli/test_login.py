@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ..conftest import GetBackendUserFixture
 
 
-pytestmark = pytest.mark.usefixtures("_use_test_client")
+# pytestmark = pytest.mark.usefixtures("_use_test_client")
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
@@ -119,6 +119,7 @@ def test_token_persistence(
 
     cached_access_token_file = tmp_path / ".cache" / "access_token"
 
+    assert not cached_access_token_file.exists()
     assert CONTEXT["token"] is None, CONTEXT
 
     if "uri" in random_valid_entity:
@@ -164,7 +165,6 @@ def test_token_persistence(
             "upload --file "
             f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
         ),
-        env={"ENTITY_SERVICE_CLI_CACHE_DIR": str(tmp_path / ".cache")},
     )
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -185,7 +185,6 @@ def test_token_persistence(
     result = cli.invoke(
         APP,
         f"login --username {username} --password {password}",
-        env={"ENTITY_SERVICE_CLI_CACHE_DIR": str(tmp_path / ".cache")},
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -208,7 +207,6 @@ def test_token_persistence(
             "upload --file "
             f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
         ),
-        env={"ENTITY_SERVICE_CLI_CACHE_DIR": str(tmp_path / ".cache")},
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr

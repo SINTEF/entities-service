@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
-    from pytest_httpx import HTTPXMock
     from typer import Typer
     from typer.testing import CliRunner
 
@@ -206,32 +205,47 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
     return []
 
 
-@pytest.fixture(params=["external", "test_client"])
-def _use_test_client(
-    monkeypatch: pytest.MonkeyPatch,
-    live_backend: bool,
-    request: pytest.FixtureRequest,
-    httpx_mock: HTTPXMock,
-    non_mocked_hosts: list[str],
-) -> None:
-    """Use both a test client as well as a proper external call when testing against a
-    live backend."""
-    if (not live_backend) or request.param == "external":
-        return
+# @pytest.fixture(params=["external", "test_client"])
+# def _use_test_client(
+#     monkeypatch: pytest.MonkeyPatch,
+#     live_backend: bool,
+#     request: pytest.FixtureRequest,
+#     httpx_mock: HTTPXMock,
+#     non_mocked_hosts: list[str],
+# ) -> None:
+#     """Use both a test client as well as a proper external call when testing against a
+#     live backend."""
+#     if (not live_backend) or request.param == "external":
+#         return
 
-    import httpx
-    from fastapi.testclient import TestClient
+#     import httpx
+#     from fastapi.testclient import TestClient
 
-    from dlite_entities_service.main import APP
+#     from dlite_entities_service.main import APP
+#     from dlite_entities_service.service.config import CONFIG
 
-    test_client = TestClient(APP, root_path="/deploy")
+#     # Synchronous requests
+#     def test_handle_request(
+#         transport: httpx.HTTPTransport, request: httpx.Request
+#     ) -> httpx.Response:
+#         if request.url.host in non_mocked_hosts:
+#             with TestClient(APP, base_url=str(CONFIG.base_url), root_path="/deploy") as client:
+#                 return client._transport.handle_request(request)
+#         return httpx_mock._handle_request(transport, request)
 
-    # Synchronous requests - the only thing actually used in these tests
-    def test_handle_request(
-        transport: httpx.HTTPTransport, request: httpx.Request
-    ) -> httpx.Response:
-        if request.url.host in non_mocked_hosts:
-            return test_client._transport.handle_request(request)
-        return httpx_mock._handle_request(transport, request)
+#     monkeypatch.setattr(httpx.HTTPTransport, "handle_request", test_handle_request)
 
-    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", test_handle_request)
+#     real_handle_async_request = httpx.AsyncHTTPTransport.handle_async_request
+
+#     # Asynchronous requests
+#     async def test_handle_async_request(
+#         transport: httpx.AsyncHTTPTransport, request: httpx.Request
+#     ) -> httpx.Response:
+#         if request.url.host in non_mocked_hosts:
+#             async with httpx.AsyncClient(app=APP, base_url=str(CONFIG.base_url)) as client:
+#                 return await real_handle_async_request(client._transport, request)
+#         return await httpx_mock._handle_async_request(transport, request)
+
+#     monkeypatch.setattr(
+#         httpx.AsyncHTTPTransport, "handle_async_request", test_handle_async_request
+#     )

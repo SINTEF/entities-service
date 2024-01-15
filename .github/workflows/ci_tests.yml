@@ -91,7 +91,8 @@ jobs:
             --network "host" \
             --volume "${PWD}:/app" \
             --user "$(id -u):$(id -g)" \
-            entity-service
+            entity-service \
+            coverage run $(which uvicorn) --host 0.0.0.0 --port ${PORT} --log-level debug --no-server-header --header "Server:DLiteEntitiesService" --reload dlite_entities_service.main:APP
           sleep 5
 
       - name: Install test dependencies
@@ -118,6 +119,7 @@ jobs:
         if: github.repository_owner == 'SINTEF'
         uses: codecov/codecov-action@v3
         with:
+          files: coverage.xml,
           fail_ci_if_error: true
           env_vars: OS,PYTHON
           flags: docker
