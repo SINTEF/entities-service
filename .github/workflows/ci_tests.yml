@@ -67,6 +67,9 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Create test SSL key
+        run: echo "ENTITY_SERVICE_PRIVATE_SSL_KEY=$(openssl rand -hex 32)" >> $GITHUB_ENV
+
       - name: Build Docker image
         run: |
           docker build \
@@ -82,7 +85,7 @@ jobs:
             --env ENTITY_SERVICE_ADMIN_USER \
             --env ENTITY_SERVICE_ADMIN_PASSWORD \
             --env ENTITY_SERVICE_ADMIN_DB \
-            --env ENTITY_SERVICE_PRIVATE_SSL_KEY=$(openssl rand -hex 32) \
+            --env ENTITY_SERVICE_PRIVATE_SSL_KEY \
             --env PORT=${ENTITY_SERVICE_PORT} \
             --name "entity-service" \
             --network "host" \
