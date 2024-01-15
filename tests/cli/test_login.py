@@ -131,29 +131,30 @@ def test_token_persistence(
         )
         entity_name = random_valid_entity["name"]
 
-    # Mock the login HTTPX response
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
-        method="POST",
-        match_content=f"grant_type=password&username={username}&password={password}".encode(),
-        json=mock_token.model_dump(),
-    )
+    if not live_backend:
+        # Mock the login HTTPX response
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
+            method="POST",
+            match_content=f"grant_type=password&username={username}&password={password}".encode(),
+            json=mock_token.model_dump(),
+        )
+
+        # Mock response for "Create entities"
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+            method="POST",
+            match_headers={
+                "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
+            },
+            match_json=[random_valid_entity],
+            status_code=201,  # created
+        )
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
         url=entity_uri,
         status_code=404,  # not found, i.e., entity does not already exist
-    )
-
-    # Mock response for "Create entities"
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-        method="POST",
-        match_headers={
-            "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
-        },
-        match_json=[random_valid_entity],
-        status_code=201,  # created
     )
 
     # Run the upload CLI command - ensuring an error is raised due to the missing token

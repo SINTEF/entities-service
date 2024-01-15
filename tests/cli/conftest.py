@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
+    from pytest_httpx import HTTPXMock
     from typer import Typer
     from typer.testing import CliRunner
 
@@ -198,7 +199,7 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
 
         localhost = host + (f":{port}" if port else "")
         hosts = [localhost, host]
-        if CONFIG.base_url.host:
+        if CONFIG.base_url.host and CONFIG.base_url.host not in hosts:
             hosts.append(CONFIG.base_url.host)
         return hosts
 
@@ -207,24 +208,30 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
 
 @pytest.fixture(params=["external", "test_client"])
 def _use_test_client(
-    monkeypatch: pytest.MonkeyPatch, live_backend: bool, request: pytest.FixtureRequest
+    monkeypatch: pytest.MonkeyPatch,
+    live_backend: bool,
+    request: pytest.FixtureRequest,
+    httpx_mock: HTTPXMock,
+    non_mocked_hosts: list[str],
 ) -> None:
     """Use both a test client as well as a proper external call when testing against a
     live backend."""
     if (not live_backend) or request.param == "external":
         return
 
-    from fastapi.testclient import TestClient as FastAPITestClient
+    import httpx
+    from fastapi.testclient import TestClient
 
-    from dlite_entities_service.cli.main import httpx
+    from dlite_entities_service.main import APP
 
-    class TestClient(FastAPITestClient):
-        """Test client that uses the FastAPI APP."""
+    test_client = TestClient(APP, root_path="/deploy")
 
-        def __init__(self, **kwargs) -> None:
-            """Initialize the test client."""
-            from dlite_entities_service.main import APP
+    # Synchronous requests - the only thing actually used in these tests
+    def test_handle_request(
+        transport: httpx.HTTPTransport, request: httpx.Request
+    ) -> httpx.Response:
+        if request.url.host in non_mocked_hosts:
+            return test_client._transport.handle_request(request)
+        return httpx_mock._handle_request(transport, request)
 
-            super().__init__(APP, **kwargs)
-
-    monkeypatch.setattr(httpx, "Client", TestClient)
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", test_handle_request)
