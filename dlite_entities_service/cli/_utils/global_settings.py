@@ -87,21 +87,10 @@ def global_options(
         CONTEXT["dotenv_path"] = dotenv_path
 
     if token:
-        access_token = Token(access_token=token)
-
-        # I cannot come up with a scenario where this would not validate.
+        # I cannot come up with a scenario where the following line would not validate.
         # The only scenario in which it would happen is if `token` is not a string.
         # But it can never not be a string due to the way the input is parsed.
-        # Even the `if token:` sentence ensures that it will never be an empty string at
-        # that...
-        # However, should a case ever come up, the following lines should be the
-        # 'except' part of a 'try/except'-block for generating the `Token()`:
-
-        # except ValidationError as exc:
-        #     raise typer.BadParameter(
-        #         f"Invalid token: {token}",
-        #         param=token,
-        #         param_hint="Token should be given as a string.",
-        #     ) from exc
+        # Even the `if token:` line above ensures that it will never be an empty string.
+        access_token = Token(access_token=token)
 
         CONTEXT["token"] = access_token
