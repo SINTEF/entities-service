@@ -1,6 +1,6 @@
 # dev
 .*_cache/
-.coverage
+.coverage*
 coverage.xml
 
 # secrets

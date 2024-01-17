@@ -78,6 +78,12 @@ jobs:
             --target ${{ matrix.docker_target }} \
             .
 
+      - name: Install test dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -U setuptools wheel flit
+          pip install -U -e .[testing]
+
       - name: Run Docker container
         run: |
           docker run --rm -d \
@@ -87,24 +93,20 @@ jobs:
             --env ENTITY_SERVICE_ADMIN_DB \
             --env ENTITY_SERVICE_PRIVATE_SSL_KEY \
             --env PORT=${ENTITY_SERVICE_PORT} \
+            --env RUN_TIME=30 \
+            --env STOP_TIME=3 \
             --name "entity-service" \
             --network "host" \
             --volume "${PWD}:/app" \
             --user "$(id -u):$(id -g)" \
-            entity-service \
-            coverage run $(which uvicorn) --host 0.0.0.0 --port ${PORT} --log-level debug --no-server-header --header "Server:DLiteEntitiesService" --reload dlite_entities_service.main:APP
-          sleep 5
-
-      - name: Install test dependencies
-        run: |
-          python -m pip install -U pip
-          pip install -U setuptools wheel flit
-          pip install -U -e .[testing]
+            --entrypoint "./.github/utils/coverage_entrypoint.sh" \
+            entity-service
+          sleep 5  # Wait for the service to start
 
       - name: Run tests
         run: |
           {
-            pytest -vv --live-backend --cov-report=xml
+            pytest -vv --live-backend --cov-report=
           } || {
             echo "Failed! Here's the Docker logs for the service:" &&
             docker logs entity-service &&
@@ -115,11 +117,18 @@ jobs:
             exit 1
           }
 
+      - name: Collect coverage
+        run: |
+          mv .coverage .coverage.pytest
+          coverage combine --data-file=.coverage.final --rcfile=pyproject.toml .coverage.pytest .coverage.docker
+          coverage xml --data-file=.coverage.final --rcfile=pyproject.toml -o coverage.xml
+          coverage report --data-file=.coverage.final --rcfile=pyproject.toml --show-missing --skip-covered --skip-empty
+
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
         uses: codecov/codecov-action@v3
         with:
-          files: coverage.xml,
+          files: coverage.xml
           fail_ci_if_error: true
           env_vars: OS,PYTHON
           flags: docker
