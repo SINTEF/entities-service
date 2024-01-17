@@ -229,7 +229,7 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
 #         transport: httpx.HTTPTransport, request: httpx.Request
 #     ) -> httpx.Response:
 #         if request.url.host in non_mocked_hosts:
-#             with TestClient(APP, base_url=str(CONFIG.base_url), root_path="/deploy") as client:
+#             with TestClient(APP, base_url=str(CONFIG.base_url), root_path="/deploy") as client:  # noqa: E501
 #                 return client._transport.handle_request(request)
 #         return httpx_mock._handle_request(transport, request)
 
@@ -242,7 +242,7 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
 #         transport: httpx.AsyncHTTPTransport, request: httpx.Request
 #     ) -> httpx.Response:
 #         if request.url.host in non_mocked_hosts:
-#             async with httpx.AsyncClient(app=APP, base_url=str(CONFIG.base_url)) as client:
+#             async with httpx.AsyncClient(app=APP, base_url=str(CONFIG.base_url)) as client:  # noqa: E501
 #                 return await real_handle_async_request(client._transport, request)
 #         return await httpx_mock._handle_async_request(transport, request)
 
