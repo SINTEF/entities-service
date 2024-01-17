@@ -2,7 +2,7 @@
 set -mx
 
 # Run server with coverage as a job
-gunicorn --bind "0.0.0.0:${PORT}" --log-level debug --workers 1 --worker-class dlite_entities_service.uvicorn.UvicornWorker .github/utils/run_with_coverage:APP &
+gunicorn --bind "0.0.0.0:${PORT}" --log-level debug --workers 1 --worker-class dlite_entities_service.uvicorn.UvicornWorker --pythonpath ".github/utils" run_with_coverage:APP &
 
 echo "$(jobs -l)"
 
