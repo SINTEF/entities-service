@@ -82,7 +82,6 @@ def get_cached_access_token() -> Token | None:
 
         # Check if the cached token is still valid
         with httpx.Client(base_url=str(CONFIG.base_url)) as client:
-            print(client.__class__.__name__)
             try:
                 response = client.get(
                     "/_admin/users/me",
