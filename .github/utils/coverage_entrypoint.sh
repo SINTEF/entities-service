@@ -6,8 +6,11 @@ gunicorn --bind "0.0.0.0:${PORT}" --log-level debug --workers 1 --worker-class d
 
 echo "$(jobs -l)"
 
-echo "Run time is ${RUN_TIME:-40} seconds"
-sleep ${RUN_TIME:-40}
+echo "waiting for signal to kill gunicorn"
+SECONDS=0
+while [ "${STOP_GUNICORN}" != "true" ] && [[ ${SECONDS} -lt ${RUN_TIME:-40} ]]; do
+    sleep 1
+done
 
 echo "stopping gunicorn"
 GUNICORN_PID=$(ps -C gunicorn fch -o pid | head -n 1)

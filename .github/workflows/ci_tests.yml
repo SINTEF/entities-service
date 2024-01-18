@@ -119,6 +119,8 @@ jobs:
 
       - name: Collect coverage
         run: |
+          docker exec entity-service /bin/sh -c "export STOP_GUNICORN=true"
+          sleep 5  # Wait for the service to stop
           mv .coverage .coverage.pytest
           coverage combine --data-file=.coverage.final --rcfile=pyproject.toml .coverage.pytest .coverage.docker
           coverage xml --data-file=.coverage.final --rcfile=pyproject.toml -o coverage.xml
