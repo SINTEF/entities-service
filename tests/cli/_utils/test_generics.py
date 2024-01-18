@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
 
+@pytest.mark.skip_if_live_backend("Does not raise HTTP errors in this case.")
 @pytest.mark.parametrize("token_py_type", ["str", "Token"])
 @pytest.mark.parametrize("invalidity_reason", ["invalid", "error"])
 def test_set_and_get_cached_access_token(
