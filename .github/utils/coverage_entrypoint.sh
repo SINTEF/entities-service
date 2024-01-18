@@ -2,7 +2,7 @@
 set -mx
 
 # Install coverage
-pip3 install -r .github/utils/requirements.txt
+pip install -r .github/utils/requirements.txt
 
 # Run server with coverage as a job
 # Redo the Dockerfile entrypoints, but pointing to the run_with_coverage script

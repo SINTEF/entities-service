@@ -86,6 +86,11 @@ jobs:
 
       - name: Run Docker container
         run: |
+          # Create logging directory and file
+          mkdir -p logs
+          touch -a logs/dlite_entities_service.log
+
+          # Run the service in the background
           docker run --rm -d \
             --env ENTITY_SERVICE_MONGO_URI \
             --env ENTITY_SERVICE_ADMIN_USER \
@@ -98,7 +103,6 @@ jobs:
             --name "entity-service" \
             --network "host" \
             --volume "${PWD}:/app" \
-            --user "$(id -u):$(id -g)" \
             --entrypoint "./.github/utils/coverage_entrypoint.sh" \
             entity-service \
             ${{ matrix.docker_target }}

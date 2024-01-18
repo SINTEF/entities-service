@@ -8,10 +8,7 @@ COPY pyproject.toml LICENSE README.md ./
 # Install dependencies
 RUN python -m pip install -U pip && \
   pip install -U pip setuptools wheel && \
-  pip install -U -e .[server] && \
-  # Create log directory and file (if not existing already)
-  mkdir -p logs && \
-  touch -a logs/dlite_entities_service.log
+  pip install -U -e .[server]
 
 ## DEVELOPMENT target
 
