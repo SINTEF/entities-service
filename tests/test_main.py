@@ -7,7 +7,83 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from .conftest import ClientFixture, ParameterizeGetEntities
+    from typing import Literal
+
+    from .conftest import ClientFixture, GetBackendUserFixture, ParameterizeGetEntities
+
+
+@pytest.fixture()
+def client(
+    live_backend: bool, get_backend_user: GetBackendUserFixture
+) -> ClientFixture:
+    """Return the test client."""
+    import os
+
+    from fastapi.testclient import TestClient
+    from httpx import Client
+
+    from dlite_entities_service.main import APP
+    from dlite_entities_service.models.auth import Token
+    from dlite_entities_service.service.config import CONFIG
+
+    def _client(
+        auth_role: Literal["read", "readWrite"] | None = None
+    ) -> TestClient | Client:
+        """Return the test client with the given authentication role."""
+        if not live_backend:
+            return TestClient(
+                app=APP,
+                base_url=str(CONFIG.base_url),
+            )
+
+        if auth_role is None:
+            auth_role = "read"
+
+        assert auth_role in ("read", "readWrite"), (
+            f"Invalid authentication role {auth_role!r}. Must be either 'read' or "
+            "'readWrite'."
+        )
+
+        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
+            "ENTITY_SERVICE_PORT", "8000"
+        )
+
+        base_url = f"http://{host}"
+
+        if port:
+            base_url += f":{port}"
+
+        backend_user = get_backend_user(auth_role)
+
+        with Client(base_url=base_url) as temp_client:
+            response = temp_client.post(
+                "/_auth/token",
+                data={
+                    "grant_type": "password",
+                    "username": backend_user["username"],
+                    "password": backend_user["password"],
+                },
+            )
+
+        assert response.is_success, response.text
+        try:
+            token = Token(**response.json())
+        except Exception as exc:
+            raise ValueError(
+                "Could not parse the response from the token endpoint. "
+                f"Response:\n{response.text}"
+            ) from exc
+
+        authentication_header = {
+            "Authorization": f"{token.token_type} {token.access_token}"
+        }
+
+        return Client(
+            base_url=f"http://{host}:{port}",
+            headers=authentication_header,
+        )
+
+    return _client
 
 
 def test_get_entity(

@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from typer import Typer
     from typer.testing import CliRunner
 
+    from dlite_entities_service.service.backend.mongodb import MongoDBBackend
+
     from ..conftest import GetBackendUserFixture
 
 
@@ -63,23 +65,6 @@ def dotenv_file(tmp_path: Path) -> Path:
     assert isinstance(env_file, str)
 
     return tmp_path / env_file
-
-
-@pytest.fixture()
-def _prefill_dotenv_config(dotenv_file: Path) -> None:
-    """'Pre'-fill the monkeypatched dotenv config paths."""
-    from dotenv import set_key
-
-    from dlite_entities_service.cli.config import ConfigFields
-    from dlite_entities_service.service.config import CONFIG
-
-    env_prefix = CONFIG.model_config["env_prefix"]
-
-    if not dotenv_file.exists():
-        dotenv_file.touch()
-
-    for field in ConfigFields:
-        set_key(dotenv_file, f"{env_prefix}{field}".upper(), f"{field}_test")
 
 
 @pytest.fixture()
@@ -173,3 +158,23 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
         return hosts
 
     return []
+
+
+@pytest.fixture()
+def _empty_backend_collection(
+    live_backend: bool, get_backend_user: GetBackendUserFixture
+) -> None:
+    """Empty the backend collection."""
+    from dlite_entities_service.service.backend import get_backend
+
+    backend_settings = {}
+    if live_backend:
+        backend_user = get_backend_user("readWrite")
+        backend_settings = {
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        }
+
+    backend: MongoDBBackend = get_backend(settings=backend_settings)
+    backend._collection.delete_many({})
+    assert backend._collection.count_documents({}) == 0

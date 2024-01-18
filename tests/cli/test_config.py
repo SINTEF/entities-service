@@ -12,6 +12,23 @@ if TYPE_CHECKING:
     from typer.testing import CliRunner
 
 
+@pytest.fixture()
+def _prefill_dotenv_config(dotenv_file: Path) -> None:
+    """'Pre'-fill the monkeypatched dotenv config paths."""
+    from dotenv import set_key
+
+    from dlite_entities_service.cli.config import ConfigFields
+    from dlite_entities_service.service.config import CONFIG
+
+    env_prefix = CONFIG.model_config["env_prefix"]
+
+    if not dotenv_file.exists():
+        dotenv_file.touch()
+
+    for field in ConfigFields:
+        set_key(dotenv_file, f"{env_prefix}{field}".upper(), f"{field}_test")
+
+
 def test_config(cli: CliRunner) -> None:
     """Test `entities-service config` CLI command."""
     from dlite_entities_service.cli.config import APP
