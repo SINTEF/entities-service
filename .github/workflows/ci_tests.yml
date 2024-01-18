@@ -93,7 +93,7 @@ jobs:
             --env ENTITY_SERVICE_ADMIN_DB \
             --env ENTITY_SERVICE_PRIVATE_SSL_KEY \
             --env PORT=${ENTITY_SERVICE_PORT} \
-            --env RUN_TIME=30 \
+            --env RUN_TIME=40 \
             --env STOP_TIME=3 \
             --name "entity-service" \
             --network "host" \
@@ -119,8 +119,16 @@ jobs:
 
       - name: Collect coverage
         run: |
-          docker exec entity-service /bin/sh -c "export STOP_GUNICORN=true"
-          sleep 5  # Wait for the service to stop
+          # We have mapped the current working directory with the service's working
+          # directory in Docker. This means that we can, first of all, stop the service
+          # via a file touch, and then collect the coverage data from the service.
+          #
+          # See the .github/utils/coverage_entrypoint.sh file for more details on the
+          # stopping mechanism.
+          touch stop_gunicorn
+
+          sleep 3  # Wait for the service to stop
+
           mv .coverage .coverage.pytest
           coverage combine --data-file=.coverage.final --rcfile=pyproject.toml .coverage.pytest .coverage.docker
           coverage xml --data-file=.coverage.final --rcfile=pyproject.toml -o coverage.xml

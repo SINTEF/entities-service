@@ -8,11 +8,12 @@ echo "$(jobs -l)"
 
 echo "waiting for signal to kill gunicorn"
 SECONDS=0
-while [ "${STOP_GUNICORN}" != "true" ] && [[ ${SECONDS} -lt ${RUN_TIME:-40} ]]; do
+while [ ! -f "stop_gunicorn" ] && [[ ${SECONDS} -lt ${RUN_TIME:-40} ]]; do
     sleep 1
 done
 
 echo "stopping gunicorn"
+rm -f stop_gunicorn
 GUNICORN_PID=$(ps -C gunicorn fch -o pid | head -n 1)
 kill -HUP $GUNICORN_PID
 sleep ${STOP_TIME:-3}
