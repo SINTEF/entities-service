@@ -1,7 +1,7 @@
 """Configuration and fixtures for all pytest tests."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
 
@@ -44,6 +44,16 @@ if TYPE_CHECKING:
             self, auth_role: Literal["read", "readWrite"] | None = None
         ) -> UserFullInfoDict:
             ...
+
+
+class ParameterizeGetEntities(NamedTuple):
+    """Returned tuple from parameterizing all entities."""
+
+    entity: dict[str, Any]
+    version: str
+    name: str
+    uri: str
+    backend_entity: dict[str, Any]
 
 
 ## Pytest configuration functions and hooks ##
@@ -115,12 +125,54 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     """Called after the Session object has been created and before performing
     collection and entering the run test loop.
 
-    Used together with `pytest_sessionfinish()` to temporarily rename a local `.env`
-    file.
+    Used together with `pytest_sessionfinish()` to:
+    - Unpack and finally remove the `valid_entities.yaml` file to a
+      `valid_entities/*.json` file set.
+    - Temporarily rename a local `.env` file.
+
     """
+    import json
     import shutil
     from pathlib import Path
 
+    import yaml
+
+    # Unpack `valid_entities.yaml` to `valid_entities/*.json`
+    static_dir = (Path(__file__).parent / "static").resolve()
+
+    entities: list[dict[str, Any]] = yaml.safe_load(
+        (static_dir / "valid_entities.yaml").read_text()
+    )
+
+    valid_entities_dir = static_dir / "valid_entities"
+    if valid_entities_dir.exists():
+        raise FileExistsError(
+            f"Will not unpack 'valid_entities.yaml' to '{valid_entities_dir}'. "
+            "Directory already exists. Please deal with it manually."
+        )
+
+    valid_entities_dir.mkdir()
+
+    for entity in entities:
+        name: str | None = entity.get("name")
+        if name is None:
+            uri: str | None = entity.get("uri")
+            if uri is None:
+                raise ValueError(
+                    "Could not retrieve neither uri and name from test entity."
+                )
+            name = uri.split("/")[-1]
+
+        json_file = valid_entities_dir / f"{name}.json"
+        if json_file.exists():
+            raise FileExistsError(
+                f"Could not unpack 'valid_entities.yaml' to '{json_file}'. File "
+                "already exists."
+            )
+
+        json_file.write_text(json.dumps(entity))
+
+    # Rename local '.env' file to '.env.temp_while_testing'
     if session.config.getoption("--live-backend"):
         # If the tests are run with a live backend, there is no need to rename the
         # local '.env' file
@@ -152,12 +204,27 @@ def pytest_sessionfinish(
     """Called after whole test run finished, right before returning the exit status to
     the system.
 
-    Used together with `pytest_sessionstart()` to temporarily return a local `.env`
-    file.
+    Used together with `pytest_sessionstart()` to:
+    - Unpack and finally remove the `valid_entities.yaml` file to a
+      `valid_entities/*.json` file set.
+    - Temporarily rename a local `.env` file.
+
     """
     import shutil
     from pathlib import Path
 
+    # Remove `valid_entities/*.json`
+    valid_entities_dir = (Path(__file__).parent / "static" / "valid_entities").resolve()
+
+    if valid_entities_dir.exists():
+        shutil.rmtree(valid_entities_dir)
+
+    assert not valid_entities_dir.exists(), (
+        f"Could not remove '{valid_entities_dir}'. "
+        "Directory still exists after removal."
+    )
+
+    # Rename '.env.temp_while_testing' to '.env'
     if session.config.getoption("--live-backend"):
         # If the tests are run with a live backend, there is no need to return the
         # local '.env' file
@@ -287,9 +354,9 @@ def _mongo_test_collection(
     from dlite_entities_service.service.backend import Backends, get_backend
     from dlite_entities_service.service.config import CONFIG
 
-    # Convert all '$ref' to 'ref' in the entities.yaml file
+    # Convert all '$ref' to 'ref' in the valid_entities.yaml file
     entities: list[dict[str, Any]] = yaml.safe_load(
-        (static_dir / "entities.yaml").read_text()
+        (static_dir / "valid_entities.yaml").read_text()
     )
     for entity in entities:
         # SOFT5
@@ -358,9 +425,9 @@ def _reset_mongo_test_collection(
 
     from dlite_entities_service.service.backend import get_backend
 
-    # Convert all '$ref' to 'ref' in the entities.yaml file
+    # Convert all '$ref' to 'ref' in the valid_entities.yaml file
     entities: list[dict[str, Any]] = yaml.safe_load(
-        (static_dir / "entities.yaml").read_text()
+        (static_dir / "valid_entities.yaml").read_text()
     )
     for entity in entities:
         # SOFT5
@@ -503,3 +570,90 @@ def client(
         )
 
     return _client
+
+
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    """Return a parameterized entity."""
+    if "parameterized_entity" not in metafunc.fixturenames:
+        return
+
+    from copy import deepcopy
+    from pathlib import Path
+
+    import yaml
+
+    def get_version_name(uri: str) -> tuple[str, str]:
+        """Return the version and name part of a uri."""
+        import re
+
+        from dlite_entities_service.service.config import CONFIG
+
+        # namespace = "http://onto-ns.com/meta"
+        namespace = str(CONFIG.base_url).rstrip("/")
+
+        match = re.match(
+            rf"^{re.escape(namespace)}/(?P<version>[^/]+)/(?P<name>[^/]+)$", uri
+        )
+        assert match is not None, (
+            f"Could not retrieve version and name from {uri!r}. "
+            "URI must be of the form: "
+            f"{namespace}/{{version}}/{{name}}\n\n"
+            "Hint: Did you (inadvertently) set the base_url to something?"
+        )
+
+        return match.group("version") or "", match.group("name") or ""
+
+    def get_uri(entity: dict[str, Any]) -> str:
+        """Return the uri for an entity."""
+        namespace = entity.get("namespace")
+        version = entity.get("version")
+        name = entity.get("name")
+
+        assert not any(
+            _ is None for _ in (namespace, version, name)
+        ), "Could not retrieve namespace, version, and/or name from test entities."
+
+        return f"{namespace}/{version}/{name}"
+
+    results: list[ParameterizeGetEntities] = []
+
+    static_dir = (Path(__file__).parent / "static").resolve()
+
+    entities: list[dict[str, Any]] = yaml.safe_load(
+        (static_dir / "valid_entities.yaml").read_text()
+    )
+
+    for entity in entities:
+        uri = entity.get("uri") or get_uri(entity)
+
+        version, name = get_version_name(uri)
+
+        # Replace $ref with ref
+        backend_entity = deepcopy(entity)
+
+        # SOFT5
+        if isinstance(backend_entity["properties"], list):
+            backend_entity["properties"] = [
+                {key.replace("$ref", "ref"): value for key, value in property_.items()}
+                for property_ in backend_entity["properties"]
+            ]
+
+        # SOFT7
+        else:
+            for property_name, property_value in list(
+                backend_entity["properties"].items()
+            ):
+                backend_entity["properties"][property_name] = {
+                    key.replace("$ref", "ref"): value
+                    for key, value in property_value.items()
+                }
+
+        results.append(
+            ParameterizeGetEntities(entity, version, name, uri, backend_entity)
+        )
+
+    metafunc.parametrize(
+        "parameterized_entity",
+        results,
+        ids=[f"{_.version}/{_.name}" for _ in results],
+    )

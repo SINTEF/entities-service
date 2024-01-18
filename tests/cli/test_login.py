@@ -7,15 +7,13 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any, Literal
+    from typing import Literal
 
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
 
-    from ..conftest import GetBackendUserFixture
+    from ..conftest import GetBackendUserFixture, ParameterizeGetEntities
 
-
-# pytestmark = pytest.mark.usefixtures("_use_test_client")
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
@@ -96,7 +94,7 @@ def test_token_persistence(
     cli: CliRunner,
     httpx_mock: HTTPXMock,
     static_dir: Path,
-    random_valid_entity: dict[str, Any],
+    parameterized_entity: ParameterizeGetEntities,
     get_backend_user: GetBackendUserFixture,
     live_backend: bool,
     tmp_path: Path,
@@ -119,18 +117,12 @@ def test_token_persistence(
 
     cached_access_token_file = tmp_path / ".cache" / "access_token"
 
+    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
+        ".json"
+    )
+
     assert not cached_access_token_file.exists()
     assert CONTEXT["token"] is None, CONTEXT
-
-    if "uri" in random_valid_entity:
-        entity_uri: str = random_valid_entity["uri"]
-        entity_name: str = entity_uri.split("/")[-1]
-    else:
-        entity_uri = (
-            f"{random_valid_entity['namespace']}/{random_valid_entity['version']}"
-            f"/{random_valid_entity['name']}"
-        )
-        entity_name = random_valid_entity["name"]
 
     if not live_backend:
         # Mock the login HTTPX response
@@ -148,24 +140,18 @@ def test_token_persistence(
             match_headers={
                 "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
             },
-            match_json=[random_valid_entity],
+            match_json=[parameterized_entity.backend_entity],
             status_code=201,  # created
         )
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
-        url=entity_uri,
+        url=parameterized_entity.uri,
         status_code=404,  # not found, i.e., entity does not already exist
     )
 
     # Run the upload CLI command - ensuring an error is raised due to the missing token
-    result = cli.invoke(
-        APP,
-        (
-            "upload --file "
-            f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
-        ),
-    )
+    result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     ) + (
@@ -201,13 +187,7 @@ def test_token_persistence(
         assert CONTEXT["token"] == mock_token, CONTEXT
 
     # Run the upload command again
-    result = cli.invoke(
-        APP,
-        (
-            "upload --file "
-            f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
-        ),
-    )
+    result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     ) + (

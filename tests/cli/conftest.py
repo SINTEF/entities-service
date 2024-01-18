@@ -7,7 +7,6 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any
 
     from typer import Typer
     from typer.testing import CliRunner
@@ -117,35 +116,6 @@ def _use_valid_token(
         return
 
     CONTEXT["token"] = Token(access_token="mock_token")
-
-
-@pytest.fixture()
-def random_valid_entity(static_dir: Path) -> dict[str, Any]:
-    """Return a random valid entity."""
-    import json
-    from random import choice
-
-    random_entity: Path = choice(list((static_dir / "valid_entities").glob("*.json")))
-    entity: dict[str, Any] = json.loads(random_entity.read_bytes())
-
-    assert "properties" in entity
-
-    # SOFT5
-    if isinstance(entity["properties"], list):
-        entity["properties"] = [
-            {key.replace("$ref", "ref"): value for key, value in property_.items()}
-            for property_ in entity["properties"]
-        ]
-
-    # SOFT7
-    else:
-        for property_name, property_value in list(entity["properties"].items()):
-            entity["properties"][property_name] = {
-                key.replace("$ref", "ref"): value
-                for key, value in property_value.items()
-            }
-
-    return entity
 
 
 @pytest.fixture(autouse=True)

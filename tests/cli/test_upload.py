@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
 
-    from ..conftest import GetBackendUserFixture
+    from ..conftest import GetBackendUserFixture, ParameterizeGetEntities
 
 
 pytestmark = pytest.mark.usefixtures("_use_valid_token")
@@ -582,7 +582,7 @@ def test_http_errors(
     cli: CliRunner,
     static_dir: Path,
     httpx_mock: HTTPXMock,
-    random_valid_entity: dict[str, Any],
+    parameterized_entity: ParameterizeGetEntities,
 ) -> None:
     """Ensure proper error messages are given if an HTTP error occurs."""
     from httpx import HTTPError
@@ -591,27 +591,14 @@ def test_http_errors(
     from dlite_entities_service.service.config import CONFIG
 
     error_message = "Generic HTTP Error"
-
-    if "uri" in random_valid_entity:
-        entity_uri: str = random_valid_entity["uri"]
-        entity_name: str = entity_uri.split("/")[-1]
-    else:
-        entity_uri = (
-            f"{random_valid_entity['namespace']}/{random_valid_entity['version']}"
-            f"/{random_valid_entity['name']}"
-        )
-        entity_name = random_valid_entity["name"]
+    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
+        ".json"
+    )
 
     # Mock response for "Check if entity already exists"
-    httpx_mock.add_exception(HTTPError(error_message), url=entity_uri)
+    httpx_mock.add_exception(HTTPError(error_message), url=parameterized_entity.uri)
 
-    result = cli.invoke(
-        APP,
-        (
-            "upload --file "
-            f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
-        ),
-    )
+    result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -624,7 +611,7 @@ def test_http_errors(
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
-        url=entity_uri,
+        url=parameterized_entity.uri,
         status_code=404,  # not found, i.e., entity does not already exist
     )
     httpx_mock.add_exception(
@@ -632,13 +619,7 @@ def test_http_errors(
         url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
     )
 
-    result = cli.invoke(
-        APP,
-        (
-            "upload --file "
-            f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
-        ),
-    )
+    result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -655,32 +636,22 @@ def test_json_decode_errors(
     cli: CliRunner,
     static_dir: Path,
     httpx_mock: HTTPXMock,
-    random_valid_entity: dict[str, Any],
+    parameterized_entity: ParameterizeGetEntities,
 ) -> None:
     """Ensure proper error messages are given if a JSONDecodeError occurs."""
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
 
-    if "uri" in random_valid_entity:
-        entity_uri: str = random_valid_entity["uri"]
-        entity_name: str = entity_uri.split("/")[-1]
-    else:
-        entity_uri = (
-            f"{random_valid_entity['namespace']}/{random_valid_entity['version']}"
-            f"/{random_valid_entity['name']}"
-        )
-        entity_name = random_valid_entity["name"]
+    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
+        ".json"
+    )
 
     # Mock response for "Check if entity already exists"
-    httpx_mock.add_response(url=entity_uri, status_code=200, content=b"not json")
-
-    result = cli.invoke(
-        APP,
-        (
-            "upload --file "
-            f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
-        ),
+    httpx_mock.add_response(
+        url=parameterized_entity.uri, status_code=200, content=b"not json"
     )
+
+    result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -693,7 +664,7 @@ def test_json_decode_errors(
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
-        url=entity_uri,
+        url=parameterized_entity.uri,
         status_code=404,  # not found, i.e., entity does not already exist
     )
     httpx_mock.add_response(
@@ -702,13 +673,7 @@ def test_json_decode_errors(
         content=b"not json",
     )
 
-    result = cli.invoke(
-        APP,
-        (
-            "upload --file "
-            f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
-        ),
-    )
+    result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -725,7 +690,7 @@ def test_unable_to_upload(
     cli: CliRunner,
     static_dir: Path,
     httpx_mock: HTTPXMock,
-    random_valid_entity: dict[str, Any],
+    parameterized_entity: ParameterizeGetEntities,
     live_backend: bool,
 ) -> None:
     """Ensure a proper error message is given if an entity cannot be uploaded."""
@@ -736,24 +701,17 @@ def test_unable_to_upload(
     from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
 
-    if "uri" in random_valid_entity:
-        entity_uri: str = random_valid_entity["uri"]
-        entity_name: str = entity_uri.split("/")[-1]
-    else:
-        entity_uri = (
-            f"{random_valid_entity['namespace']}/{random_valid_entity['version']}"
-            f"/{random_valid_entity['name']}"
-        )
-        entity_name = random_valid_entity["name"]
-
     assert CONTEXT["token"] is None
     CONTEXT["token"] = Token(access_token="bad_token")
 
     error_message = {"detail": "Could not validate credentials. Please log in."}
+    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
+        ".json"
+    )
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
-        url=entity_uri,
+        url=parameterized_entity.uri,
         status_code=404,  # not found, i.e., entity does not already exist
     )
     if not live_backend:
@@ -763,13 +721,7 @@ def test_unable_to_upload(
             json=error_message,
         )
 
-    result = cli.invoke(
-        APP,
-        (
-            "upload --file "
-            f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}"
-        ),
-    )
+    result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -789,7 +741,7 @@ def test_unable_to_upload(
 def test_global_option_token(
     cli: CliRunner,
     static_dir: Path,
-    random_valid_entity: dict[str, Any],
+    parameterized_entity: ParameterizeGetEntities,
     httpx_mock: HTTPXMock,
     live_backend: bool,
     get_backend_user: GetBackendUserFixture,
@@ -802,21 +754,15 @@ def test_global_option_token(
     from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
 
-    if "uri" in random_valid_entity:
-        entity_uri: str = random_valid_entity["uri"]
-        entity_name: str = entity_uri.split("/")[-1]
-    else:
-        entity_uri = (
-            f"{random_valid_entity['namespace']}/{random_valid_entity['version']}"
-            f"/{random_valid_entity['name']}"
-        )
-        entity_name = random_valid_entity["name"]
-
     assert CONTEXT["token"] is None
+
+    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
+        ".json"
+    )
 
     # Mock response for "Check if entity already exists"
     httpx_mock.add_response(
-        url=entity_uri,
+        url=parameterized_entity.uri,
         status_code=404,  # not found
     )
 
@@ -844,15 +790,11 @@ def test_global_option_token(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
             method="POST",
             match_headers={"Authorization": f"{token.token_type} {token.access_token}"},
-            match_json=[random_valid_entity],
+            match_json=[parameterized_entity.backend_entity],
             status_code=201,  # created
         )
 
-    result = cli.invoke(
-        APP,
-        f"--token {token.access_token} upload --file "
-        f"{(static_dir / 'valid_entities' / entity_name).with_suffix('.json')}",
-    )
+    result = cli.invoke(APP, f"--token {token.access_token} upload --file {test_file}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
