@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 set -mx
 
+# Install coverage
+pip install -r .github/utils/requirements.txt
+
 # Run server with coverage as a job
-gunicorn --bind "0.0.0.0:${PORT}" --log-level debug --workers 1 --worker-class dlite_entities_service.uvicorn.UvicornWorker --pythonpath ".github/utils" run_with_coverage:APP &
+# Redo the Dockerfile entrypoints, but pointing to the run_with_coverage script
+# Avoid '--reload' always.
+if [ "$1" == "development" ]; then
+    gunicorn --bind "0.0.0.0:${PORT}" --log-level debug --workers 1 --worker-class dlite_entities_service.uvicorn.UvicornWorker --pythonpath ".github/utils" run_with_coverage:APP &
+elif [ "$1" == "production" ]; then
+    gunicorn --bind "0.0.0.0:${PORT}" --workers 1 --worker-class dlite_entities_service.uvicorn.UvicornWorker --pythonpath ".github/utils" run_with_coverage:APP &
+else
+    echo "unknown environment"
+    exit 1
+fi
 
 echo "$(jobs -l)"
 

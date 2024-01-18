@@ -99,7 +99,7 @@ jobs:
             --network "host" \
             --volume "${PWD}:/app" \
             --user "$(id -u):$(id -g)" \
-            --entrypoint "./.github/utils/coverage_entrypoint.sh" \
+            --entrypoint "./.github/utils/coverage_entrypoint.sh ${{ matrix.docker_target }}" \
             entity-service
           sleep 5  # Wait for the service to start
 

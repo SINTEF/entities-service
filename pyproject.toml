@@ -50,12 +50,8 @@ testing = [
     "pyyaml ~=6.0",
     "dlite-entities-service[cli]",
 ]
-production = [
+server = [
     "gunicorn ~=21.2",
-]
-development = [
-    "coverage[toml] ~=7.4",
-    "dlite-entities-service[production]",
 ]
 dev = [
     "pre-commit ~=3.6",

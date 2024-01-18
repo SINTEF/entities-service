@@ -8,7 +8,7 @@ COPY pyproject.toml LICENSE README.md ./
 # Install dependencies
 RUN python -m pip install -U pip && \
   pip install -U pip setuptools wheel && \
-  pip install -U -e . && \
+  pip install -U -e .[server] && \
   # Create log directory and file (if not existing already)
   mkdir -p logs && \
   touch -a logs/dlite_entities_service.log
@@ -16,9 +16,6 @@ RUN python -m pip install -U pip && \
 ## DEVELOPMENT target
 
 FROM base as development
-
-# Install development dependencies
-RUN pip install -U --upgrade-strategy=eager -e .[development]
 
 ENV PORT=80
 EXPOSE ${PORT}
@@ -31,8 +28,6 @@ ENTRYPOINT gunicorn --bind "0.0.0.0:${PORT}" --log-level debug --workers 1 --wor
 ## PRODUCTION target
 
 FROM base as production
-
-RUN pip install -U --upgrade-strategy=eager -e .[production]
 
 ENV PORT=80
 EXPOSE ${PORT}
