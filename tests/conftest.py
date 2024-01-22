@@ -83,6 +83,11 @@ def pytest_configure(config: pytest.Config) -> None:
         "skip_if_live_backend: mark test to skip it if using a live backend, "
         "optionally specify a reason why it is skipped",
     )
+    config.addinivalue_line(
+        "markers",
+        "skip_if_not_live_backend: mark test to skip it if not using a live backend, "
+        "optionally specify a reason why it is skipped",
+    )
 
 
 def pytest_collection_modifyitems(
@@ -102,6 +107,35 @@ def pytest_collection_modifyitems(
                 if marker.args:
                     assert len(marker.args) == 1, (
                         "The 'skip_if_live_backend' marker can only have one "
+                        "argument."
+                    )
+
+                    reason = marker.args[0]
+                elif marker.kwargs and "reason" in marker.kwargs:
+                    reason = marker.kwargs["reason"]
+                else:
+                    reason = default_reason
+
+                assert isinstance(
+                    reason, str
+                ), "The reason for skipping the test must be a string."
+
+                # The marker does not have a reason
+                item.add_marker(
+                    pytest.mark.skip(reason=prefix_reason.format(reason=reason))
+                )
+    else:
+        # If the tests are run with the mock backend, skip the tests marked with
+        # 'skip_if_not_live_backend'
+        prefix_reason = "No live backend: {reason}"
+        default_reason = "Test is skipped when not using a live backend"
+        for item in items:
+            if "skip_if_not_live_backend" in item.keywords:
+                marker: pytest.Mark = item.keywords["skip_if_not_live_backend"]
+
+                if marker.args:
+                    assert len(marker.args) == 1, (
+                        "The 'skip_if_not_live_backend' marker can only have one "
                         "argument."
                     )
 
@@ -563,3 +597,23 @@ def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "dlite_entities_service.service.backend.clear_caches", lambda: None
         )
+
+
+@pytest.fixture()
+def _empty_backend_collection(
+    live_backend: bool, get_backend_user: GetBackendUserFixture
+) -> None:
+    """Empty the backend collection."""
+    from dlite_entities_service.service.backend import get_backend
+
+    backend_settings = {}
+    if live_backend:
+        backend_user = get_backend_user("readWrite")
+        backend_settings = {
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        }
+
+    backend: MongoDBBackend = get_backend(settings=backend_settings)
+    backend._collection.delete_many({})
+    assert backend._collection.count_documents({}) == 0

@@ -212,7 +212,11 @@ class AdminBackend(Backend):
     def read(self, entity_identity: AnyHttpUrl | str) -> dict[str, Any] | None:
         raise NotImplementedError
 
-    def update(self, entity_identity: AnyHttpUrl | str, entity: dict[str, Any]) -> None:
+    def update(
+        self,
+        entity_identity: AnyHttpUrl | str,
+        entity: VersionedSOFTEntity | dict[str, Any],
+    ) -> None:
         raise NotImplementedError
 
     def delete(self, entity_identity: AnyHttpUrl | str) -> None:

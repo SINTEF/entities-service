@@ -140,7 +140,7 @@ pytest --live-backend
 
 ### Extra pytest markers
 
-There are two custom pytest markers:
+There are some custom pytest markers:
 
 - `skip_if_live_backend`: skips the test if the `--live-backend` flag is set.
   Add this marker to tests that should not be run against a live backend.
@@ -156,6 +156,20 @@ There are two custom pytest markers:
 
   **Availability**: This marker is available for all tests.
 
+- `skip_if_not_live_backend`: skips the test if the `--live-backend` flag is **not** set.
+  Add this marker to tests that should only be run against a live backend.
+  Mainly due to the fact that the mock backend does not support the test.
+
+  A reason can be specified as an argument to the marker, e.g.:
+
+  ```python
+  @pytest.mark.skip_if_not_live_backend(reason="Indexing is not supported by mongomock")
+  def test_something():
+      ...
+  ```
+
+  **Availability**: This marker is available for all tests.
+
 - `no_token`: run test without a mock authentication token set.
   Add this marker to tests that should be run without an automatic mock authentication token set.
   This is useful for testing the service's behaviour when no token is provided or to test letting the service set a token.
@@ -164,6 +178,14 @@ There are two custom pytest markers:
   The `_use_valid_token` fixture is used for all tests by default in the `cli.test_upload` file.
 
   **Availability**: This marker is only available for tests in the `cli` test module (folder), and sub-modules (sub-folders) therein.
+
+### Extra pytest fixtures
+
+There is one fixture that may be difficult to locate, this is the `parameterized_entity` fixture.
+It can be invoked to automatically parameterize a test, iterating over all the valid entities that exist in the [`valid_entities.yaml`](tests/static/valid_entities.yaml) static test file.
+It will return one of these entities as a parsed dictionary for each iteration, i.e., within each test.
+
+The fixture is available for all tests.
 
 ## Licensing & copyright
 

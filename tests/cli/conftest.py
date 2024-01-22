@@ -11,8 +11,6 @@ if TYPE_CHECKING:
     from typer import Typer
     from typer.testing import CliRunner
 
-    from dlite_entities_service.service.backend.mongodb import MongoDBBackend
-
     from ..conftest import GetBackendUserFixture
 
 
@@ -158,23 +156,3 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
         return hosts
 
     return []
-
-
-@pytest.fixture()
-def _empty_backend_collection(
-    live_backend: bool, get_backend_user: GetBackendUserFixture
-) -> None:
-    """Empty the backend collection."""
-    from dlite_entities_service.service.backend import get_backend
-
-    backend_settings = {}
-    if live_backend:
-        backend_user = get_backend_user("readWrite")
-        backend_settings = {
-            "mongo_username": backend_user["username"],
-            "mongo_password": backend_user["password"],
-        }
-
-    backend: MongoDBBackend = get_backend(settings=backend_settings)
-    backend._collection.delete_many({})
-    assert backend._collection.count_documents({}) == 0

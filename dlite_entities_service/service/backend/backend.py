@@ -105,7 +105,11 @@ class Backend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, entity_identity: AnyHttpUrl | str, entity: dict[str, Any]) -> None:
+    def update(
+        self,
+        entity_identity: AnyHttpUrl | str,
+        entity: VersionedSOFTEntity | dict[str, Any],
+    ) -> None:
         """Update an entity in the backend."""
         raise NotImplementedError
 

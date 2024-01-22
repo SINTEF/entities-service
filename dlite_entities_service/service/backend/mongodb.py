@@ -14,7 +14,7 @@ from pymongo.errors import (
     WriteError,
 )
 
-from dlite_entities_service.models import URI_REGEX, SOFTModelTypes
+from dlite_entities_service.models import URI_REGEX, SOFTModelTypes, soft_entity
 from dlite_entities_service.service.backend import Backends
 from dlite_entities_service.service.backend.backend import (
     Backend,
@@ -253,12 +253,7 @@ class MongoDBBackend(Backend):
         LOGGING.info("Creating entities: %s", entities)
         LOGGING.info("The creator's user name: %s", self._settings.mongo_username)
 
-        entities = [
-            entity.model_dump(by_alias=True, mode="json", exclude_unset=True)
-            if isinstance(entity, SOFTModelTypes)
-            else entity
-            for entity in entities
-        ]
+        entities = [self._prepare_entity(entity) for entity in entities]
 
         result = self._collection.insert_many(entities)
         if len(result.inserted_ids) > 1:
@@ -277,8 +272,13 @@ class MongoDBBackend(Backend):
         filter = self._single_uri_query(str(entity_identity))
         return self._collection.find_one(filter, projection={"_id": False})
 
-    def update(self, entity_identity: AnyHttpUrl | str, entity: dict[str, Any]) -> None:
+    def update(
+        self,
+        entity_identity: AnyHttpUrl | str,
+        entity: VersionedSOFTEntity | dict[str, Any],
+    ) -> None:
         """Update an entity in the MongoDB."""
+        entity = self._prepare_entity(entity)
         filter = self._single_uri_query(str(entity_identity))
         self._collection.update_one(filter, {"$set": entity})
 
@@ -294,7 +294,7 @@ class MongoDBBackend(Backend):
         if not isinstance(query, dict):
             raise TypeError(f"Query must be a dict for {self.__class__.__name__}.")
 
-        return self._collection.find(query)
+        return self._collection.find(query, projection={"_id": False})
 
     def count(self, query: Any = None) -> int:
         """Count entities."""
@@ -325,3 +325,45 @@ class MongoDBBackend(Backend):
             raise ValueError(f"Invalid entity URI: {uri}")
 
         return {"$or": [uri_parts, {"uri": uri}]}
+
+    def _prepare_entity(
+        self, entity: VersionedSOFTEntity | dict[str, Any]
+    ) -> dict[str, Any]:
+        """Clean and prepare the entity for interactions with the MongoDB backend."""
+        if isinstance(entity, dict):
+            uri = entity.get("uri", None) or (
+                f"{entity.get('namespace', '')}/{entity.get('version', '')}"
+                f"/{entity.get('name', '')}"
+            )
+            entity = soft_entity(
+                error_msg=f"Invalid entity given for {uri}.",
+                **entity,
+            )
+
+        if not isinstance(entity, SOFTModelTypes):
+            raise TypeError(
+                "Entity must be a dict or a SOFTModelTypes for "
+                f"{self.__class__.__name__}."
+            )
+
+        entity = entity.model_dump(by_alias=True, mode="json", exclude_unset=True)
+
+        # Convert all '$ref' to 'ref' in the entity
+        if isinstance(entity["properties"], list):  # SOFT5
+            for index, property_value in enumerate(list(entity["properties"])):
+                entity["properties"][index] = {
+                    key.replace("$", ""): value for key, value in property_value.items()
+                }
+
+        elif isinstance(entity["properties"], dict):  # SOFT7
+            for property_name, property_value in list(entity["properties"].items()):
+                entity["properties"][property_name] = {
+                    key.replace("$", ""): value for key, value in property_value.items()
+                }
+
+        else:
+            raise TypeError(
+                f"Invalid entity properties type: {type(entity['properties'])}"
+            )
+
+        return entity
