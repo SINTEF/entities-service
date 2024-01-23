@@ -42,7 +42,7 @@ if TYPE_CHECKING:  # pragma: no cover
         name: str
 
 
-LOGGING = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 MONGO_CLIENTS: dict[str, MongoClient] | None = None
@@ -225,7 +225,7 @@ class MongoDBBackend(Backend):
         # Check index exists
         if "URI" in (indices := self._collection.index_information()):
             if not indices["URI"].get("unique", False):
-                LOGGING.warning(
+                LOGGER.warning(
                     "The URI index in the MongoDB collection is not unique. "
                     "This may cause problems when creating entities."
                 )
@@ -235,7 +235,7 @@ class MongoDBBackend(Backend):
                 ("version", 1),
                 ("name", 1),
             ]:
-                LOGGING.warning(
+                LOGGER.warning(
                     "The URI index in the MongoDB collection is not as expected. "
                     "This may cause problems when creating entities."
                 )
@@ -250,8 +250,8 @@ class MongoDBBackend(Backend):
         self, entities: Sequence[VersionedSOFTEntity | dict[str, Any]]
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
         """Create one or more entities in the MongoDB."""
-        LOGGING.info("Creating entities: %s", entities)
-        LOGGING.info("The creator's user name: %s", self._settings.mongo_username)
+        LOGGER.info("Creating entities: %s", entities)
+        LOGGER.info("The creator's user name: %s", self._settings.mongo_username)
 
         entities = [self._prepare_entity(entity) for entity in entities]
 

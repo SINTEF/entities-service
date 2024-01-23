@@ -376,16 +376,28 @@ def test_contains(
     """Test the magic method __contains__."""
     backend = mongo_backend("read")
 
-    assert parameterized_entity.backend_entity in backend
+    assert 42 not in backend
+
+    assert parameterized_entity.uri in backend
+    assert parameterized_entity.entity in backend
 
 
-def test_iter_len(
+def test_iter(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
-    """Test the magic methods: __iter__ and __len__."""
+    """Test the magic method: __iter__."""
     backend = mongo_backend("read")
 
     entities = list(backend)
-    assert parameterized_entity in entities
+    assert parameterized_entity.backend_entity in entities
 
-    assert len(backend) == len(entities)
+    assert len(entities) == backend._collection.count_documents({})
+
+
+def test_len(mongo_backend: GetMongoBackend) -> None:
+    """Test the magic method: __len__."""
+    backend = mongo_backend("read")
+
+    number_of_entities = backend._collection.count_documents({})
+
+    assert len(backend) == number_of_entities

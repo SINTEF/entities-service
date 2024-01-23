@@ -1,19 +1,28 @@
 """Generic backend class for the Entities Service."""
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from dlite_entities_service.models import SOFTModelTypes, VersionedSOFTEntity, get_uri
+from dlite_entities_service.models import (
+    SOFTModelTypes,
+    VersionedSOFTEntity,
+    get_uri,
+    soft_entity,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator
     from typing import Any
 
     from pydantic import AnyHttpUrl
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 # Exceptions
@@ -69,7 +78,21 @@ class Backend(ABC):
 
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:
+        if isinstance(item, dict):
+            # Convert to SOFT Entity
+            item_or_errors = soft_entity(return_errors=True, **item)
+            if isinstance(item_or_errors, list):
+                LOGGER.error(
+                    "item given to __contains__ is malformed, not a SOFT entity.\n"
+                    "Item: %r\nErrors: %s",
+                    item,
+                    item_or_errors,
+                )
+                return False
+            item = item_or_errors
+
         if isinstance(item, str):
+            # Expect it to be a URI - let the backend handle validation
             return self.read(item) is not None
 
         if isinstance(item, SOFTModelTypes):
