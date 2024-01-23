@@ -1,4 +1,4 @@
-"""Test MongoDB backend."""
+"""Test the MongoDB backend."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -121,16 +121,17 @@ def test_multiple_initialize(mongo_backend: GetMongoBackend) -> None:
     assert "_id_" in indices
 
 
-@pytest.mark.skip_if_not_live_backend(reason="Indexing is not supported by mongomock")
-def test_close() -> None:
+def test_close(live_backend: bool) -> None:
     """Test closing the backend."""
     from dlite_entities_service.service.backend.mongodb import (
         MONGO_CLIENTS,
         MongoDBBackend,
     )
 
+    original_number_of_clients = 2 if live_backend else 1
+
     assert MONGO_CLIENTS is not None
-    assert len(MONGO_CLIENTS) == 2
+    assert len(MONGO_CLIENTS) == original_number_of_clients
 
     backend = MongoDBBackend(
         settings={
@@ -139,13 +140,23 @@ def test_close() -> None:
         },
     )
 
-    assert len(MONGO_CLIENTS) == 3
+    assert len(MONGO_CLIENTS) == original_number_of_clients + 1
     assert "test_user" in MONGO_CLIENTS
 
     backend.close()
 
-    assert len(MONGO_CLIENTS) == 2
-    assert "test_user" not in MONGO_CLIENTS
+    if live_backend:
+        # The client should have been closed and removed from the cache
+        assert len(MONGO_CLIENTS) == original_number_of_clients
+        assert "test_user" not in MONGO_CLIENTS
+    else:
+        # The client should not have been closed nor removed from the cache
+        assert len(MONGO_CLIENTS) == original_number_of_clients + 1
+        assert "test_user" in MONGO_CLIENTS
+
+        # Remove client from cache
+        MONGO_CLIENTS.pop("test_user")
+        assert len(MONGO_CLIENTS) == original_number_of_clients
 
 
 @pytest.mark.usefixtures("_empty_backend_collection")
@@ -357,3 +368,24 @@ def test_count(
         )
         == 1
     )
+
+
+def test_contains(
+    mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
+) -> None:
+    """Test the magic method __contains__."""
+    backend = mongo_backend("read")
+
+    assert parameterized_entity.backend_entity in backend
+
+
+def test_iter_len(
+    mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
+) -> None:
+    """Test the magic methods: __iter__ and __len__."""
+    backend = mongo_backend("read")
+
+    entities = list(backend)
+    assert parameterized_entity in entities
+
+    assert len(backend) == len(entities)
