@@ -36,14 +36,10 @@ async def login_for_access_token(
 
     LOGGER.debug("Authenticating user: username=%s", form_data.username)
 
-    try:
-        user = authenticate_user(form_data.username, form_data.password)
-    except TypeError as exc:
-        LOGGER.error("Could not authenticate user: username=%s", form_data.username)
-        LOGGER.exception(exc)
-        raise internal_server_error from exc
+    user = authenticate_user(form_data.username, form_data.password)
 
     if not user:
+        LOGGER.error("Could not authenticate user: username=%s", form_data.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -56,7 +52,7 @@ async def login_for_access_token(
         access_token = create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires
         )
-    except TypeError as exc:
+    except ValueError as exc:
         LOGGER.error("Could not create access token: username=%s", form_data.username)
         LOGGER.exception(exc)
         raise internal_server_error from exc

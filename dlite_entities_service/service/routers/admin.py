@@ -50,7 +50,7 @@ async def create_entities(
     entities: list[VersionedSOFTEntity] | VersionedSOFTEntity,
     current_user: Annotated[User, Depends(current_user)],
 ) -> list[dict[str, Any]] | dict[str, Any]:
-    """Create on or more SOFT entities."""
+    """Create one or more SOFT entities."""
     # Parse 'entities'
     if isinstance(entities, list):
         # Check if there are any entities to create

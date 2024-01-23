@@ -50,7 +50,9 @@ class Backends(StrEnum):
 
 
 def get_backend(
-    backend: Backends | str | None = None, settings: dict[str, Any] | None = None
+    backend: Backends | str | None = None,
+    settings: dict[str, Any] | None = None,
+    authenticated_user: bool = True,
 ) -> Backend:
     """Get a backend instance."""
     from dlite_entities_service.service.config import CONFIG
@@ -68,7 +70,12 @@ def get_backend(
 
     backend_class = backend.get_class()
 
-    return backend_class(settings)
+    # Expect an authenticated user for all backends except the admin backend.
+    # But leave the choice to "re"-authenticate the user to the backend (if not the
+    # admin backend).
+    authenticated_user = authenticated_user and (backend != Backends.ADMIN)
+
+    return backend_class(settings, authenticated_user=authenticated_user)
 
 
 def clear_caches() -> None:

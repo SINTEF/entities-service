@@ -16,7 +16,7 @@ from dlite_entities_service.models.auth import TokenData, UserInBackend
 from dlite_entities_service.service.backend import get_backend
 from dlite_entities_service.service.backend.mongodb import (
     MongoDBBackendWriteAccessError,
-    discard_client_for_user,
+    discard_clients_for_user,
     get_client,
 )
 from dlite_entities_service.service.config import CONFIG
@@ -38,13 +38,15 @@ LOGGER = logging.getLogger(__name__)
 
 def verify_user(username: str, password: str) -> bool:
     """Verify a user, including credentials."""
-    new_user_client = get_client(username=username, password=password)
+    new_user_client = get_client(
+        username=username, password=password, authenticated_user=False
+    )
     try:
         new_user_client[CONFIG.admin_db].command("ping")
     except MongoDBBackendWriteAccessError as exc:
         LOGGER.error("Could not verify user: username=%s", username)
         LOGGER.exception(exc)
-        discard_client_for_user(username)
+        discard_clients_for_user(username)
         return False
 
     return True

@@ -26,11 +26,10 @@ from dlite_entities_service.service.config import CONFIG, MongoDsn
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
-    from typing import Any, TypedDict
+    from typing import Any, TypedDict, cast
 
     from pydantic import AnyHttpUrl
     from pymongo import MongoClient
-    from pymongo.collection import Collection
 
     from dlite_entities_service.models import VersionedSOFTEntity
 
@@ -45,8 +44,14 @@ if TYPE_CHECKING:  # pragma: no cover
 LOGGER = logging.getLogger(__name__)
 
 
-MONGO_CLIENTS: dict[str, MongoClient] | None = None
-"""Global cache for MongoDB clients."""
+MONGO_CLIENTS: dict[tuple[int, int], MongoClient] | None = None
+"""Global cache for MongoDB clients.
+
+The key is a tuple of a hash of the username and a combination of username and password
+hashes.
+The first hash is there to allow for quick lookup of the client for a given user when
+clearing the cache for a specific user.
+"""
 
 
 BACKEND_DRIVER_MAPPING: dict[Backends, Literal["pymongo", "mongomock"]] = {
@@ -116,6 +121,7 @@ def get_client(
     username: str | None = None,
     password: str | None = None,
     driver: str | None = None,
+    authenticated_user: bool = False,
 ) -> MongoClient:
     """Get the MongoDB client."""
     if driver is None:
@@ -135,22 +141,56 @@ def get_client(
 
     username = username or CONFIG.mongo_user
 
-    cache_key = username
+    # Dealing with an authenticated user.
+    if authenticated_user:
+        # This means the client should have already been created.
+        # We essentially by-pass having to provide a password !!! DANGEROUS !!!
+        error_msg = (
+            f"0 or 2 or more clients available for (authenticated) user {username!r}."
+        )
+
+        if MONGO_CLIENTS is None:
+            raise MongoDBBackendError(error_msg)
+
+        hashed_username = hash(username)
+
+        found_clients = []
+        for cache_key in MONGO_CLIENTS:
+            if cache_key[0] == hashed_username:
+                found_clients.append(MONGO_CLIENTS[cache_key])
+
+        if len(found_clients) == 1:
+            return found_clients[0]
+
+        LOGGER.debug("Found %s clients for %r.", len(found_clients), username)
+        LOGGER.debug("Clients: %s", found_clients)
+        LOGGER.debug("Cache: %r", MONGO_CLIENTS)
+        raise MongoDBBackendError(error_msg)
+
+    # Dealing with a non-authenticated user.
+    password = password or (
+        CONFIG.mongo_password.get_secret_value()
+        if CONFIG.mongo_password is not None
+        else None
+    )
+
+    if password is None:
+        raise ValueError(f"No password is given for {username!r}.")
+
+    if TYPE_CHECKING:  # pragma: no cover
+        username = cast(str, username)
+        password = cast(str, password)
+
+    cache_key = (hash(username), hash(f"{username}{password}"))
 
     if MONGO_CLIENTS is not None and cache_key in MONGO_CLIENTS:
+        LOGGER.debug("Using cached MongoDB client for %r.", username)
         return MONGO_CLIENTS[cache_key]
+    LOGGER.debug("Creating new MongoDB client for %r.", username)
 
-    client_kwargs = {
-        "username": username,
-        "password": password
-        or (
-            CONFIG.mongo_password.get_secret_value()
-            if CONFIG.mongo_password is not None
-            else None
-        ),
-    }
-
-    new_client = MongoClient(uri or str(CONFIG.mongo_uri), **client_kwargs)
+    new_client = MongoClient(
+        uri or str(CONFIG.mongo_uri), username=username, password=password
+    )
 
     if MONGO_CLIENTS is None:
         MONGO_CLIENTS = {cache_key: new_client}
@@ -160,26 +200,16 @@ def get_client(
     return MONGO_CLIENTS[cache_key]
 
 
-def discard_client_for_user(username: str) -> None:
-    """Discard a MongoDB client."""
-    cache_key = username
+def discard_clients_for_user(username: str) -> None:
+    """Discard MongoDB clients for a user."""
+    hashed_username = hash(username)
 
-    if MONGO_CLIENTS is not None and cache_key in MONGO_CLIENTS:
-        MONGO_CLIENTS[cache_key].close()
-        MONGO_CLIENTS.pop(cache_key)
+    if MONGO_CLIENTS is None:
+        return
 
-
-def get_collection(
-    uri: str | None = None,
-    username: str | None = None,
-    password: str | None = None,
-    database: str | None = None,
-    collection: str | None = None,
-    driver: str | None = None,
-) -> Collection:
-    """Get the MongoDB collection for entities."""
-    mongo_client = get_client(uri, username, password, driver)
-    return mongo_client[database][collection]
+    for cache_key in list(MONGO_CLIENTS):
+        if cache_key[0] == hashed_username:
+            del MONGO_CLIENTS[cache_key]
 
 
 class MongoDBBackend(Backend):
@@ -189,22 +219,26 @@ class MongoDBBackend(Backend):
     _settings: MongoDBSettings
 
     def __init__(
-        self, settings: MongoDBSettings | dict[str, Any] | None = None
+        self,
+        settings: MongoDBSettings | dict[str, Any] | None = None,
+        authenticated_user: bool = False,
     ) -> None:
-        super().__init__(settings)
+        super().__init__(settings, authenticated_user)
 
         password = self._settings.mongo_password.get_secret_value()
         if isinstance(password, bytes):
             password = password.decode()
 
-        self._collection = get_collection(
-            uri=str(self._settings.mongo_uri),
-            username=self._settings.mongo_username,
-            password=password,
-            database=self._settings.mongo_db,
-            collection=self._settings.mongo_collection,
-            driver=self._settings.mongo_driver,
-        )
+        try:
+            self._collection = get_client(
+                uri=str(self._settings.mongo_uri),
+                username=self._settings.mongo_username,
+                password=password,
+                driver=self._settings.mongo_driver,
+                authenticated_user=authenticated_user,
+            )[self._settings.mongo_db][self._settings.mongo_collection]
+        except ValueError as exc:
+            raise MongoDBBackendError(str(exc)) from exc
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: uri={self._settings.mongo_uri}"
@@ -311,7 +345,7 @@ class MongoDBBackend(Backend):
             return
 
         super().close()
-        discard_client_for_user(self._settings.mongo_username)
+        discard_clients_for_user(self._settings.mongo_username)
 
     # MongoDBBackend specific methods
     def _single_uri_query(self, uri: str) -> dict[str, Any]:

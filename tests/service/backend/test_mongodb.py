@@ -54,7 +54,7 @@ def test_client_cacheing(live_backend: bool) -> None:
     """
     from dlite_entities_service.service.backend.mongodb import (
         MONGO_CLIENTS,
-        discard_client_for_user,
+        discard_clients_for_user,
         get_client,
     )
 
@@ -66,34 +66,42 @@ def test_client_cacheing(live_backend: bool) -> None:
     client_1 = get_client(
         uri="mongodb://localhost:27017",
         username="test_user_1",
+        password="test_password",
     )
 
     # After creating the client, it should be cached
     assert MONGO_CLIENTS is not None
-    assert "test_user_1" in MONGO_CLIENTS
-    assert MONGO_CLIENTS["test_user_1"] == client_1
+    assert (hash("test_user_1"), hash("test_user_1test_password")) in MONGO_CLIENTS
+    assert (
+        MONGO_CLIENTS[(hash("test_user_1"), hash("test_user_1test_password"))]
+        == client_1
+    )
     assert len(MONGO_CLIENTS) == original_number_of_clients + 1
 
     client_2 = get_client(
         uri="mongodb://localhost:27017",
         username="test_user_2",
+        password="test_password",
     )
 
     # After creating the second client, it should be cached
-    assert "test_user_2" in MONGO_CLIENTS
-    assert MONGO_CLIENTS["test_user_2"] == client_2
+    assert (hash("test_user_2"), hash("test_user_2test_password")) in MONGO_CLIENTS
+    assert (
+        MONGO_CLIENTS[(hash("test_user_2"), hash("test_user_2test_password"))]
+        == client_2
+    )
     assert len(MONGO_CLIENTS) == original_number_of_clients + 2
 
     # After discarding the first client, it should be removed from the cache
-    discard_client_for_user("test_user_1")
-    assert "test_user_1" not in MONGO_CLIENTS
+    discard_clients_for_user("test_user_1")
+    assert (hash("test_user_1"), hash("test_user_1test_password")) not in MONGO_CLIENTS
     assert len(MONGO_CLIENTS) == original_number_of_clients + 1
 
-    assert "test_user_2" in MONGO_CLIENTS
+    assert (hash("test_user_2"), hash("test_user_2test_password")) in MONGO_CLIENTS
 
     # After discarding the second client, it should be removed from the cache
-    discard_client_for_user("test_user_2")
-    assert "test_user_2" not in MONGO_CLIENTS
+    discard_clients_for_user("test_user_2")
+    assert (hash("test_user_2"), hash("test_user_2test_password")) not in MONGO_CLIENTS
     assert len(MONGO_CLIENTS) == original_number_of_clients + 0
 
 
@@ -141,21 +149,21 @@ def test_close(live_backend: bool) -> None:
     )
 
     assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-    assert "test_user" in MONGO_CLIENTS
+    assert (hash("test_user"), hash("test_usertest_password")) in MONGO_CLIENTS
 
     backend.close()
 
     if live_backend:
         # The client should have been closed and removed from the cache
         assert len(MONGO_CLIENTS) == original_number_of_clients
-        assert "test_user" not in MONGO_CLIENTS
+        assert (hash("test_user"), hash("test_usertest_password")) not in MONGO_CLIENTS
     else:
         # The client should not have been closed nor removed from the cache
         assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-        assert "test_user" in MONGO_CLIENTS
+        assert (hash("test_user"), hash("test_usertest_password")) in MONGO_CLIENTS
 
         # Remove client from cache
-        MONGO_CLIENTS.pop("test_user")
+        del MONGO_CLIENTS[((hash("test_user"), hash("test_usertest_password")))]
         assert len(MONGO_CLIENTS) == original_number_of_clients
 
 

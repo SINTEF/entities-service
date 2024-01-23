@@ -20,7 +20,7 @@ from dlite_entities_service.service.backend.backend import (
 from dlite_entities_service.service.backend.mongodb import (
     BACKEND_DRIVER_MAPPING,
     MongoDBBackendWriteAccessError,
-    discard_client_for_user,
+    discard_clients_for_user,
     get_client,
 )
 from dlite_entities_service.service.config import CONFIG, MongoDsn
@@ -99,9 +99,11 @@ class AdminBackend(Backend):
     _settings: AdminBackendSettings
 
     def __init__(
-        self, settings: AdminBackendSettings | dict[str, Any] | None = None
+        self,
+        settings: AdminBackendSettings | dict[str, Any] | None = None,
+        authenticated_user: bool = False,
     ) -> None:
-        super().__init__(settings)
+        super().__init__(settings, authenticated_user)
 
         username, password = (
             self._settings.mongo_username.get_secret_value(),
@@ -117,6 +119,7 @@ class AdminBackend(Backend):
             username=username,
             password=password,
             driver=self._settings.mongo_driver,
+            authenticated_user=False,  # Never by-pass password authentication
         )[self._settings.mongo_db]
 
     def __str__(self) -> str:
@@ -188,7 +191,7 @@ class AdminBackend(Backend):
         if isinstance(username, bytes):
             username = username.decode()
 
-        discard_client_for_user(username)
+        discard_clients_for_user(username)
 
     # Unused must-implement "Backend" methods
     def __contains__(self, item: Any) -> bool:

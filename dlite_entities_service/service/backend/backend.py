@@ -51,7 +51,9 @@ class Backend(ABC):
     _settings: BackendSettings
 
     def __init__(
-        self, settings: BackendSettings | dict[str, Any] | None = None
+        self,
+        settings: BackendSettings | dict[str, Any] | None = None,
+        authenticated_user: bool = False,  # noqa: ARG002
     ) -> None:
         if isinstance(settings, dict):
             settings = self._settings_model(**settings)

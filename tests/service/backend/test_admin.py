@@ -86,21 +86,21 @@ def test_close(live_backend: bool) -> None:
     )
 
     assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-    assert "test_root" in MONGO_CLIENTS
+    assert (hash("test_root"), hash("test_roottest_password")) in MONGO_CLIENTS
 
     backend.close()
 
     if live_backend:
         # The client should successfully have been closed and removed from the cache
         assert len(MONGO_CLIENTS) == original_number_of_clients
-        assert "test_root" not in MONGO_CLIENTS
+        assert (hash("test_root"), hash("test_roottest_password")) not in MONGO_CLIENTS
     else:
         # The client should not have been closed or removed from the cache
         assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-        assert "test_root" in MONGO_CLIENTS
+        assert (hash("test_root"), hash("test_roottest_password")) in MONGO_CLIENTS
 
         # Remove the client from the cache
-        MONGO_CLIENTS.pop("test_root")
+        del MONGO_CLIENTS[(hash("test_root"), hash("test_roottest_password"))]
         assert len(MONGO_CLIENTS) == original_number_of_clients
 
 
