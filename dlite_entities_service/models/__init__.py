@@ -18,14 +18,14 @@ SOFTModelTypes = (SOFT7Entity, SOFT5Entity)
 @overload
 def soft_entity(
     *, return_errors: Literal[False] = False, error_msg: str | None = None, **fields
-) -> VersionedSOFTEntity:
+) -> VersionedSOFTEntity:  # pragma: no cover
     ...
 
 
 @overload
 def soft_entity(
     *, return_errors: Literal[True], error_msg: str | None = None, **fields
-) -> VersionedSOFTEntity | list[ValidationError]:
+) -> VersionedSOFTEntity | list[ValidationError]:  # pragma: no cover
     ...
 
 

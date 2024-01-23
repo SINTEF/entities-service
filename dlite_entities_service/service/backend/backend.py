@@ -62,7 +62,7 @@ class Backend(ABC):
     # Exceptions
     @property
     @abstractmethod
-    def write_access_exception(self) -> tuple:
+    def write_access_exception(self) -> tuple:  # pragma: no cover
         """Get the exception type raised when write access is denied."""
         raise NotImplementedError
 
@@ -101,16 +101,16 @@ class Backend(ABC):
         return False
 
     @abstractmethod
-    def __iter__(self) -> Iterator[dict[str, Any]]:
+    def __iter__(self) -> Iterator[dict[str, Any]]:  # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # pragma: no cover
         raise NotImplementedError
 
     # Backend methods (initialization)
     @abstractmethod
-    def initialize(self) -> None:
+    def initialize(self) -> None:  # pragma: no cover
         """Initialize the backend."""
         raise NotImplementedError
 
@@ -118,12 +118,14 @@ class Backend(ABC):
     @abstractmethod
     def create(
         self, entities: Sequence[VersionedSOFTEntity | dict[str, Any]]
-    ) -> list[dict[str, Any]] | dict[str, Any] | None:
+    ) -> list[dict[str, Any]] | dict[str, Any] | None:  # pragma: no cover
         """Create an entity in the backend."""
         raise NotImplementedError
 
     @abstractmethod
-    def read(self, entity_identity: AnyHttpUrl | str) -> dict[str, Any] | None:
+    def read(
+        self, entity_identity: AnyHttpUrl | str
+    ) -> dict[str, Any] | None:  # pragma: no cover
         """Read an entity from the backend."""
         raise NotImplementedError
 
@@ -132,23 +134,23 @@ class Backend(ABC):
         self,
         entity_identity: AnyHttpUrl | str,
         entity: VersionedSOFTEntity | dict[str, Any],
-    ) -> None:
+    ) -> None:  # pragma: no cover
         """Update an entity in the backend."""
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, entity_identity: AnyHttpUrl | str) -> None:
+    def delete(self, entity_identity: AnyHttpUrl | str) -> None:  # pragma: no cover
         """Delete an entity in the backend."""
         raise NotImplementedError
 
     # Backend methods (search)
     @abstractmethod
-    def search(self, query: Any) -> Iterator[dict[str, Any]]:
+    def search(self, query: Any) -> Iterator[dict[str, Any]]:  # pragma: no cover
         """Search for entities."""
         raise NotImplementedError
 
     @abstractmethod
-    def count(self, query: Any = None) -> int:
+    def count(self, query: Any = None) -> int:  # pragma: no cover
         """Count entities."""
         raise NotImplementedError
 
