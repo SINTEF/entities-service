@@ -25,7 +25,7 @@ def test_get_entity(
     name: str,
     client: TestClient,
 ) -> None:
-    """Test the route to retrieve a DLite/SOFT entity."""
+    """Test the route to retrieve an entity."""
     from fastapi import status
 
     with client as client:
@@ -35,6 +35,12 @@ def test_get_entity(
         response.is_success
     ), f"Response: {response.json()}. Request: {response.request}"
     assert response.status_code == status.HTTP_200_OK, response.json()
+
+    # Convert SOFT5 properties' 'dims' to 'shape'
+    for entity_property in entity["properties"]:
+        if "dims" in entity_property:
+            entity_property["shape"] = entity_property.pop("dims")
+
     assert (resolved_entity := response.json()) == entity, resolved_entity
 
 
@@ -58,6 +64,11 @@ def test_get_entity_instance(
 
     with client as client:
         response = client.get(f"/{version}/{name}", timeout=5)
+
+    # Convert SOFT5 properties' 'dims' to 'shape'
+    for entity_property in entity["properties"]:
+        if "dims" in entity_property:
+            entity_property["shape"] = entity_property.pop("dims")
 
     assert (resolve_entity := response.json()) == entity, resolve_entity
 

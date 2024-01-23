@@ -61,8 +61,8 @@ def test_upload_filepath_invalid(
     )
     assert result.exit_code == 1, result.stdout
     assert "Person.json is not a valid SOFT entity:" in result.stderr.replace("\n", "")
-    assert "validation error for SOFT7Entity" in result.stderr.replace("\n", "")
-    assert "validation errors for SOFT5Entity" in result.stderr.replace("\n", "")
+    assert "validation error for DLiteSOFT7Entity" in result.stderr.replace("\n", "")
+    assert "validation errors for DLiteSOFT5Entity" in result.stderr.replace("\n", "")
     assert not result.stdout
     if fail_fast:
         assert (
@@ -215,13 +215,13 @@ def test_upload_directory_invalid_entities(
     assert result.exit_code == 1, result.stderr
     assert (
         re.search(
-            r"validation errors? for SOFT7Entity", result.stderr.replace("\n", "")
+            r"validation errors? for DLiteSOFT7Entity", result.stderr.replace("\n", "")
         )
         is not None
     )
     assert (
         re.search(
-            r"validation errors? for SOFT5Entity", result.stderr.replace("\n", "")
+            r"validation errors? for DLiteSOFT5Entity", result.stderr.replace("\n", "")
         )
         is not None
     )

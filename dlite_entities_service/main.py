@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import FastAPI, HTTPException, Path, status
 
 from dlite_entities_service import __version__
-from dlite_entities_service.models import VersionedSOFTEntity
+from dlite_entities_service.models import Entity
 from dlite_entities_service.service.backend import ENTITIES_COLLECTION
 from dlite_entities_service.service.config import CONFIG
 from dlite_entities_service.service.logger import setup_logger
@@ -61,7 +61,7 @@ The changed bits pertain to `minor` and `patch`, which are now both optional.
 
 @APP.get(
     "/{version}/{name}",
-    response_model=VersionedSOFTEntity,
+    response_model=Entity,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
 )

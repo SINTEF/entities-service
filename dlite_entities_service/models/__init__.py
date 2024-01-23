@@ -5,18 +5,20 @@ from typing import get_args
 
 from pydantic import ValidationError
 
-from .soft5 import URI_REGEX, SOFT5Entity
+from .dlite import DLiteEntity
+from .soft import URI_REGEX
+from .soft5 import SOFT5Entity
 from .soft7 import SOFT7Entity
 
-VersionedSOFTEntity = SOFT7Entity | SOFT5Entity
+Entity = SOFT7Entity | SOFT5Entity | DLiteEntity
 
 
 def soft_entity(
     *, return_errors: bool = False, **fields
-) -> VersionedSOFTEntity | list[ValidationError]:
-    """Return the correct version of the SOFT Entity."""
+) -> Entity | list[ValidationError]:
+    """Return the correct version of the Entity."""
     errors = []
-    for versioned_entity_cls in get_args(VersionedSOFTEntity):
+    for versioned_entity_cls in get_args(Entity):
         try:
             new_object = versioned_entity_cls(**fields)
             break
@@ -34,7 +36,7 @@ def soft_entity(
     return new_object  # type: ignore[return-value]
 
 
-def get_uri(entity: VersionedSOFTEntity) -> str:
+def get_uri(entity: Entity) -> str:
     """Return the URI of the entity."""
     if entity.uri is not None:
         return str(entity.uri)
@@ -42,7 +44,7 @@ def get_uri(entity: VersionedSOFTEntity) -> str:
     return f"{entity.namespace}/{entity.version}/{entity.name}"
 
 
-def get_version(entity: VersionedSOFTEntity) -> str:
+def get_version(entity: Entity) -> str:
     """Return the version of the entity."""
     if entity.version is not None:
         return entity.version
@@ -53,7 +55,7 @@ def get_version(entity: VersionedSOFTEntity) -> str:
     raise ValueError("Cannot parse URI to get version.")
 
 
-def get_updated_version(entity: VersionedSOFTEntity) -> str:
+def get_updated_version(entity: Entity) -> str:
     """Return the updated version of the entity."""
     current_version = get_version(entity)
 
