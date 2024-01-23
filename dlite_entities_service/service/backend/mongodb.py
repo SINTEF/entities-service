@@ -202,6 +202,8 @@ def get_client(
 
 def discard_clients_for_user(username: str) -> None:
     """Discard MongoDB clients for a user."""
+    global MONGO_CLIENTS  # noqa: PLW0603
+
     hashed_username = hash(username)
 
     if MONGO_CLIENTS is None:
@@ -209,6 +211,16 @@ def discard_clients_for_user(username: str) -> None:
 
     for cache_key in list(MONGO_CLIENTS):
         if cache_key[0] == hashed_username:
+            # If this is the only client for the user, close it and then delete it,
+            # resetting the global cache to None.
+            if len(MONGO_CLIENTS) == 1:
+                MONGO_CLIENTS[cache_key].close()
+                del MONGO_CLIENTS[cache_key]
+                MONGO_CLIENTS = None
+                return
+
+            # Otherwise, just delete the client from the cache.
+            # Don't close it as it, as this will be detrimental for the other clients.
             del MONGO_CLIENTS[cache_key]
 
 
