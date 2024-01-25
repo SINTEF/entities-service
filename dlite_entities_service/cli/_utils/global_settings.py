@@ -15,10 +15,8 @@ except ImportError as exc:  # pragma: no cover
 
 from dlite_entities_service import __version__
 from dlite_entities_service.cli._utils.generics import (
-    get_cached_access_token,
     print,
 )
-from dlite_entities_service.models.auth import Token
 from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -28,12 +26,10 @@ if TYPE_CHECKING:  # pragma: no cover
         """Global context for the CLI."""
 
         dotenv_path: Path
-        token: Token | None
 
 
 CONTEXT: ContextDict = {
     "dotenv_path": (Path().cwd() / str(CONFIG.model_config["env_file"])).resolve(),
-    "token": get_cached_access_token(),
 }
 """Global context for the CLI used to communicate global options."""
 
@@ -74,23 +70,7 @@ def global_options(
         show_default=True,
         rich_help_panel="Global options",
     ),
-    token: OptionalStr = typer.Option(
-        None,
-        "--token",
-        help="The token to use for authentication.",
-        show_default=False,
-        rich_help_panel="Global options",
-    ),
 ) -> None:
     """Global options for the CLI."""
     if dotenv_path:
         CONTEXT["dotenv_path"] = dotenv_path
-
-    if token:
-        # I cannot come up with a scenario where the following line would not validate.
-        # The only scenario in which it would happen is if `token` is not a string.
-        # But it can never not be a string due to the way the input is parsed.
-        # Even the `if token:` line above ensures that it will never be an empty string.
-        access_token = Token(access_token=token)
-
-        CONTEXT["token"] = access_token

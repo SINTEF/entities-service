@@ -25,11 +25,10 @@ def test_login(
     httpx_mock: HTTPXMock,
     get_backend_user: GetBackendUserFixture,
     live_backend: bool,
+    token_mock: str,
 ) -> None:
     """Test the `entities-service login` CLI command."""
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
 
     backend_user = get_backend_user()
@@ -37,17 +36,23 @@ def test_login(
     username = backend_user["username"]
     password = backend_user["password"]
 
-    mock_token = Token(access_token="test_token")
-
-    assert CONTEXT["token"] is None, CONTEXT
-
     if not live_backend:
         # Mock the HTTPX response
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
             method="POST",
             match_content=f"grant_type=password&username={username}&password={password}".encode(),
-            json=mock_token.model_dump(),
+            json={"access_token": token_mock},
+        )
+
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/users/me",
+            match_headers={"Authorization": f"Bearer {token_mock}"},
+            json={
+                "username": username,
+                "full_name": backend_user["full_name"],
+                "roles": backend_user["roles"],
+            },
         )
 
     # Run the CLI command
@@ -83,11 +88,6 @@ def test_login(
         assert "Username: " in result.stdout
         assert "Password: " in result.stdout
 
-    assert CONTEXT["token"] is not None, CONTEXT
-
-    if not live_backend:
-        assert CONTEXT["token"] == mock_token, CONTEXT
-
 
 @pytest.mark.usefixtures("_empty_backend_collection")
 def test_token_persistence(
@@ -99,13 +99,12 @@ def test_token_persistence(
     live_backend: bool,
     tmp_path: Path,
     request: pytest.FixtureRequest,
+    token_mock: str,
 ) -> None:
     """Test that the token is persisted to the config file."""
     import traceback
 
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
 
     backend_user = get_backend_user(auth_role="readWrite")
@@ -113,16 +112,9 @@ def test_token_persistence(
     username = backend_user["username"]
     password = backend_user["password"]
 
-    mock_token = Token(access_token="test_token")
-
-    cached_access_token_file = tmp_path / ".cache" / "access_token"
-
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
         ".json"
     )
-
-    assert not cached_access_token_file.exists()
-    assert CONTEXT["token"] is None, CONTEXT
 
     if not live_backend:
         # Mock the login HTTPX response
@@ -130,16 +122,14 @@ def test_token_persistence(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
             method="POST",
             match_content=f"grant_type=password&username={username}&password={password}".encode(),
-            json=mock_token.model_dump(),
+            json={"access_token": token_mock},
         )
 
         # Mock response for "Create entities"
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
             method="POST",
-            match_headers={
-                "Authorization": f"{mock_token.token_type} {mock_token.access_token}"
-            },
+            match_headers={"Authorization": f"Bearer {token_mock}"},
             match_json=[parameterized_entity.backend_entity],
             status_code=201,  # created
         )
@@ -164,8 +154,6 @@ def test_token_persistence(
     )
     if "[test_client]" not in request.node.name:
         assert not result.stdout
-    assert CONTEXT["token"] is None, CONTEXT
-    assert not cached_access_token_file.exists()
 
     # Run the login CLI command
     result = cli.invoke(
@@ -179,12 +167,6 @@ def test_token_persistence(
         f"{''.join(traceback.format_exception(result.exception)) if result.exception else ''}"  # noqa: E501
     )
     assert "Successfully logged in." in result.stdout.replace("\n", "")
-    assert isinstance(CONTEXT["token"], Token), CONTEXT
-    assert cached_access_token_file.exists()
-    assert cached_access_token_file.read_text() == CONTEXT["token"].access_token
-
-    if not live_backend:
-        assert CONTEXT["token"] == mock_token, CONTEXT
 
     # Run the upload command again
     result = cli.invoke(APP, f"upload --file {test_file}")
@@ -196,12 +178,6 @@ def test_token_persistence(
     )
     assert "Successfully uploaded 1 entity:" in result.stdout.replace("\n", "")
     assert not result.stderr
-    assert isinstance(CONTEXT["token"], Token), CONTEXT
-    assert cached_access_token_file.exists()
-    assert cached_access_token_file.read_text() == CONTEXT["token"].access_token
-
-    if not live_backend:
-        assert CONTEXT["token"] == mock_token, CONTEXT
 
 
 def test_login_invalid_credentials(
@@ -212,7 +188,6 @@ def test_login_invalid_credentials(
     request: pytest.FixtureRequest,
 ) -> None:
     """Test that the command fails with invalid credentials."""
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
 
@@ -225,8 +200,6 @@ def test_login_invalid_credentials(
             username != get_backend_user(auth_role=auth_role)["username"]
             or password != get_backend_user(auth_role=auth_role)["password"]
         )
-
-    assert CONTEXT["token"] is None, CONTEXT
 
     if not live_backend:
         # Mock the HTTPX response
@@ -252,7 +225,6 @@ def test_login_invalid_credentials(
     )
     if "[test_client]" not in request.node.name:
         assert not result.stdout
-    assert CONTEXT["token"] is None, CONTEXT
 
 
 @pytest.mark.skip_if_live_backend("Does not raise HTTP errors in this case.")
@@ -260,7 +232,6 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if an HTTP error occurs."""
     from httpx import HTTPError
 
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
 
@@ -268,8 +239,6 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     password = "testpassword"
 
     error_message = "Generic HTTP error"
-
-    assert CONTEXT["token"] is None, CONTEXT
 
     # Mock the login HTTPX response
     httpx_mock.add_exception(
@@ -290,8 +259,6 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     )
     assert not result.stdout
 
-    assert CONTEXT["token"] is None, CONTEXT
-
 
 @pytest.mark.parametrize(
     "return_status_code", [200, 500], ids=["OK", "Internal Server Error"]
@@ -301,14 +268,11 @@ def test_json_decode_errors(
     cli: CliRunner, httpx_mock: HTTPXMock, return_status_code: Literal[200, 500]
 ) -> None:
     """Ensure proper error messages are given if a JSON decode error occurs."""
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
 
     username = "testuser"
     password = "testpassword"
-
-    assert CONTEXT["token"] is None, CONTEXT
 
     # Mock the login HTTPX response
     httpx_mock.add_response(
@@ -329,8 +293,6 @@ def test_json_decode_errors(
     )
     assert not result.stdout
 
-    assert CONTEXT["token"] is None, CONTEXT
-
 
 @pytest.mark.skip_if_live_backend(
     "Does not raise pydantic.ValidationErrors in this case."
@@ -338,14 +300,11 @@ def test_json_decode_errors(
 def test_validation_error(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if the response cannot be parsed as a
     valid token."""
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
 
     username = "testuser"
     password = "testpassword"
-
-    assert CONTEXT["token"] is None, CONTEXT
 
     # Mock the login HTTPX response
     httpx_mock.add_response(
@@ -365,5 +324,3 @@ def test_validation_error(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
         "\n", ""
     )
     assert not result.stdout
-
-    assert CONTEXT["token"] is None, CONTEXT

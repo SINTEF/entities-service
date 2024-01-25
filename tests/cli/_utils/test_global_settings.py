@@ -57,27 +57,3 @@ def test_dotenv_path(
     assert not result.stderr
 
     assert CONTEXT["dotenv_path"] == dotenv_path
-
-
-def test_token(cli: CliRunner) -> None:
-    """Test that the token can be set.
-
-    Note, calling 'upload', since it returns the `--help` response on no arguments.
-    """
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.models.auth import Token
-
-    # Check default value
-    assert CONTEXT["token"] is None
-
-    # Check that the token can be set
-    token = "test-token"
-
-    result = cli.invoke(APP, f"--token={token} upload")
-    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
-    assert not result.stderr
-
-    assert CONTEXT["token"] == Token(access_token=token)

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 try:
     import httpx
     import rich.pretty
+    from httpx_auth import JsonTokenFileCache, OAuth2
 except ImportError as exc:  # pragma: no cover
     raise ImportError(
         "Please install the DLite entities service utility CLI with 'pip install "
@@ -44,6 +45,11 @@ CACHE_DIRECTORY: Path = Path(
 """The directory where the CLI caches data."""
 
 LOGGER = logging.getLogger(__name__)
+
+# Set OAuth2 token cache
+OAuth2.token_cache = JsonTokenFileCache(
+    str(CACHE_DIRECTORY / "oauth2_token_cache.json")
+)
 
 
 def print(

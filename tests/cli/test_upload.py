@@ -696,13 +696,8 @@ def test_unable_to_upload(
     """Ensure a proper error message is given if an entity cannot be uploaded."""
     import json
 
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
-
-    assert CONTEXT["token"] is None
-    CONTEXT["token"] = Token(access_token="bad_token")
 
     error_message = {"detail": "Could not validate credentials. Please log in."}
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
@@ -749,12 +744,9 @@ def test_global_option_token(
     """Test that the token is correctly used when supplied using `--token`."""
     from httpx import Client
 
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
-
-    assert CONTEXT["token"] is None
 
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
         ".json"
@@ -803,5 +795,3 @@ def test_global_option_token(
         "Successfully uploaded 1 entity:" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert not result.stderr
-
-    assert CONTEXT["token"] == token

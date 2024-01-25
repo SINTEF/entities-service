@@ -11,8 +11,6 @@ if TYPE_CHECKING:
     from typer import Typer
     from typer.testing import CliRunner
 
-    from ..conftest import GetBackendUserFixture
-
 
 def pytest_configure(config: pytest.Config) -> None:
     """Add custom markers to pytest."""
@@ -48,9 +46,15 @@ def _function_specific_cli_cache_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Set the CLI cache directory to a temporary one."""
+    from httpx_auth import JsonTokenFileCache
+
     from dlite_entities_service.cli._utils import generics
 
+    cache = JsonTokenFileCache(str(tmp_path / ".cache"))
+    cache.clear()
+
     monkeypatch.setattr(generics, "CACHE_DIRECTORY", tmp_path / ".cache")
+    monkeypatch.setattr(generics.OAuth2, "token_cache", cache)
 
 
 @pytest.fixture()
@@ -65,42 +69,6 @@ def dotenv_file(tmp_path: Path) -> Path:
     return tmp_path / env_file
 
 
-@pytest.fixture()
-def _use_valid_token(
-    request: pytest.FixtureRequest,
-    get_backend_user: GetBackendUserFixture,
-    live_backend: bool,
-) -> None:
-    """Set the token to a valid one."""
-    from httpx import Client
-
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
-    from dlite_entities_service.models.auth import Token
-    from dlite_entities_service.service.config import CONFIG
-
-    if request.node.get_closest_marker("no_token"):
-        CONTEXT["token"] = None
-        return
-
-    if live_backend:
-        write_access_user = get_backend_user("readWrite")
-
-        with Client(base_url=str(CONFIG.base_url)) as client:
-            response = client.post(
-                "/_auth/token",
-                data={
-                    "grant_type": "password",
-                    "username": write_access_user["username"],
-                    "password": write_access_user["password"],
-                },
-            )
-
-        CONTEXT["token"] = Token(**response.json())
-        return
-
-    CONTEXT["token"] = Token(access_token="mock_token")
-
-
 @pytest.fixture(autouse=True)
 def _reset_context(pytestconfig: pytest.Config) -> None:
     """Reset the context."""
@@ -110,7 +78,6 @@ def _reset_context(pytestconfig: pytest.Config) -> None:
     CONTEXT["dotenv_path"] = (
         pytestconfig.invocation_params.dir / str(CONFIG.model_config["env_file"])
     ).resolve()
-    CONTEXT["token"] = None
 
 
 @pytest.fixture(autouse=True)
@@ -156,3 +123,30 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
         return hosts
 
     return []
+
+
+@pytest.fixture()
+def token_mock() -> str:
+    """Return a mock token."""
+    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb290IiwiaXNzIjoiaHR0cDovL29udG8tbnMuY29tL21ldGEiLCJleHAiOjE3MDYxOTI1OTAsImNsaWVudF9pZCI6Imh0dHA6Ly9vbnRvLW5zLmNvbS9tZXRhIiwiaWF0IjoxNzA2MTkwNzkwfQ.FzvzWyI_CNrLkHhr4oPRQ0XEY8H9DL442QD8tM8dhVM"
+
+
+# @pytest.fixture()
+# def empty_token_cache(token_mock: str, monkeypatch: pytest.MonkeyPatch) -> None:
+#     """Empty the token cache."""
+#     import httpx_auth
+#     from httpx_auth.errors import AuthenticationFailed
+
+
+#     class MockTokenCache:
+
+#         already_requested: bool = False
+
+#         def get_token(self, *args, **kwargs) -> str:
+#             if self.already_requested:
+#                 return token_mock
+#             self.already_requested = True
+#             raise AuthenticationFailed()
+
+
+#     monkeypatch.setattr(httpx_auth.OAuth2, "token_cache", MockTokenCache())

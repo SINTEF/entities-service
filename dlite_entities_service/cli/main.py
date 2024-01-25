@@ -20,21 +20,21 @@ else:
 try:
     import httpx
     import typer
+    from httpx_auth import OAuth2ResourceOwnerPasswordCredentials
 except ImportError as exc:  # pragma: no cover
     from dlite_entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
 
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
 import yaml
-from pydantic import AnyHttpUrl, ValidationError
+from pydantic import AnyHttpUrl
 
 from dlite_entities_service.cli._utils.generics import (
     ERROR_CONSOLE,
-    cache_access_token,
     pretty_compare_dicts,
     print,
 )
-from dlite_entities_service.cli._utils.global_settings import CONTEXT, global_options
+from dlite_entities_service.cli._utils.global_settings import global_options
 from dlite_entities_service.cli.config import APP as config_APP
 from dlite_entities_service.models import (
     URI_REGEX,
@@ -43,7 +43,6 @@ from dlite_entities_service.models import (
     get_version,
     soft_entity,
 )
-from dlite_entities_service.models.auth import Token
 from dlite_entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -147,7 +146,12 @@ def upload(
         )
         raise typer.Exit(1)
 
-    if CONTEXT["token"] is None:
+    # Check if the user is authorized
+    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+        response = client.get(
+            "/users/me", auth=OAuth2ResourceOwnerPasswordCredentials(" ", " ", " ")
+        )
+    if not response.is_success:
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Missing authorization token. Please login "
             "first by running 'entities-service login'."
@@ -364,11 +368,7 @@ def upload(
     if successes:
         with httpx.Client(
             base_url=str(CONFIG.base_url),
-            headers={
-                "Authorization": (
-                    f"{CONTEXT['token'].token_type} {CONTEXT['token'].access_token}"
-                ),
-            },
+            auth=OAuth2ResourceOwnerPasswordCredentials(" ", " ", " "),
         ) as client:
             try:
                 response = client.post(
@@ -455,16 +455,16 @@ def login(
             print("[bold blue]Info[/bold blue]: Login aborted.")
             raise typer.Exit(1) from exc
 
-    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+    with httpx.Client(
+        base_url=str(CONFIG.base_url),
+        auth=OAuth2ResourceOwnerPasswordCredentials(
+            f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
+            username=username,
+            password=password,
+        ),
+    ) as client:
         try:
-            response = client.post(
-                "/_auth/token",
-                data={
-                    "grant_type": "password",
-                    "username": username,
-                    "password": password,
-                },
-            )
+            response = client.get("/_admin/users/me")
         except httpx.HTTPError as exc:
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: Could not login. HTTP exception: {exc}"
@@ -482,24 +482,9 @@ def login(
 
         ERROR_CONSOLE.print(
             f"[bold red]Error[/bold red]: Could not login. HTTP status code: "
-            f"{response.status_code}. Error message: {error_message}"
+            f"{response.status_code}. Error response:"
         )
+        ERROR_CONSOLE.print_json(data=error_message)
         raise typer.Exit(1)
-
-    try:
-        token = Token(**response.json())
-    except json.JSONDecodeError as exc:
-        ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Could not login. JSON decode error: {exc}"
-        )
-        raise typer.Exit(1) from exc
-    except ValidationError as exc:
-        ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Could not login. Validation error: {exc}"
-        )
-        raise typer.Exit(1) from exc
-
-    CONTEXT["token"] = token
-    cache_access_token(token)
 
     print("[bold green]Successfully logged in.[/bold green]")

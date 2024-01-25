@@ -59,6 +59,9 @@ class ParameterizeGetEntities(NamedTuple):
 ## Pytest configuration functions and hooks ##
 
 
+# pytest_plugins = "httpx_auth.testing"
+
+
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Add the command line option to run the tests with a live backend."""
     parser.addoption(

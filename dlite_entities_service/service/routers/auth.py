@@ -57,4 +57,5 @@ async def login_for_access_token(
         LOGGER.exception(exc)
         raise internal_server_error from exc
 
+    LOGGER.info("access token: %s", access_token)
     return {"access_token": access_token}
