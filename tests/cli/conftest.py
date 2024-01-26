@@ -41,19 +41,37 @@ def config_app() -> Typer:
     return APP
 
 
+@pytest.fixture()
+def tmp_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Create a temporary cache directory."""
+    from dlite_entities_service.cli._utils import generics
+
+    cache_dir = tmp_path / ".cache" / "entities-service"
+    cache_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(generics, "CACHE_DIRECTORY", cache_dir)
+
+    return cache_dir
+
+
+@pytest.fixture()
+def tmp_cache_file(tmp_cache_dir: Path) -> Path:
+    """Create a temporary cache file."""
+    return tmp_cache_dir / "oauth2_token_cache.json"
+
+
 @pytest.fixture(autouse=True)
 def _function_specific_cli_cache_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_cache_file: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Set the CLI cache directory to a temporary one."""
     from httpx_auth import JsonTokenFileCache
 
     from dlite_entities_service.cli._utils import generics
 
-    cache = JsonTokenFileCache(str(tmp_path / ".cache"))
+    cache = JsonTokenFileCache(str(tmp_cache_file))
     cache.clear()
 
-    monkeypatch.setattr(generics, "CACHE_DIRECTORY", tmp_path / ".cache")
     monkeypatch.setattr(generics.OAuth2, "token_cache", cache)
 
 

@@ -20,7 +20,6 @@ else:
 try:
     import httpx
     import typer
-    from httpx_auth import OAuth2ResourceOwnerPasswordCredentials
 except ImportError as exc:  # pragma: no cover
     from dlite_entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
 
@@ -31,6 +30,8 @@ from pydantic import AnyHttpUrl
 
 from dlite_entities_service.cli._utils.generics import (
     ERROR_CONSOLE,
+    AuthenticationError,
+    oauth,
     pretty_compare_dicts,
     print,
 )
@@ -148,9 +149,15 @@ def upload(
 
     # Check if the user is authorized
     with httpx.Client(base_url=str(CONFIG.base_url)) as client:
-        response = client.get(
-            "/users/me", auth=OAuth2ResourceOwnerPasswordCredentials(" ", " ", " ")
-        )
+        try:
+            response = client.get("/", auth=oauth)
+        except httpx.HTTPError as exc:
+            ERROR_CONSOLE.print(
+                "[bold red]Error[/bold red]: Missing authorization token. Please login "
+                "first by running 'entities-service login'."
+            )
+            raise typer.Exit(1) from exc
+
     if not response.is_success:
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Missing authorization token. Please login "
@@ -366,10 +373,7 @@ def upload(
 
     # Upload entities
     if successes:
-        with httpx.Client(
-            base_url=str(CONFIG.base_url),
-            auth=OAuth2ResourceOwnerPasswordCredentials(" ", " ", " "),
-        ) as client:
+        with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:
             try:
                 response = client.post(
                     "/_admin/create", json=[entity for _, entity in successes]
@@ -418,51 +422,9 @@ def upload(
 
 
 @APP.command()
-def login(
-    username: OptionalStr = typer.Option(
-        None,
-        "--username",
-        "-u",
-        envvar="ENTITY_SERVICE_ADMIN_USER",
-        help="Username for user with write acces in the entities service.",
-        show_default=False,
-    ),
-    password: OptionalStr = typer.Option(
-        None,
-        "--password",
-        "-p",
-        envvar="ENTITY_SERVICE_ADMIN_PASSWORD",
-        help="Password for user with write access in the entities service.",
-        show_default=False,
-    ),
-) -> None:
+def login() -> None:
     """Login to the entities service."""
-    if username is None:
-        try:
-            username = typer.prompt("Username", type=str)
-        except typer.Abort as exc:  # pragma: no cover
-            # Can only happen if the user presses Ctrl-C, which can not be tested
-            # currently
-            print("[bold blue]Info[/bold blue]: Login aborted.")
-            raise typer.Exit(1) from exc
-
-    if password is None:
-        try:
-            password = typer.prompt("Password", hide_input=True, type=str)
-        except typer.Abort as exc:  # pragma: no cover
-            # Can only happen if the user presses Ctrl-C, which can not be tested
-            # currently
-            print("[bold blue]Info[/bold blue]: Login aborted.")
-            raise typer.Exit(1) from exc
-
-    with httpx.Client(
-        base_url=str(CONFIG.base_url),
-        auth=OAuth2ResourceOwnerPasswordCredentials(
-            f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
-            username=username,
-            password=password,
-        ),
-    ) as client:
+    with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:
         try:
             response = client.get("/_admin/users/me")
         except httpx.HTTPError as exc:
@@ -470,15 +432,20 @@ def login(
                 f"[bold red]Error[/bold red]: Could not login. HTTP exception: {exc}"
             )
             raise typer.Exit(1) from exc
-
-    if not response.is_success:
-        try:
-            error_message = response.json()
+        except AuthenticationError as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not login. Authentication failed "
+                f"({exc.__class__.__name__}): {exc}"
+            )
+            raise typer.Exit(1) from exc
         except json.JSONDecodeError as exc:
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: Could not login. JSON decode error: {exc}"
             )
             raise typer.Exit(1) from exc
+
+    if not response.is_success:
+        error_message = response.json()
 
         ERROR_CONSOLE.print(
             f"[bold red]Error[/bold red]: Could not login. HTTP status code: "

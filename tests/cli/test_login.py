@@ -97,15 +97,21 @@ def test_token_persistence(
     parameterized_entity: ParameterizeGetEntities,
     get_backend_user: GetBackendUserFixture,
     live_backend: bool,
-    tmp_path: Path,
+    tmp_cache_file: Path,
     request: pytest.FixtureRequest,
     token_mock: str,
 ) -> None:
     """Test that the token is persisted to the config file."""
     import traceback
 
+    from httpx_auth import JsonTokenFileCache, OAuth2
+
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
+
+    assert isinstance(OAuth2.token_cache, JsonTokenFileCache)
+    assert OAuth2.token_cache.tokens_path == str(tmp_cache_file)
+    OAuth2.token_cache.clear()
 
     backend_user = get_backend_user(auth_role="readWrite")
 
@@ -117,6 +123,18 @@ def test_token_persistence(
     )
 
     if not live_backend:
+        # Mock the authorization check response
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/users/me",
+            match_headers={"Authorization": f"Bearer {token_mock}"},
+            status_code=200,
+            json={
+                "username": username,
+                "full_name": backend_user["full_name"],
+                "roles": backend_user["roles"],
+            },
+        )
+
         # Mock the login HTTPX response
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
@@ -139,6 +157,8 @@ def test_token_persistence(
         url=parameterized_entity.uri,
         status_code=404,  # not found, i.e., entity does not already exist
     )
+
+    assert not tmp_cache_file.exists()
 
     # Run the upload CLI command - ensuring an error is raised due to the missing token
     result = cli.invoke(APP, f"upload --file {test_file}")
@@ -167,6 +187,8 @@ def test_token_persistence(
         f"{''.join(traceback.format_exception(result.exception)) if result.exception else ''}"  # noqa: E501
     )
     assert "Successfully logged in." in result.stdout.replace("\n", "")
+
+    assert tmp_cache_file.exists()
 
     # Run the upload command again
     result = cli.invoke(APP, f"upload --file {test_file}")
@@ -219,7 +241,7 @@ def test_login_invalid_credentials(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Error: Could not login. HTTP status code: 401. Error message: "
+        "Error: Could not login. Authentication failed (InvalidGrantRequest): "
         "{'detail': 'Incorrect username or password'}"
         in result.stderr.replace("\n", "")
     )
@@ -288,39 +310,13 @@ def test_json_decode_errors(
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
-    assert "Error: Could not login. JSON decode error: " in result.stderr.replace(
-        "\n", ""
-    )
-    assert not result.stdout
-
-
-@pytest.mark.skip_if_live_backend(
-    "Does not raise pydantic.ValidationErrors in this case."
-)
-def test_validation_error(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
-    """Ensure proper error messages are given if the response cannot be parsed as a
-    valid token."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
-
-    username = "testuser"
-    password = "testpassword"
-
-    # Mock the login HTTPX response
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_auth/token",
-        method="POST",
-        match_content=f"grant_type=password&username={username}&password={password}".encode(),
-        status_code=200,
-        json={"invalid_token_key": "invalid_token_value"},
-    )
-
-    # Run the login CLI command
-    result = cli.invoke(APP, f"login --username {username} --password {password}")
-    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
-    assert "Error: Could not login. Validation error: " in result.stderr.replace(
-        "\n", ""
-    )
+    if return_status_code == 200:
+        assert "Error: Could not login. JSON decode error: " in result.stderr.replace(
+            "\n", ""
+        )
+    else:
+        assert (
+            "Error: Could not login. Authentication failed (InvalidGrantRequest): "
+            in result.stderr.replace("\n", "")
+        )
     assert not result.stdout
