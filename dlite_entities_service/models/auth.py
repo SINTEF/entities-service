@@ -157,3 +157,27 @@ class OpenIDConfiguration(BaseModel):
     # Extras
     revocation_endpoint: AnyHttpUrl | None = None
     introspection_endpoint: AnyHttpUrl | None = None
+
+
+class GitLabUserInfo(BaseModel):
+    """OpenID userinfo response from GitLab."""
+
+    sub: str
+    name: str
+    nickname: str
+    preferred_username: str
+    email: str | None = None
+    email_verified: bool | None = None
+    website: AnyHttpUrl | str
+    profile: AnyHttpUrl
+    picture: AnyHttpUrl
+    groups: list[str]
+    groups_owner: Annotated[
+        list[str], Field(alias="https://gitlab.org/claims/groups/owner")
+    ]
+    groups_maintainer: Annotated[
+        list[str], Field(alias="https://gitlab.org/claims/groups/maintainer")
+    ]
+    groups_developer: Annotated[
+        list[str], Field(alias="https://gitlab.org/claims/groups/developer")
+    ]

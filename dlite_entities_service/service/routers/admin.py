@@ -9,23 +9,17 @@ The endpoints in this router are not documented in the OpenAPI schema.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from dlite_entities_service.models import VersionedSOFTEntity, get_uri
-from dlite_entities_service.models.auth import User, UserInBackend
 from dlite_entities_service.service.backend import get_backend
 from dlite_entities_service.service.config import CONFIG
-from dlite_entities_service.service.security import current_user
+from dlite_entities_service.service.security import verify_token
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
-
-    from dlite_entities_service.service.backend.admin import (
-        AdminBackend,
-        BackendUserDict,
-    )
 
 
 LOGGER = logging.getLogger(__name__)
@@ -34,7 +28,7 @@ LOGGER = logging.getLogger(__name__)
 ROUTER = APIRouter(
     prefix="/_admin",
     include_in_schema=CONFIG.debug,
-    dependencies=[Depends(current_user)],
+    dependencies=[Depends(verify_token)],
 )
 
 
@@ -48,7 +42,6 @@ ROUTER = APIRouter(
 )
 async def create_entities(
     entities: list[VersionedSOFTEntity] | VersionedSOFTEntity,
-    current_user: Annotated[User, Depends(current_user)],
 ) -> list[dict[str, Any]] | dict[str, Any]:
     """Create one or more SOFT entities."""
     # Parse 'entities'
@@ -70,12 +63,7 @@ async def create_entities(
         ),
     )
 
-    entities_backend = get_backend(
-        CONFIG.backend,
-        settings={
-            "mongo_username": current_user.username,
-        },
-    )
+    entities_backend = get_backend(CONFIG.backend)
 
     try:
         created_entities = entities_backend.create(entities)
@@ -95,23 +83,3 @@ async def create_entities(
         raise write_fail_exception
 
     return created_entities
-
-
-# Admin endpoints
-@ROUTER.get("/users", response_model=list[User])
-async def get_users() -> list[BackendUserDict]:
-    """Get all users."""
-    admin_backend = get_backend(CONFIG.admin_backend)
-
-    if TYPE_CHECKING:  # pragma: no cover
-        assert isinstance(admin_backend, AdminBackend)  # nosec
-
-    return list(admin_backend.get_users())
-
-
-@ROUTER.get("/users/me", response_model=UserInBackend)
-async def get_users_me(
-    current_user: Annotated[UserInBackend, Depends(current_user)]
-) -> UserInBackend:
-    """Get the current user."""
-    return current_user

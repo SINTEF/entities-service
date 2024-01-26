@@ -43,9 +43,14 @@ class ServiceSettings(BaseSettings):
         ),
     ] = Backends.MONGODB
 
-    private_ssl_key: Annotated[
-        SecretStr | SecretBytes | None, Field(description="The loaded private SSL key.")
-    ] = None
+    # Security
+    oauth2_provider: Annotated[
+        AnyHttpUrl, Field(description="OAuth2 provider base URL.")
+    ] = AnyHttpUrl("https://gitlab.sintef.no")
+
+    roles_group: Annotated[
+        str, Field(description="GitLab group for roles.")
+    ] = "team4.0-authentication/entities-service"
 
     # MongoDB settings
     mongo_uri: Annotated[
