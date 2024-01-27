@@ -59,7 +59,7 @@ class ParameterizeGetEntities(NamedTuple):
 ## Pytest configuration functions and hooks ##
 
 
-# pytest_plugins = "httpx_auth.testing"
+pytest_plugins = "httpx_auth.testing"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

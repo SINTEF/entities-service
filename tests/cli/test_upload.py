@@ -12,10 +12,8 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
 
-    from ..conftest import GetBackendUserFixture, ParameterizeGetEntities
+    from ..conftest import ParameterizeGetEntities
 
-
-pytestmark = pytest.mark.usefixtures("_use_valid_token")
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
@@ -35,9 +33,13 @@ def test_upload_no_args(cli: CliRunner) -> None:
     assert result.stdout == cli.invoke(APP, "upload --help").stdout
 
 
-@pytest.mark.usefixtures("_empty_backend_collection")
+@pytest.mark.usefixtures("_empty_backend_collection", "_mock_successful_oauth_response")
 def test_upload_filepath(
-    cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock, live_backend: bool
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    live_backend: bool,
+    token_mock,
 ) -> None:
     """Test upload with a filepath."""
     import json
@@ -47,6 +49,13 @@ def test_upload_filepath(
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     # Mock response for "Check if entity already exists"
     assert "uri" in raw_entity
@@ -60,7 +69,7 @@ def test_upload_filepath(
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
             method="POST",
-            match_headers={"Authorization": "Bearer mock_token"},
+            match_headers={"Authorization": f"Bearer {token_mock}"},
             match_json=[raw_entity],
             status_code=201,  # created
         )
@@ -76,11 +85,20 @@ def test_upload_filepath(
 
 
 @pytest.mark.parametrize("fail_fast", [True, False])
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_upload_filepath_invalid(
-    cli: CliRunner, static_dir: Path, fail_fast: bool
+    cli: CliRunner, static_dir: Path, fail_fast: bool, httpx_mock: HTTPXMock
 ) -> None:
     """Test upload with an invalid filepath."""
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     result = cli.invoke(
         APP,
@@ -106,11 +124,22 @@ def test_upload_filepath_invalid(
         )
 
 
-def test_upload_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
+def test_upload_filepath_invalid_format(
+    cli: CliRunner, tmp_path: Path, httpx_mock: HTTPXMock
+) -> None:
     """Test upload with an invalid file format."""
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     (tmp_path / "Person.txt").touch()
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     result = cli.invoke(APP, f"upload --file {tmp_path / 'Person.txt'}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -120,9 +149,18 @@ def test_upload_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
     assert "No entities were uploaded." in result.stdout
 
 
-def test_upload_no_file_or_dir(cli: CliRunner) -> None:
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
+def test_upload_no_file_or_dir(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Test error when no file or directory is provided."""
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     result = cli.invoke(APP, "upload --format json")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
@@ -132,9 +170,13 @@ def test_upload_no_file_or_dir(cli: CliRunner) -> None:
     assert not result.stdout
 
 
-@pytest.mark.usefixtures("_empty_backend_collection")
+@pytest.mark.usefixtures("_empty_backend_collection", "_mock_successful_oauth_response")
 def test_upload_directory(
-    cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock, live_backend: bool
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    live_backend: bool,
+    token_mock: str,
 ) -> None:
     """Test upload with a directory."""
     import json
@@ -146,6 +188,13 @@ def test_upload_directory(
     raw_entities: list[dict[str, Any]] = [
         json.loads(filepath.read_bytes()) for filepath in directory.glob("*.json")
     ]
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     # Mock response for "Check if entity already exists"
     for raw_entity in raw_entities:
@@ -160,7 +209,7 @@ def test_upload_directory(
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
             method="POST",
-            match_headers={"Authorization": "Bearer mock_token"},
+            match_headers={"Authorization": f"Bearer {token_mock}"},
             status_code=201,  # created
         )
 
@@ -175,13 +224,24 @@ def test_upload_directory(
     )
 
 
-def test_upload_empty_dir(cli: CliRunner, tmp_path: Path) -> None:
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
+def test_upload_empty_dir(
+    cli: CliRunner, tmp_path: Path, httpx_mock: HTTPXMock
+) -> None:
     """Test upload with no valid files found.
 
     The outcome here should be the same whether an empty directory is
     provided or a directory with only invalid files.
     """
     from dlite_entities_service.cli import main
+    from dlite_entities_service.service.config import CONFIG
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     empty_dir = tmp_path / "empty_dir"
     assert not empty_dir.exists()
@@ -203,9 +263,20 @@ def test_upload_empty_dir(cli: CliRunner, tmp_path: Path) -> None:
         assert not result.stdout
 
 
-def test_upload_files_with_unchosen_format(cli: CliRunner, static_dir: Path) -> None:
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
+def test_upload_files_with_unchosen_format(
+    cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock
+) -> None:
     """Test upload several files with a format not chosen."""
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     directory = static_dir / "valid_entities"
     file_inputs = " ".join(
@@ -232,15 +303,24 @@ def test_upload_files_with_unchosen_format(cli: CliRunner, static_dir: Path) -> 
 
 
 @pytest.mark.parametrize("fail_fast", [True, False])
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_upload_directory_invalid_entities(
-    cli: CliRunner, static_dir: Path, fail_fast: bool
+    cli: CliRunner, static_dir: Path, fail_fast: bool, httpx_mock: HTTPXMock
 ) -> None:
     """Test uploading a directory full of invalid entities."""
     import re
 
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     directory = static_dir / "invalid_entities"
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     result = cli.invoke(
         APP, f"upload {'--fail-fast ' if fail_fast else ''}--dir {directory}"
@@ -289,6 +369,7 @@ def test_upload_directory_invalid_entities(
         )
 
 
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_existing_entity(
     cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock
 ) -> None:
@@ -296,9 +377,17 @@ def test_existing_entity(
     import json
 
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     # Mock response for "Check if entity already exists"
     assert "uri" in raw_entity
@@ -321,12 +410,14 @@ def test_existing_entity(
     assert not result.stderr
 
 
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_existing_entity_different_content(
     cli: CliRunner,
     static_dir: Path,
     httpx_mock: HTTPXMock,
     tmp_path: Path,
     live_backend: bool,
+    token_mock: str,
 ) -> None:
     """Test that an incoming entity can be uploaded with a new version due to an
     existance collision."""
@@ -339,6 +430,13 @@ def test_existing_entity_different_content(
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     # Mock response for "Check if entity already exists"
     assert "uri" in raw_entity
@@ -397,7 +495,7 @@ def test_existing_entity_different_content(
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
             method="POST",
-            match_headers={"Authorization": "Bearer mock_token"},
+            match_headers={"Authorization": f"Bearer {token_mock}"},
             match_json=[new_entity_file_to_be_uploaded],
             status_code=201,  # created
         )
@@ -438,7 +536,7 @@ def test_existing_entity_different_content(
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
             method="POST",
-            match_headers={"Authorization": "Bearer mock_token"},
+            match_headers={"Authorization": f"Bearer {token_mock}"},
             match_json=[new_entity_file_to_be_uploaded],
             status_code=201,  # created
         )
@@ -465,6 +563,7 @@ def test_existing_entity_different_content(
 
 
 @pytest.mark.parametrize("fail_fast", [True, False])
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_existing_entity_errors(
     cli: CliRunner,
     static_dir: Path,
@@ -478,9 +577,17 @@ def test_existing_entity_errors(
     from copy import deepcopy
 
     from dlite_entities_service.cli.main import APP
+    from dlite_entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
 
     # Mock response for "Check if entity already exists"
     assert "uri" in raw_entity
@@ -560,24 +667,8 @@ def test_existing_entity_errors(
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
-@pytest.mark.no_token()
-def test_missing_auth_token(cli: CliRunner, static_dir: Path) -> None:
-    """Ensure an error is thrown if the user has not logged in."""
-    from dlite_entities_service.cli.main import APP
-
-    result = cli.invoke(APP, f"upload --dir {static_dir / 'valid_entities'}")
-    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
-
-    assert (
-        "Error: Missing authorization token. Please login first by running "
-        "'entities-service login'." in result.stderr.replace("\n", "")
-    )
-    assert not result.stdout
-
-
 @pytest.mark.skip_if_live_backend("Does not raise HTTP errors in this case.")
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_http_errors(
     cli: CliRunner,
     static_dir: Path,
@@ -593,6 +684,13 @@ def test_http_errors(
     error_message = "Generic HTTP Error"
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
         ".json"
+    )
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
     )
 
     # Mock response for "Check if entity already exists"
@@ -617,6 +715,7 @@ def test_http_errors(
     httpx_mock.add_exception(
         HTTPError(error_message),
         url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        match_json=[parameterized_entity.backend_entity],
     )
 
     result = cli.invoke(APP, f"upload --file {test_file}")
@@ -632,6 +731,7 @@ def test_http_errors(
 
 
 @pytest.mark.skip_if_live_backend("Does not raise JSON decode errors in this case.")
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_json_decode_errors(
     cli: CliRunner,
     static_dir: Path,
@@ -644,6 +744,13 @@ def test_json_decode_errors(
 
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
         ".json"
+    )
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
     )
 
     # Mock response for "Check if entity already exists"
@@ -671,6 +778,7 @@ def test_json_decode_errors(
         url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
         status_code=400,
         content=b"not json",
+        match_json=[parameterized_entity.backend_entity],
     )
 
     result = cli.invoke(APP, f"upload --file {test_file}")
@@ -685,7 +793,7 @@ def test_json_decode_errors(
     assert not result.stdout
 
 
-@pytest.mark.no_token()
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_unable_to_upload(
     cli: CliRunner,
     static_dir: Path,
@@ -704,11 +812,6 @@ def test_unable_to_upload(
         ".json"
     )
 
-    # Mock response for "Upload entities"
-    httpx_mock.add_response(
-        url=parameterized_entity.uri,
-        status_code=404,  # not found, i.e., entity does not already exist
-    )
     if not live_backend:
         httpx_mock.add_response(
             url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
@@ -721,77 +824,9 @@ def test_unable_to_upload(
         stdout=result.stdout, stderr=result.stderr
     )
 
-    dumped_error_message = json.dumps(error_message, separators=(",", ":")).replace(
-        '"', "'"
-    )
+    dumped_error_message = json.dumps(error_message)
     assert (
-        "Error: Could not upload entity. HTTP status code: 401. Error message: "
-        f"{dumped_error_message}" in result.stderr.replace("\n", "")
+        "Error: Could not login. HTTP status code: 401. Error response: "
+        f"{dumped_error_message}" in result.stderr.replace("\n", "").replace("  ", "")
     )
     assert not result.stdout
-
-
-@pytest.mark.no_token()
-@pytest.mark.usefixtures("_empty_backend_collection")
-def test_global_option_token(
-    cli: CliRunner,
-    static_dir: Path,
-    parameterized_entity: ParameterizeGetEntities,
-    httpx_mock: HTTPXMock,
-    live_backend: bool,
-    get_backend_user: GetBackendUserFixture,
-) -> None:
-    """Test that the token is correctly used when supplied using `--token`."""
-    from httpx import Client
-
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.models.auth import Token
-    from dlite_entities_service.service.config import CONFIG
-
-    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
-        ".json"
-    )
-
-    # Mock response for "Check if entity already exists"
-    httpx_mock.add_response(
-        url=parameterized_entity.uri,
-        status_code=404,  # not found
-    )
-
-    if live_backend:
-        # Get token
-        write_access_user = get_backend_user("readWrite")
-
-        with Client(base_url=str(CONFIG.base_url)) as client:
-            response = client.post(
-                "/_auth/token",
-                data={
-                    "grant_type": "password",
-                    "username": write_access_user["username"],
-                    "password": write_access_user["password"],
-                },
-            )
-
-        token = Token(**response.json())
-    else:
-        # Mock token
-        token = Token(access_token="mock_token")
-
-        # Mock response for "Upload entities"
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_headers={"Authorization": f"{token.token_type} {token.access_token}"},
-            match_json=[parameterized_entity.backend_entity],
-            status_code=201,  # created
-        )
-
-    result = cli.invoke(APP, f"--token {token.access_token} upload --file {test_file}")
-    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
-
-    assert (
-        "Successfully uploaded 1 entity:" in result.stdout
-    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stderr

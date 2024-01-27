@@ -8,6 +8,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from pytest_httpx import HTTPXMock
     from typer import Typer
     from typer.testing import CliRunner
 
@@ -146,25 +147,65 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
 @pytest.fixture()
 def token_mock() -> str:
     """Return a mock token."""
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb290IiwiaXNzIjoiaHR0cDovL29udG8tbnMuY29tL21ldGEiLCJleHAiOjE3MDYxOTI1OTAsImNsaWVudF9pZCI6Imh0dHA6Ly9vbnRvLW5zLmNvbS9tZXRhIiwiaWF0IjoxNzA2MTkwNzkwfQ.FzvzWyI_CNrLkHhr4oPRQ0XEY8H9DL442QD8tM8dhVM"
+    return (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb290IiwiaXNzIjoiaHR0cDovL29u"
+        "dG8tbnMuY29tL21ldGEiLCJleHAiOjE3MDYxOTI1OTAsImNsaWVudF9pZCI6Imh0dHA6Ly9vbnRvL"
+        "W5zLmNvbS9tZXRhIiwiaWF0IjoxNzA2MTkwNzkwfQ.FzvzWyI_CNrLkHhr4oPRQ0XEY8H9DL442QD"
+        "8tM8dhVM"
+    )
 
 
-# @pytest.fixture()
-# def empty_token_cache(token_mock: str, monkeypatch: pytest.MonkeyPatch) -> None:
-#     """Empty the token cache."""
-#     import httpx_auth
-#     from httpx_auth.errors import AuthenticationFailed
+@pytest.fixture()
+def _mock_successful_oauth_response(
+    monkeypatch: pytest.MonkeyPatch, token_mock: str, httpx_mock: HTTPXMock
+) -> None:
+    """Mock a successful response from the request_new_grant function."""
+    import httpx_auth.oauth2_authentication_responses_server
+
+    from dlite_entities_service.service.config import CONFIG
+
+    monkeypatch.setattr(
+        httpx_auth.oauth2_authentication_responses_server,
+        "request_new_grant",
+        lambda *args: ("some_state", "some_code"),  # noqa: ARG005
+    )
+
+    # Mock response for "Get token"
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
+        method="POST",
+        json={"access_token": token_mock},
+    )
 
 
-#     class MockTokenCache:
+@pytest.fixture()
+def _mock_failed_oauth_response(
+    monkeypatch: pytest.MonkeyPatch, httpx_mock: HTTPXMock
+) -> None:
+    """Mock a failed response from the OAuth2ResponseHandler class.
 
-#         already_requested: bool = False
+    This will/should raise httpx_auth.errors.InvalidGrantRequest
 
-#         def get_token(self, *args, **kwargs) -> str:
-#             if self.already_requested:
-#                 return token_mock
-#             self.already_requested = True
-#             raise AuthenticationFailed()
+    error message: `temporarily_unavailable: The authorization server is currently
+    unable to handle the request due to a temporary overloading or maintenance of the
+    server.  (This error code is needed because a 503 Service Unavailable HTTP status
+    code cannot be returned to the client via an HTTP redirect.)`
+    """
+    import httpx_auth.oauth2_authentication_responses_server
 
+    from dlite_entities_service.service.config import CONFIG
 
-#     monkeypatch.setattr(httpx_auth.OAuth2, "token_cache", MockTokenCache())
+    monkeypatch.setattr(
+        httpx_auth.oauth2_authentication_responses_server,
+        "request_new_grant",
+        lambda *args: ("some_state", "some_code"),  # noqa: ARG005
+    )
+
+    # Mock response for "Get token"
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
+        method="POST",
+        status_code=401,
+        headers={"WWW-Authenticate": "Bearer"},
+        json={"error": ["temporarily_unavailable"]},
+    )

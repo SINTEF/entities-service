@@ -126,6 +126,9 @@ def upload(
     directories = list(set(directories or []))
     file_formats = list(set(file_formats or []))
 
+    # Ensure the user is logged in
+    login(quiet=True)
+
     if not filepaths and not directories:
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Missing either option '--file' / '-f' or "
@@ -144,24 +147,6 @@ def upload(
     if not unique_filepaths:
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: No files found with the given options."
-        )
-        raise typer.Exit(1)
-
-    # Check if the user is authorized
-    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
-        try:
-            response = client.get("/", auth=oauth)
-        except httpx.HTTPError as exc:
-            ERROR_CONSOLE.print(
-                "[bold red]Error[/bold red]: Missing authorization token. Please login "
-                "first by running 'entities-service login'."
-            )
-            raise typer.Exit(1) from exc
-
-    if not response.is_success:
-        ERROR_CONSOLE.print(
-            "[bold red]Error[/bold red]: Missing authorization token. Please login "
-            "first by running 'entities-service login'."
         )
         raise typer.Exit(1)
 
@@ -422,11 +407,19 @@ def upload(
 
 
 @APP.command()
-def login() -> None:
+def login(
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Do not print anything on success.",
+        show_default=True,
+    ),
+) -> None:
     """Login to the entities service."""
-    with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:
+    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
         try:
-            response = client.get("/_admin/users/me")
+            response = client.post("/_admin/create", json=[], auth=oauth)
         except httpx.HTTPError as exc:
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: Could not login. HTTP exception: {exc}"
@@ -445,13 +438,20 @@ def login() -> None:
             raise typer.Exit(1) from exc
 
     if not response.is_success:
-        error_message = response.json()
+        try:
+            error_message = response.json()
+        except json.JSONDecodeError as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not login. JSON decode error: {exc}"
+            )
+            raise typer.Exit(1) from exc
 
         ERROR_CONSOLE.print(
             f"[bold red]Error[/bold red]: Could not login. HTTP status code: "
-            f"{response.status_code}. Error response:"
+            f"{response.status_code}. Error response: "
         )
         ERROR_CONSOLE.print_json(data=error_message)
         raise typer.Exit(1)
 
-    print("[bold green]Successfully logged in.[/bold green]")
+    if not quiet:
+        print("[bold green]Successfully logged in.[/bold green]")

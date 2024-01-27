@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from dlite_entities_service.models import VersionedSOFTEntity, get_uri
 from dlite_entities_service.service.backend import get_backend
@@ -42,13 +42,15 @@ ROUTER = APIRouter(
 )
 async def create_entities(
     entities: list[VersionedSOFTEntity] | VersionedSOFTEntity,
-) -> list[dict[str, Any]] | dict[str, Any]:
+    response: Response,
+) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Create one or more SOFT entities."""
     # Parse 'entities'
     if isinstance(entities, list):
         # Check if there are any entities to create
         if not entities:
-            return []
+            response.status_code = status.HTTP_204_NO_CONTENT
+            return None
     else:
         entities = [entities]
 
