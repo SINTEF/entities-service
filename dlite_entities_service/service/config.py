@@ -1,9 +1,10 @@
 """Service app configuration."""
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from pathlib import Path
+from typing import Annotated, Any
 
-from pydantic import Field, SecretBytes, SecretStr, field_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic.networks import AnyHttpUrl, MultiHostUrl, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -52,7 +53,7 @@ class ServiceSettings(BaseSettings):
         str, Field(description="GitLab group for roles.")
     ] = "team4.0-authentication/entities-service"
 
-    # MongoDB settings
+    # MongoDB backend settings
     mongo_uri: Annotated[
         MongoDsn,
         Field(
@@ -61,12 +62,17 @@ class ServiceSettings(BaseSettings):
     ] = MongoDsn("mongodb://localhost:27017")
 
     mongo_user: Annotated[
-        str, Field(description="Username for connecting to the MongoDB.")
+        str,
+        Field(
+            description="Username for connecting to the MongoDB with read-only rights."
+        ),
     ] = "guest"
 
     mongo_password: Annotated[
-        SecretStr | SecretBytes,
-        Field(description="Password for connecting to the MongoDB."),
+        SecretStr,
+        Field(
+            description="Password for connecting to the MongoDB with read-only rights."
+        ),
     ] = SecretStr("guest")
 
     mongo_db: Annotated[
@@ -86,49 +92,77 @@ class ServiceSettings(BaseSettings):
         ),
     ] = "entities"
 
-    # Special admin DB settings for the Entities Service
-    # We will use the same MongoDB cluster/server for the admin DB
-    # as for the entities DB, but we will use a different database.
-    admin_backend: Annotated[
-        Literal[Backends.ADMIN],
-        Field(
-            description="Backend to use for storing admin data.",
-        ),
-    ] = Backends.ADMIN
-
-    admin_user: Annotated[
-        SecretStr | SecretBytes | None,
+    x509_certificate_file: Annotated[
+        Path,
         Field(
             description=(
-                "Admin username for connecting to the Entities Service's admin DB."
+                "File path to a X.509 certificate for connecting to the MongoDB "
+                "backend with write-access rights."
+            ),
+        ),
+    ]
+
+    ca_file: Annotated[
+        Path | None,
+        Field(
+            description=(
+                "File path to a CA certificate for connecting to the MongoDB backend "
+                "with write-access rights."
             ),
         ),
     ] = None
-
-    admin_password: Annotated[
-        SecretStr | SecretBytes | None,
-        Field(
-            description=(
-                "Admin password for connecting to the Entities Service's admin DB."
-            ),
-        ),
-    ] = None
-
-    admin_db: Annotated[
-        str,
-        Field(
-            description=(
-                "Name of the MongoDB database for storing admin collections used in "
-                "the Entities Service."
-            ),
-        ),
-    ] = "admin"
 
     @field_validator("base_url", mode="before")
     @classmethod
     def _strip_ending_slashes(cls, value: Any) -> AnyHttpUrl:
         """Strip any end forward slashes."""
         return AnyHttpUrl(str(value).rstrip("/"))
+
+    @field_validator("x509_certificate_file", "ca_file", mode="before")
+    @classmethod
+    def _handle_raw_certificate(cls, value: Any, info: ValidationInfo) -> Path:
+        """Handle the case of the value being a "raw" certificate file content."""
+        cache_dir = Path.home() / ".cache" / "dlite-entities-service"
+        cache_file_name = info.field_name.replace("_file", "")
+        cache_file = cache_dir / f"{cache_file_name}.pem"
+
+        if isinstance(value, bytes):
+            # Expect it to not be a path, but a "raw" certificate file content
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_file.write_bytes(value)  # Will overwrite existing file
+            cache_file.chmod(0o600)
+            return cache_file
+
+        if isinstance(value, str):
+            value_as_path = Path(value)
+            try:
+                if value_as_path.exists() and value_as_path.is_file():
+                    return value_as_path
+            except OSError:
+                pass
+
+            # Expect the value to be a "raw" certificate file content
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_file.write_text(value)  # Will overwrite existing file
+            cache_file.chmod(0o600)
+            return cache_file
+
+        return value
+
+    @field_validator("x509_certificate_file", "ca_file", mode="after")
+    @classmethod
+    def _ensure_is_existing_file(cls, value: Path | None) -> Path:
+        """Ensure the certificate file exists."""
+        if value is None:
+            return value
+
+        if not value.exists():
+            raise FileNotFoundError(f"Certificate file {value} does not exist")
+
+        if not value.is_file():
+            raise FileNotFoundError(f"Certificate file {value} is not a file")
+
+        return value
 
 
 CONFIG = ServiceSettings()

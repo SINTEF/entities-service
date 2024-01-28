@@ -16,93 +16,29 @@ if TYPE_CHECKING:
         """Get the MongoDB backend."""
 
         def __call__(
-            self, auth: Literal["read", "readWrite"] | None = None
+            self, auth: Literal["read", "write"] | None = None
         ) -> MongoDBBackend:
             ...
 
 
 @pytest.fixture()
-def mongo_backend(
-    live_backend: bool, get_backend_user: GetBackendUserFixture
-) -> GetMongoBackend:
+def mongo_backend(get_backend_user: GetBackendUserFixture) -> GetMongoBackend:
     """Get a MongoDB backend."""
 
-    def _mongo_backend(
-        auth: Literal["read", "readWrite"] | None = None
-    ) -> MongoDBBackend:
-        from dlite_entities_service.service.backend.mongodb import MongoDBBackend
+    def _mongo_backend(auth: Literal["read", "write"] | None = None) -> MongoDBBackend:
+        from dlite_entities_service.service.backend import get_backend
 
-        backend_settings = {}
-        if live_backend:
-            backend_user = get_backend_user(auth)
-            backend_settings.update(
-                {
-                    "mongo_username": backend_user["username"],
-                    "mongo_password": backend_user["password"],
-                }
-            )
+        backend_user = get_backend_user(auth)
 
-        return MongoDBBackend(settings=backend_settings)
+        return get_backend(
+            auth_level=auth,
+            settings={
+                "mongo_username": backend_user["username"],
+                "mongo_password": backend_user["password"],
+            },
+        )
 
     return _mongo_backend
-
-
-def test_client_cacheing(live_backend: bool) -> None:
-    """Test the cycle of cacheing and removing clients.
-
-    Note, cacheing is based on the user name only.
-    """
-    from dlite_entities_service.service.backend.mongodb import (
-        MONGO_CLIENTS,
-        discard_clients_for_user,
-        get_client,
-    )
-
-    # The MONGO_CLIENTS cache should consist of the clients created during test setup
-    assert MONGO_CLIENTS is not None
-    original_number_of_clients = 2 if live_backend else 1
-    assert len(MONGO_CLIENTS) == original_number_of_clients
-
-    client_1 = get_client(
-        uri="mongodb://localhost:27017",
-        username="test_user_1",
-        password="test_password",
-    )
-
-    # After creating the client, it should be cached
-    assert MONGO_CLIENTS is not None
-    assert (hash("test_user_1"), hash("test_user_1test_password")) in MONGO_CLIENTS
-    assert (
-        MONGO_CLIENTS[(hash("test_user_1"), hash("test_user_1test_password"))]
-        == client_1
-    )
-    assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-
-    client_2 = get_client(
-        uri="mongodb://localhost:27017",
-        username="test_user_2",
-        password="test_password",
-    )
-
-    # After creating the second client, it should be cached
-    assert (hash("test_user_2"), hash("test_user_2test_password")) in MONGO_CLIENTS
-    assert (
-        MONGO_CLIENTS[(hash("test_user_2"), hash("test_user_2test_password"))]
-        == client_2
-    )
-    assert len(MONGO_CLIENTS) == original_number_of_clients + 2
-
-    # After discarding the first client, it should be removed from the cache
-    discard_clients_for_user("test_user_1")
-    assert (hash("test_user_1"), hash("test_user_1test_password")) not in MONGO_CLIENTS
-    assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-
-    assert (hash("test_user_2"), hash("test_user_2test_password")) in MONGO_CLIENTS
-
-    # After discarding the second client, it should be removed from the cache
-    discard_clients_for_user("test_user_2")
-    assert (hash("test_user_2"), hash("test_user_2test_password")) not in MONGO_CLIENTS
-    assert len(MONGO_CLIENTS) == original_number_of_clients + 0
 
 
 @pytest.mark.skip_if_not_live_backend(reason="Indexing is not supported by mongomock")
@@ -112,7 +48,7 @@ def test_multiple_initialize(mongo_backend: GetMongoBackend) -> None:
     At this point, the backend should already have been initialized once,
     so the second time should not create any new indices.
     """
-    backend = mongo_backend("readWrite")
+    backend = mongo_backend("write")
 
     # Check current indices
     indices = backend._collection.index_information()
@@ -129,42 +65,26 @@ def test_multiple_initialize(mongo_backend: GetMongoBackend) -> None:
     assert "_id_" in indices
 
 
-def test_close(live_backend: bool) -> None:
+def test_close() -> None:
     """Test closing the backend."""
+    from dlite_entities_service.service.backend import get_backend
     from dlite_entities_service.service.backend.mongodb import (
         MONGO_CLIENTS,
-        MongoDBBackend,
     )
 
-    original_number_of_clients = 2 if live_backend else 1
+    original_number_of_clients = 2
 
     assert MONGO_CLIENTS is not None
     assert len(MONGO_CLIENTS) == original_number_of_clients
+    assert "read" in MONGO_CLIENTS
+    assert "write" in MONGO_CLIENTS
 
-    backend = MongoDBBackend(
-        settings={
-            "mongo_username": "test_user",
-            "mongo_password": "test_password",
-        },
-    )
+    get_backend().close()
 
-    assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-    assert (hash("test_user"), hash("test_usertest_password")) in MONGO_CLIENTS
-
-    backend.close()
-
-    if live_backend:
-        # The client should have been closed and removed from the cache
-        assert len(MONGO_CLIENTS) == original_number_of_clients
-        assert (hash("test_user"), hash("test_usertest_password")) not in MONGO_CLIENTS
-    else:
-        # The client should not have been closed nor removed from the cache
-        assert len(MONGO_CLIENTS) == original_number_of_clients + 1
-        assert (hash("test_user"), hash("test_usertest_password")) in MONGO_CLIENTS
-
-        # Remove client from cache
-        del MONGO_CLIENTS[((hash("test_user"), hash("test_usertest_password")))]
-        assert len(MONGO_CLIENTS) == original_number_of_clients
+    # The clients are never _actually_ close
+    assert len(MONGO_CLIENTS) == original_number_of_clients
+    assert "read" in MONGO_CLIENTS
+    assert "write" in MONGO_CLIENTS
 
 
 @pytest.mark.usefixtures("_empty_backend_collection")
@@ -172,7 +92,7 @@ def test_create(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
     """Test the create method."""
-    backend = mongo_backend("readWrite")
+    backend = mongo_backend("write")
 
     # Create a single entity
     entity_from_backend = backend.create([parameterized_entity.backend_entity])
@@ -232,7 +152,7 @@ def test_update(
 
     from dlite_entities_service.service.backend.mongodb import URI_REGEX
 
-    backend = mongo_backend("readWrite")
+    backend = mongo_backend("write")
 
     # Change current entity
     changed_raw_entity = deepcopy(parameterized_entity.backend_entity)
@@ -280,7 +200,7 @@ def test_delete(
     """Test the delete method."""
     from dlite_entities_service.service.backend.mongodb import URI_REGEX
 
-    backend = mongo_backend("readWrite")
+    backend = mongo_backend("write")
 
     # Ensure the entity currently exists in the backend
     entity_from_backend = backend._collection.find_one(

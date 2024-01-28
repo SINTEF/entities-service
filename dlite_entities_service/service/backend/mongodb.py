@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
-from pydantic import Field, SecretBytes, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pymongo.errors import (
     BulkWriteError,
     InvalidDocument,
@@ -26,10 +27,11 @@ from dlite_entities_service.service.config import CONFIG, MongoDsn
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
-    from typing import Any, TypedDict, cast
+    from typing import Any, TypedDict
 
     from pydantic import AnyHttpUrl
     from pymongo import MongoClient
+    from pymongo.collection import Collection as MongoCollection
 
     from dlite_entities_service.models import VersionedSOFTEntity
 
@@ -44,13 +46,10 @@ if TYPE_CHECKING:  # pragma: no cover
 LOGGER = logging.getLogger(__name__)
 
 
-MONGO_CLIENTS: dict[tuple[int, int], MongoClient] | None = None
+MONGO_CLIENTS: dict[Literal["read", "write"], MongoClient] | None = None
 """Global cache for MongoDB clients.
 
-The key is a tuple of a hash of the username and a combination of username and password
-hashes.
-The first hash is there to allow for quick lookup of the client for a given user when
-clearing the cache for a specific user.
+The key is the available auth levels, i.e. 'read' and 'write'.
 """
 
 
@@ -87,26 +86,40 @@ class MongoDBSettings(BackendSettings):
     ] = CONFIG.mongo_uri
 
     mongo_username: Annotated[
-        str, Field(description="The MongoDB username.")
-    ] = CONFIG.mongo_user
+        str | None, Field(description="The MongoDB username.")
+    ] = None
 
     mongo_password: Annotated[
-        SecretStr | SecretBytes,
+        SecretStr | None, Field(description="The MongoDB password.")
+    ] = None
+
+    mongo_x509_certificate_file: Annotated[
+        Path | None,
         Field(
             description=(
-                "The MongoDB password. If not provided, the password will be read "
-                "from the environment variable MONGO_PASSWORD."
+                "File path to a X.509 certificate for connecting to the MongoDB "
+                "backend with write-access rights."
             ),
         ),
-    ] = CONFIG.mongo_password
+    ] = None
 
-    mongo_db: Annotated[str, Field(description="The MongoDB database.")] = (
-        CONFIG.mongo_db or "entities_service"
-    )
+    mongo_ca_file: Annotated[
+        Path | None,
+        Field(
+            description=(
+                "File path to a CA certificate for connecting to the MongoDB backend "
+                "with write-access rights."
+            ),
+        ),
+    ] = None
 
-    mongo_collection: Annotated[str, Field(description="The MongoDB collection.")] = (
-        CONFIG.mongo_collection or "entities"
-    )
+    mongo_db: Annotated[
+        str, Field(description="The MongoDB database.")
+    ] = CONFIG.mongo_db
+
+    mongo_collection: Annotated[
+        str, Field(description="The MongoDB collection.")
+    ] = CONFIG.mongo_collection
 
     mongo_driver: Annotated[
         Literal["pymongo", "mongomock"],
@@ -115,13 +128,36 @@ class MongoDBSettings(BackendSettings):
         ),
     ] = BACKEND_DRIVER_MAPPING.get(CONFIG.backend, "pymongo")
 
+    auth_level: Annotated[
+        Literal["read", "write"],
+        Field(description="The auth level to use. Either 'read' or 'write'."),
+    ] = "read"
+
+    @model_validator(mode="after")
+    def _validate_auth_level_settings(self) -> MongoDBSettings:
+        """Ensure the correct settings are set according to the auth level."""
+        if self.auth_level == "read":
+            if self.mongo_username is None:
+                raise ValueError("MongoDB username should be set for read access.")
+            if self.mongo_password is None:
+                raise ValueError("MongoDB password should be set for read access.")
+        else:  # write
+            if self.mongo_x509_certificate_file is None:
+                raise ValueError(
+                    "MongoDB X.509 certificate for connecting with write-access "
+                    "rights."
+                )
+        return self
+
 
 def get_client(
+    auth_level: Literal["read", "write"] = "read",
     uri: str | None = None,
     username: str | None = None,
     password: str | None = None,
-    driver: str | None = None,
-    authenticated_user: bool = False,
+    certificate_file: Path | None = None,
+    ca_file: Path | None = None,
+    driver: Literal["pymongo", "mongomock"] | None = None,
 ) -> MongoClient:
     """Get the MongoDB client."""
     if driver is None:
@@ -139,89 +175,48 @@ def get_client(
 
     global MONGO_CLIENTS  # noqa: PLW0603
 
-    username = username or CONFIG.mongo_user
+    if auth_level not in ("read", "write"):
+        raise ValueError(f"Invalid auth level: {auth_level!r} (valid: 'read', 'write')")
 
-    # Dealing with an authenticated user.
-    if authenticated_user:
-        # This means the client should have already been created.
-        # We essentially by-pass having to provide a password !!! DANGEROUS !!!
-        error_msg = (
-            f"0 or 2 or more clients available for (authenticated) user {username!r}."
-        )
+    # Get cached client
+    if MONGO_CLIENTS is not None and auth_level in MONGO_CLIENTS:
+        LOGGER.debug("Using cached MongoDB client for %r.", auth_level)
+        return MONGO_CLIENTS[auth_level]
 
-        if MONGO_CLIENTS is None:
-            raise MongoDBBackendError(error_msg)
-
-        hashed_username = hash(username)
-
-        found_clients = []
-        for cache_key in MONGO_CLIENTS:
-            if cache_key[0] == hashed_username:
-                found_clients.append(MONGO_CLIENTS[cache_key])
-
-        if len(found_clients) == 1:
-            return found_clients[0]
-
-        LOGGER.debug("Found %s clients for %r.", len(found_clients), username)
-        LOGGER.debug("Clients: %s", found_clients)
-        LOGGER.debug("Cache: %r", MONGO_CLIENTS)
-        raise MongoDBBackendError(error_msg)
-
-    # Dealing with a non-authenticated user.
-    password = password or (
-        CONFIG.mongo_password.get_secret_value()
-        if CONFIG.mongo_password is not None
-        else None
-    )
-
-    if password is None:
-        raise ValueError(f"No password is given for {username!r}.")
-
-    if TYPE_CHECKING:  # pragma: no cover
-        username = cast(str, username)
-        password = cast(str, password)
-
-    cache_key = (hash(username), hash(f"{username}{password}"))
-
-    if MONGO_CLIENTS is not None and cache_key in MONGO_CLIENTS:
-        LOGGER.debug("Using cached MongoDB client for %r.", username)
-        return MONGO_CLIENTS[cache_key]
     LOGGER.debug("Creating new MongoDB client for %r.", username)
 
-    new_client = MongoClient(
-        uri or str(CONFIG.mongo_uri), username=username, password=password
-    )
+    # Ensure all required settings are set
+    if auth_level == "read":
+        client_options: dict[str, Any] = {
+            "username": username or CONFIG.mongo_user,
+            "password": password or CONFIG.mongo_password.get_secret_value(),
+        }
+    else:  # write
+        client_options = {
+            "tls": True,
+            "tlsCertificateKeyFile": str(
+                certificate_file or CONFIG.x509_certificate_file
+            ),
+        }
+        if ca_file or CONFIG.ca_file:
+            client_options["tlsCAFile"] = str(ca_file or CONFIG.ca_file)
+
+    new_client = MongoClient(uri or str(CONFIG.mongo_uri), **client_options)
 
     if MONGO_CLIENTS is None:
-        MONGO_CLIENTS = {cache_key: new_client}
+        MONGO_CLIENTS = {auth_level: new_client}
     else:
-        MONGO_CLIENTS[cache_key] = new_client
+        MONGO_CLIENTS[auth_level] = new_client
 
-    return MONGO_CLIENTS[cache_key]
+    # If using the mongomock backend, there should only ever be one client instance
+    # So we set all clients for all auth levels in the cache to the new client
+    if driver == "mongomock":
+        MONGO_CLIENTS = {
+            "read": new_client,
+            "write": new_client,
+        }
 
-
-def discard_clients_for_user(username: str) -> None:
-    """Discard MongoDB clients for a user."""
-    global MONGO_CLIENTS  # noqa: PLW0603
-
-    hashed_username = hash(username)
-
-    if MONGO_CLIENTS is None:
-        return
-
-    for cache_key in list(MONGO_CLIENTS):
-        if cache_key[0] == hashed_username:
-            # If this is the only client for the user, close it and then delete it,
-            # resetting the global cache to None.
-            if len(MONGO_CLIENTS) == 1:
-                MONGO_CLIENTS[cache_key].close()
-                del MONGO_CLIENTS[cache_key]
-                MONGO_CLIENTS = None
-                return
-
-            # Otherwise, just delete the client from the cache.
-            # Don't close it as it, as this will be detrimental for the other clients.
-            del MONGO_CLIENTS[cache_key]
+    return MONGO_CLIENTS[auth_level]
 
 
 class MongoDBBackend(Backend):
@@ -233,21 +228,22 @@ class MongoDBBackend(Backend):
     def __init__(
         self,
         settings: MongoDBSettings | dict[str, Any] | None = None,
-        authenticated_user: bool = False,
     ) -> None:
-        super().__init__(settings, authenticated_user)
-
-        password = self._settings.mongo_password.get_secret_value()
-        if isinstance(password, bytes):
-            password = password.decode()
+        super().__init__(settings)
 
         try:
-            self._collection = get_client(
+            self._collection: MongoCollection = get_client(
+                auth_level=self._settings.auth_level,
                 uri=str(self._settings.mongo_uri),
                 username=self._settings.mongo_username,
-                password=password,
+                password=(
+                    self._settings.mongo_password.get_secret_value()
+                    if self._settings.mongo_password
+                    else None
+                ),
+                certificate_file=self._settings.mongo_x509_certificate_file,
+                ca_file=self._settings.mongo_ca_file,
                 driver=self._settings.mongo_driver,
-                authenticated_user=authenticated_user,
             )[self._settings.mongo_db][self._settings.mongo_collection]
         except ValueError as exc:
             raise MongoDBBackendError(str(exc)) from exc
@@ -352,12 +348,11 @@ class MongoDBBackend(Backend):
         return self._collection.count_documents(query)
 
     def close(self) -> None:
-        """Close the MongoDB connection if using production backend."""
+        """We never close the MongoDB connection once its created."""
         if self._settings.mongo_driver == "mongomock":
             return
 
         super().close()
-        discard_clients_for_user(self._settings.mongo_username)
 
     # MongoDBBackend specific methods
     def _single_uri_query(self, uri: str) -> dict[str, Any]:

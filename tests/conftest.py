@@ -12,28 +12,26 @@ if TYPE_CHECKING:
     from fastapi.testclient import TestClient
     from httpx import Client
 
-    from dlite_entities_service.service.backend.admin import AdminBackend
     from dlite_entities_service.service.backend.mongodb import MongoDBBackend
 
-    class UserFullInfoRoleDict(TypedDict):
+    class UserRoleDict(TypedDict):
         """Type for the user info dictionary with roles."""
 
         role: str
         db: str
 
-    class UserFullInfoDict(TypedDict):
-        """Type for the full user info dictionary."""
+    class UserDict(TypedDict):
+        """Type for the user dictionary."""
 
         username: str
         password: str
-        full_name: str | None
-        roles: list[UserFullInfoRoleDict]
+        roles: list[UserRoleDict]
 
     class ClientFixture(Protocol):
         """Protocol for the client fixture."""
 
         def __call__(
-            self, auth_role: Literal["read", "readWrite"] | None = None
+            self, auth_role: Literal["read", "write"] | None = None
         ) -> TestClient | Client:
             ...
 
@@ -41,8 +39,8 @@ if TYPE_CHECKING:
         """Protocol for the get_backend_user fixture."""
 
         def __call__(
-            self, auth_role: Literal["read", "readWrite"] | None = None
-        ) -> UserFullInfoDict:
+            self, auth_role: Literal["read", "write"] | None = None
+        ) -> UserDict:
             ...
 
 
@@ -79,6 +77,13 @@ def pytest_configure(config: pytest.Config) -> None:
     # Set the environment variable for the MongoDB database name
     live_backend: bool = config.getoption("--live-backend")
     os.environ["ENTITY_SERVICE_BACKEND"] = "mongodb" if live_backend else "mongomock"
+    if not live_backend:
+        # If live-backend, this is either set in the CI workflow or in the
+        # service.
+        os.environ["ENTITY_SERVICE_X509_CERTIFICATE_FILE"] = (
+            "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n"
+            "-----BEING PRIVATE KEY-----\n-----END PRIVATE KEY-----\n"
+        )
 
     # Add extra markers
     config.addinivalue_line(
@@ -420,29 +425,31 @@ def static_dir() -> Path:
 
 @pytest.fixture(scope="session")
 def get_backend_user() -> GetBackendUserFixture:
-    """Return a function to get the backend user."""
+    """Return a function to get the backend user.
+
+    This fixture implements a mock write user that wouldn't exist in production,
+    since this auth level would be handled by TLS and a X.509 certificate.
+
+    However, for testing, it is easier to do it this way using SCRAM.
+    """
     from dlite_entities_service.service.config import CONFIG
 
     def _get_backend_user(
-        auth_role: Literal["read", "readWrite"] | None = None
-    ) -> UserFullInfoDict:
+        auth_role: Literal["read", "write"] | None = None
+    ) -> UserDict:
         """Return the backend user for the given authentication role."""
         if auth_role is None:
             auth_role = "read"
 
         assert auth_role in (
             "read",
-            "readWrite",
-        ), "The authentication role must be either 'read' or 'readWrite'."
+            "write",
+        ), "The authentication role must be either 'read' or 'write'."
 
         if auth_role == "read":
-            password = CONFIG.mongo_password.get_secret_value()
-            full_info_dict: UserFullInfoDict = {
+            user: UserDict = {
                 "username": CONFIG.mongo_user,
-                "password": password.decode()
-                if isinstance(password, bytes)
-                else password,
-                "full_name": CONFIG.mongo_user,
+                "password": CONFIG.mongo_password.get_secret_value(),
                 "roles": [
                     {
                         "role": "read",
@@ -450,20 +457,19 @@ def get_backend_user() -> GetBackendUserFixture:
                     }
                 ],
             }
-            return full_info_dict
+        else:  # write
+            user: UserDict = {
+                "username": "test_write_user",
+                "password": "writer",
+                "roles": [
+                    {
+                        "role": "readWrite",
+                        "db": CONFIG.mongo_db,
+                    }
+                ],
+            }
 
-        full_info_dict: UserFullInfoDict = {
-            "username": "test_write_user",
-            "password": "writer",
-            "full_name": "Test write user",
-            "roles": [
-                {
-                    "role": "readWrite",
-                    "db": CONFIG.mongo_db,
-                }
-            ],
-        }
-        return full_info_dict
+        return user
 
     return _get_backend_user
 
@@ -511,32 +517,26 @@ def _mongo_test_collection(
 
     if live_backend:
         # Add test users to the database
-        admin_backend: AdminBackend = get_backend(
-            "admin",
+        backend: MongoDBBackend = get_backend(
             settings={
-                "mongo_username": CONFIG.admin_user.get_secret_value()
-                if CONFIG.admin_user is not None
-                else "root",
-                "mongo_password": CONFIG.admin_password.get_secret_value()
-                if CONFIG.admin_password is not None
-                else "root",
+                "mongo_username": "root",
+                "mongo_password": "root",
             },
         )
+        admin_db = backend._collection.database.client["admin"]
 
         existing_users: list[str] = [
-            user["user"]
-            for user in admin_backend._db.command("usersInfo", usersInfo=1)["users"]
+            user["user"] for user in admin_db.command("usersInfo", usersInfo=1)["users"]
         ]
 
-        for auth_role in ("read", "readWrite"):
-            user_full_info = get_backend_user(auth_role)
-            if user_full_info["username"] not in existing_users:
-                admin_backend._db.command(
+        for auth_role in ("read", "write"):
+            user_info = get_backend_user(auth_role)
+            if user_info["username"] not in existing_users:
+                admin_db.command(
                     "createUser",
-                    createUser=user_full_info["username"],
-                    pwd=user_full_info["password"],
-                    customData={"full_name": user_full_info["full_name"]},
-                    roles=user_full_info["roles"],
+                    createUser=user_info["username"],
+                    pwd=user_info["password"],
+                    roles=user_info["roles"],
                 )
 
 
@@ -573,16 +573,14 @@ def _reset_mongo_test_collection(
                 f"Invalid type for entity['properties']: {type(entity['properties'])}"
             )
 
-    backend_settings = {}
-    if live_backend:
-        backend_user = get_backend_user("readWrite")
-        backend_settings = {
-            "mongo_username": backend_user["username"],
-            "mongo_password": backend_user["password"],
-        }
+    backend_user = get_backend_user("write")
 
     backend: MongoDBBackend = get_backend(
-        settings=backend_settings, authenticated_user=False
+        auth_level="write",
+        settings={
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        },
     )
     backend._collection.delete_many({})
     backend._collection.insert_many(entities)
@@ -590,17 +588,13 @@ def _reset_mongo_test_collection(
 
 @pytest.fixture(autouse=True)
 def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock the AdminBackend.initialize_entities_backend() method."""
+    """Mock the MongoDBBackend.initialize() method."""
     # Only mock the lifespan context manager if the tests are not run with a live
     # backend
     if not live_backend:
         monkeypatch.setattr(
-            "dlite_entities_service.service.backend.admin.AdminBackend.initialize_entities_backend",
+            "dlite_entities_service.service.backend.mongodb.MongoDBBackend.initialize",
             lambda _: None,
-        )
-
-        monkeypatch.setattr(
-            "dlite_entities_service.service.backend.clear_caches", lambda: None
         )
 
 
@@ -613,15 +607,13 @@ def _empty_backend_collection(
 
     backend_settings = {}
     if live_backend:
-        backend_user = get_backend_user("readWrite")
+        backend_user = get_backend_user("write")
         backend_settings = {
             "mongo_username": backend_user["username"],
             "mongo_password": backend_user["password"],
         }
 
-    backend: MongoDBBackend = get_backend(
-        settings=backend_settings, authenticated_user=False
-    )
+    backend: MongoDBBackend = get_backend(settings=backend_settings)
     backend._collection.delete_many({})
     assert backend._collection.count_documents({}) == 0
 
@@ -641,7 +633,7 @@ def client(
     from dlite_entities_service.service.config import CONFIG
 
     def _client(
-        auth_role: Literal["read", "readWrite"] | None = None
+        auth_role: Literal["read", "write"] | None = None
     ) -> TestClient | Client:
         """Return the test client with the given authentication role."""
         if not live_backend:
@@ -653,9 +645,9 @@ def client(
         if auth_role is None:
             auth_role = "read"
 
-        assert auth_role in ("read", "readWrite"), (
+        assert auth_role in ("read", "write"), (
             f"Invalid authentication role {auth_role!r}. Must be either 'read' or "
-            "'readWrite'."
+            "'write'."
         )
 
         host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(

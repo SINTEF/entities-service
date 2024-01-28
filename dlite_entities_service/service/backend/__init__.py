@@ -20,7 +20,7 @@ else:
 
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
+    from typing import Any, Literal
 
     from dlite_entities_service.service.backend.backend import Backend
 
@@ -29,7 +29,6 @@ class Backends(StrEnum):
     """Backends."""
 
     MONGODB = "mongodb"
-    ADMIN = "admin"
 
     # Testing
     MONGOMOCK = "mongomock"
@@ -41,18 +40,40 @@ class Backends(StrEnum):
 
             return MongoDBBackend
 
-        if self == self.ADMIN:
-            from dlite_entities_service.service.backend.admin import AdminBackend
+        raise NotImplementedError(f"Backend {self} not implemented")
 
-            return AdminBackend
+    def get_auth_level_settings(
+        self, auth_level: Literal["read", "write"] = "read"
+    ) -> dict[str, Any]:
+        """Get the settings for the auth level."""
+        from dlite_entities_service.service.config import CONFIG
+
+        if self in (self.MONGODB, self.MONGOMOCK):
+            if auth_level == "read":
+                return {
+                    "auth_level": auth_level,
+                    "mongo_username": CONFIG.mongo_user,
+                    "mongo_password": CONFIG.mongo_password,
+                }
+
+            if auth_level == "write":
+                return {
+                    "auth_level": auth_level,
+                    "mongo_x509_certificate_file": CONFIG.x509_certificate_file,
+                    "mongo_ca_file": CONFIG.ca_file,
+                }
+
+            raise ValueError(
+                f"Unknown auth level: {auth_level!r} (valid: 'read', 'write')"
+            )
 
         raise NotImplementedError(f"Backend {self} not implemented")
 
 
 def get_backend(
     backend: Backends | str | None = None,
+    auth_level: Literal["read", "write"] = "read",
     settings: dict[str, Any] | None = None,
-    authenticated_user: bool = True,
 ) -> Backend:
     """Get a backend instance."""
     from dlite_entities_service.service.config import CONFIG
@@ -70,22 +91,8 @@ def get_backend(
 
     backend_class = backend.get_class()
 
-    # Expect an authenticated user for all backends except the admin backend.
-    # But leave the choice to "re"-authenticate the user to the backend (if not the
-    # admin backend).
-    authenticated_user = authenticated_user and (backend != Backends.ADMIN)
+    backend_settings = backend.get_auth_level_settings(auth_level)
+    if settings is not None:
+        backend_settings.update(settings)
 
-    return backend_class(settings, authenticated_user=authenticated_user)
-
-
-def clear_caches() -> None:
-    """Clear all internal service caches."""
-    from dlite_entities_service.service.backend import mongodb
-
-    if mongodb.MONGO_CLIENTS is None:
-        return
-
-    for client in mongodb.MONGO_CLIENTS.values():
-        client.close()
-
-    mongodb.MONGO_CLIENTS = None
+    return backend_class(settings=backend_settings)

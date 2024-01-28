@@ -53,7 +53,6 @@ class Backend(ABC):
     def __init__(
         self,
         settings: BackendSettings | dict[str, Any] | None = None,
-        authenticated_user: bool = False,  # noqa: ARG002
     ) -> None:
         if isinstance(settings, dict):
             settings = self._settings_model(**settings)
@@ -75,8 +74,8 @@ class Backend(ABC):
     def __str__(self) -> str:
         return self.__class__.__name__
 
-    # def __del__(self) -> None:
-    #     self.close()
+    def __del__(self) -> None:
+        self.close()
 
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:

@@ -17,12 +17,11 @@ services:
       # ENTITY_SERVICE_MONGO_PASSWORD:
       # ENTITY_SERVICE_MONGO_DB:
       # ENTITY_SERVICE_MONGO_COLLECTION:
-      ENTITY_SERVICE_ADMIN_BACKEND: admin
-      ENTITY_SERVICE_ADMIN_USER: ${ENTITY_SERVICE_ADMIN_USER:-root}
-      ENTITY_SERVICE_ADMIN_PASSWORD: ${ENTITY_SERVICE_ADMIN_PASSWORD:-root}
-      # ENTITY_SERVICE_ADMIN_DB:
+      # ENTITY_SERVICE_X509_CERTIFICATE_FILE: "/mongo_tls/test-client.pem"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+        restart: true
     networks:
       - dlite_entities_net
     volumes:
@@ -36,10 +35,21 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${ENTITY_SERVICE_ADMIN_USER:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${ENTITY_SERVICE_ADMIN_PASSWORD:-root}
+      IN_DOCKER: "true"
     networks:
       - dlite_entities_net
     expose:
       - 27017
+    volumes:
+      - "./.github/docker_init/1_setup_mongo_security.sh:/docker-entrypoint-initdb.d/1_setup_mongo_security.sh"
+      - "./.github/docker_init/2_create_x509_user.js:/docker-entrypoint-initdb.d/2_create_x509_user.js"
+      - "./docker_security:/mongo_tls"
+    command: --tlsMode allowTLS --tlsCertificateKeyFile /mongo_tls/test-server1.pem --tlsCAFile /mongo_tls/test-ca.pem
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh mongodb://root:root@localhost:27017/?authSource=admin --quiet
+      interval: 40s
+      timeout: 10s
+      retries: 5
 
 networks:
   dlite_entities_net:
