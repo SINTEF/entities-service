@@ -39,26 +39,6 @@ jobs:
       matrix:
         docker_target: ["development", "production"]
 
-    services:
-      mongo:
-        image: mongo:7
-        ports:
-          - "27017:27017"
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: root
-          IN_DOCKER: true
-        volumes:
-          - "${{ github.workspace }}/.github/docker_init/1_setup_mongo_security.sh:/docker-entrypoint-initdb.d/1_setup_mongo_security.sh"
-          - "${{ github.workspace }}/.github/docker_init/2_create_x509_user.js:/docker-entrypoint-initdb.d/2_create_x509_user.js"
-          - "${{ github.workspace }}/docker_security:/mongo_tls"
-        options: >-
-          --health-cmd "echo 'db.runCommand("ping").ok' | mongosh mongodb://root:root@localhost:27017/?authSource=admin --quiet"
-          --health-interval 40s
-          --health-timeout 10s
-          --health-retries 5
-          --entrypoint "["docker-entrypoint.sh", "--tlsMode", "allowTLS", "--tlsCertificateKeyFile", "/mongo_tls/test-server1.pem", "--tlsCAFile", "/mongo_tls/test-ca.pem", "--tlsAllowInvalidHostnames"]"
-
     env:
       # "Regular" entities service configuration values
       ENTITY_SERVICE_MONGO_URI: mongodb://localhost:27017
@@ -79,6 +59,28 @@ jobs:
         run: |
           mkdir -p docker_security
           chmod 777 docker_security
+
+      - name: Run MongoDB
+        run: |
+          docker pull mongo:7
+          docker run --rm -d \
+            --env MONGO_INITDB_ROOT_USERNAME=root \
+            --env MONGO_INITDB_ROOT_PASSWORD=root \
+            --env IN_DOCKER=true \
+            --name "mongo" \
+            --network "host" \
+            --volume "${PWD}/.github/docker_init/1_setup_mongo_security.sh:/docker-entrypoint-initdb.d/1_setup_mongo_security.sh" \
+            --volume "${PWD}/.github/docker_init/2_create_x509_user.js:/docker-entrypoint-initdb.d/2_create_x509_user.js" \
+            --volume "${PWD}/docker_security:/mongo_tls" \
+            --health-cmd "echo 'db.runCommand("ping").ok' | mongosh mongodb://root:root@localhost:27017/?authSource=admin --quiet" \
+            --health-interval 40s \
+            --health-timeout 10s \
+            --health-retries 5 \
+            mongo:7 \
+            --tlsMode allowTLS \
+            --tlsCertificateKeyFile /mongo_tls/test-server1.pem \
+            --tlsCAFile /mongo_tls/test-ca.pem \
+            --tlsAllowInvalidHostnames
 
       - name: Build Docker image
         run: |
