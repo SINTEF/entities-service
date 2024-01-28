@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
     from fastapi.testclient import TestClient
     from httpx import Client
+    from pytest_httpx import HTTPXMock
 
     from dlite_entities_service.service.backend.mongodb import MongoDBBackend
 
@@ -31,7 +32,9 @@ if TYPE_CHECKING:
         """Protocol for the client fixture."""
 
         def __call__(
-            self, auth_role: Literal["read", "write"] | None = None
+            self,
+            auth_role: Literal["read", "write"] | None = None,
+            raise_server_exceptions: bool = True,
         ) -> TestClient | Client:
             ...
 
@@ -41,6 +44,12 @@ if TYPE_CHECKING:
         def __call__(
             self, auth_role: Literal["read", "write"] | None = None
         ) -> UserDict:
+            ...
+
+    class MockAuthVerification(Protocol):
+        """Protocol for the mock_auth_verification fixture."""
+
+        def __call__(self, auth_role: Literal["read", "write"] | None = None) -> None:
             ...
 
 
@@ -299,17 +308,16 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     if "parameterized_entity" not in metafunc.fixturenames:
         return
 
+    import re
     from copy import deepcopy
     from pathlib import Path
 
     import yaml
 
+    from dlite_entities_service.service.config import CONFIG
+
     def get_version_name(uri: str) -> tuple[str, str]:
         """Return the version and name part of a uri."""
-        import re
-
-        from dlite_entities_service.service.config import CONFIG
-
         # namespace = "http://onto-ns.com/meta"
         namespace = str(CONFIG.base_url).rstrip("/")
 
@@ -542,7 +550,7 @@ def _mongo_test_collection(
 
 @pytest.fixture(autouse=True)
 def _reset_mongo_test_collection(
-    live_backend: bool, get_backend_user: GetBackendUserFixture, static_dir: Path
+    get_backend_user: GetBackendUserFixture, static_dir: Path
 ) -> None:
     """Purge the MongoDB test collection."""
     import yaml
@@ -619,8 +627,129 @@ def _empty_backend_collection(
 
 
 @pytest.fixture()
+def token_mock() -> str:
+    """Return a mock token.
+
+    Overwrite `token_mock` fixture from `httpx_auth.testing`.
+    """
+    return (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb290IiwiaXNzIjoiaHR0cDovL29u"
+        "dG8tbnMuY29tL21ldGEiLCJleHAiOjE3MDYxOTI1OTAsImNsaWVudF9pZCI6Imh0dHA6Ly9vbnRvL"
+        "W5zLmNvbS9tZXRhIiwiaWF0IjoxNzA2MTkwNzkwfQ.FzvzWyI_CNrLkHhr4oPRQ0XEY8H9DL442QD"
+        "8tM8dhVM"
+    )
+
+
+@pytest.fixture()
+def auth_header(token_mock: str) -> dict[Literal["Authorization"], str]:
+    """Return the authentication header."""
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    mock_credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer",
+        credentials=token_mock,
+    )
+    return {
+        "Authorization": f"{mock_credentials.scheme} {mock_credentials.credentials}"
+    }
+
+
+@pytest.fixture()
+def mock_auth_verification(
+    httpx_mock: HTTPXMock,
+    get_backend_user: GetBackendUserFixture,
+    auth_header: dict[Literal["Authorization"], str],
+) -> MockAuthVerification:
+    """Mock authentication on the /_admin endpoints."""
+    from dlite_entities_service.service.config import CONFIG
+
+    # OpenID configuration
+    httpx_mock.add_response(
+        url=(
+            f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+            "/.well-known/openid-configuration"
+        ),
+        json={
+            "issuer": str(CONFIG.oauth2_provider).rstrip("/"),
+            "authorization_endpoint": (
+                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/authorize"
+            ),
+            "token_endpoint": f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
+            "userinfo_endpoint": (
+                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo"
+            ),
+            "jwks_uri": (
+                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/discovery/keys"
+            ),
+            "response_types_supported": [
+                "code",
+            ],
+            "subject_types_supported": [
+                "public",
+            ],
+            "id_token_signing_alg_values_supported": [
+                "RS256",
+            ],
+            "code_challenge_methods_supported": [
+                "plain",
+                "S256",
+            ],
+        },
+    )
+
+    def _mock_auth_verification(
+        auth_role: Literal["read", "write"] | None = None
+    ) -> None:
+        """Mock authentication on the /_admin endpoints."""
+        if auth_role is None:
+            auth_role = "read"
+
+        assert auth_role in (
+            "read",
+            "write",
+        ), "The authentication role must be either 'read' or 'write'."
+
+        backend_user = get_backend_user(auth_role)
+        groups_role_developer = {
+            "https://gitlab.org/claims/groups/developer": (
+                [CONFIG.roles_group] if auth_role == "write" else []
+            )
+        }
+
+        # Userinfo endpoint
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo",
+            json={
+                "sub": backend_user["username"],
+                "name": backend_user["username"],
+                "nickname": backend_user["username"],
+                "preferred_username": backend_user["username"],
+                "website": (
+                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"/{backend_user['username']}"
+                ),
+                "profile": (
+                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"/{backend_user['username']}"
+                ),
+                "picture": (
+                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"/{backend_user['username']}"
+                ),
+                "groups": [CONFIG.roles_group],
+                "https://gitlab.org/claims/groups/owner": [],
+                "https://gitlab.org/claims/groups/maintainer": [],
+                **groups_role_developer,
+            },
+            match_headers=auth_header,
+        )
+
+    return _mock_auth_verification
+
+
+@pytest.fixture()
 def client(
-    live_backend: bool, get_backend_user: GetBackendUserFixture
+    live_backend: bool, auth_header: dict[Literal["Authorization"], str]
 ) -> ClientFixture:
     """Return the test client."""
     import os
@@ -629,17 +758,18 @@ def client(
     from httpx import Client
 
     from dlite_entities_service.main import APP
-    from dlite_entities_service.models.auth import Token
     from dlite_entities_service.service.config import CONFIG
 
     def _client(
-        auth_role: Literal["read", "write"] | None = None
+        auth_role: Literal["read", "write"] | None = None,
+        raise_server_exceptions: bool = True,
     ) -> TestClient | Client:
         """Return the test client with the given authentication role."""
         if not live_backend:
             return TestClient(
                 app=APP,
                 base_url=str(CONFIG.base_url),
+                raise_server_exceptions=raise_server_exceptions,
             )
 
         if auth_role is None:
@@ -659,34 +789,9 @@ def client(
         if port:
             base_url += f":{port}"
 
-        backend_user = get_backend_user(auth_role)
-
-        with Client(base_url=base_url) as temp_client:
-            response = temp_client.post(
-                "/_auth/token",
-                data={
-                    "grant_type": "password",
-                    "username": backend_user["username"],
-                    "password": backend_user["password"],
-                },
-            )
-
-        assert response.is_success, response.text
-        try:
-            token = Token(**response.json())
-        except Exception as exc:
-            raise ValueError(
-                "Could not parse the response from the token endpoint. "
-                f"Response:\n{response.text}"
-            ) from exc
-
-        authentication_header = {
-            "Authorization": f"{token.token_type} {token.access_token}"
-        }
-
         return Client(
             base_url=f"http://{host}:{port}",
-            headers=authentication_header,
+            headers=auth_header,
         )
 
     return _client

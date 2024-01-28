@@ -120,9 +120,14 @@ class ServiceSettings(BaseSettings):
 
     @field_validator("x509_certificate_file", "ca_file", mode="before")
     @classmethod
-    def _handle_raw_certificate(cls, value: Any, info: ValidationInfo) -> Path:
+    def _handle_raw_certificate(cls, value: Any, info: ValidationInfo) -> Any:
         """Handle the case of the value being a "raw" certificate file content."""
         cache_dir = Path.home() / ".cache" / "dlite-entities-service"
+        if not info.field_name:
+            raise ValueError(
+                "This validator can only be used for fields with a name, "
+                "i.e. not for root fields."
+            )
         cache_file_name = info.field_name.replace("_file", "")
         cache_file = cache_dir / f"{cache_file_name}.pem"
 
@@ -151,9 +156,10 @@ class ServiceSettings(BaseSettings):
 
     @field_validator("x509_certificate_file", "ca_file", mode="after")
     @classmethod
-    def _ensure_is_existing_file(cls, value: Path | None) -> Path:
+    def _ensure_is_existing_file(cls, value: Path | None) -> Path | None:
         """Ensure the certificate file exists."""
         if value is None:
+            # No certificate file provided, ca_file only
             return value
 
         if not value.exists():

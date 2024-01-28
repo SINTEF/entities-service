@@ -7,6 +7,8 @@ set -ex
 # Some configuration
 DN_server="/C=NO/ST=Trondelag/L=Trondheim/O=SINTEF/OU=Team4.0 CA Server/CN=entities-service"
 DN_client="/C=NO/ST=Trondelag/L=Trondheim/O=SINTEF/OU=Team4.0 Client/CN=entities-service"
+DNS_server_1="mongodb"
+DNS_server_2="localhost"
 
 ORIGINAL_DIR=$(pwd)
 
@@ -118,8 +120,8 @@ extendedKeyUsage  = serverAuth, clientAuth
 subjectAltName = @alt_names
 
 [ alt_names ]
-DNS.1 = mongodb
-DNS.2 = localhost
+DNS.1 = ${DNS_server_1}
+DNS.2 = ${DNS_server_2}
 
 [ req_dn ]
 countryName = Country Name (2 letter code)

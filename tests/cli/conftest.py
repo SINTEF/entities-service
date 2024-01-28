@@ -145,17 +145,6 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
 
 
 @pytest.fixture()
-def token_mock() -> str:
-    """Return a mock token."""
-    return (
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb290IiwiaXNzIjoiaHR0cDovL29u"
-        "dG8tbnMuY29tL21ldGEiLCJleHAiOjE3MDYxOTI1OTAsImNsaWVudF9pZCI6Imh0dHA6Ly9vbnRvL"
-        "W5zLmNvbS9tZXRhIiwiaWF0IjoxNzA2MTkwNzkwfQ.FzvzWyI_CNrLkHhr4oPRQ0XEY8H9DL442QD"
-        "8tM8dhVM"
-    )
-
-
-@pytest.fixture()
 def _mock_successful_oauth_response(
     monkeypatch: pytest.MonkeyPatch, token_mock: str, httpx_mock: HTTPXMock
 ) -> None:

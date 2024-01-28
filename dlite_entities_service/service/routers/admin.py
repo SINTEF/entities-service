@@ -35,7 +35,7 @@ ROUTER = APIRouter(
 # Entity-related endpoints
 @ROUTER.post(
     "/create",
-    response_model=list[VersionedSOFTEntity] | VersionedSOFTEntity,
+    response_model=list[VersionedSOFTEntity] | VersionedSOFTEntity | None,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     status_code=status.HTTP_201_CREATED,

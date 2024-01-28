@@ -75,7 +75,8 @@ class Backend(ABC):
         return self.__class__.__name__
 
     def __del__(self) -> None:
-        self.close()
+        if not self._is_closed:
+            self.close()
 
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:

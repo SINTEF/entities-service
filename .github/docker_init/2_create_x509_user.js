@@ -9,6 +9,16 @@ db.getSiblingDB("$external").runCommand(
 
 db.createUser(
     {
+        user: "root",
+        pwd: "root",
+        roles: [
+            { role: "root", db: "admin" }
+        ]
+    }
+)
+
+db.createUser(
+    {
         user: "guest",
         pwd: "guest",
         roles: [

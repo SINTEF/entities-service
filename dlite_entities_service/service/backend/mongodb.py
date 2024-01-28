@@ -197,6 +197,8 @@ def get_client(
             "tlsCertificateKeyFile": str(
                 certificate_file or CONFIG.x509_certificate_file
             ),
+            "authSource": "$external",
+            "authMechanism": "MONGODB-X509",
         }
         if ca_file or CONFIG.ca_file:
             client_options["tlsCAFile"] = str(ca_file or CONFIG.ca_file)

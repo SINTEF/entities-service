@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
     from ..conftest import ParameterizeGetEntities
 
+pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
@@ -38,7 +39,6 @@ def test_upload_filepath(
     cli: CliRunner,
     static_dir: Path,
     httpx_mock: HTTPXMock,
-    live_backend: bool,
     token_mock,
 ) -> None:
     """Test upload with a filepath."""
@@ -64,15 +64,14 @@ def test_upload_filepath(
         status_code=404,  # not found
     )
 
-    if not live_backend:
-        # Mock response for "Upload entities"
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_headers={"Authorization": f"Bearer {token_mock}"},
-            match_json=[raw_entity],
-            status_code=201,  # created
-        )
+    # Mock response for "Upload entities"
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_headers={"Authorization": f"Bearer {token_mock}"},
+        match_json=[raw_entity],
+        status_code=201,  # created
+    )
 
     result = cli.invoke(main.APP, f"upload --file {entity_filepath}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -175,7 +174,6 @@ def test_upload_directory(
     cli: CliRunner,
     static_dir: Path,
     httpx_mock: HTTPXMock,
-    live_backend: bool,
     token_mock: str,
 ) -> None:
     """Test upload with a directory."""
@@ -204,14 +202,13 @@ def test_upload_directory(
             status_code=404,  # not found
         )
 
-    if not live_backend:
-        # Mock response for "Upload entities"
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_headers={"Authorization": f"Bearer {token_mock}"},
-            status_code=201,  # created
-        )
+    # Mock response for "Upload entities"
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_headers={"Authorization": f"Bearer {token_mock}"},
+        status_code=201,  # created
+    )
 
     result = cli.invoke(main.APP, f"upload --dir {directory}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -416,7 +413,6 @@ def test_existing_entity_different_content(
     static_dir: Path,
     httpx_mock: HTTPXMock,
     tmp_path: Path,
-    live_backend: bool,
     token_mock: str,
 ) -> None:
     """Test that an incoming entity can be uploaded with a new version due to an
@@ -491,14 +487,13 @@ def test_existing_entity_different_content(
         f"{original_uri_match_dict['namespace']}/0.1.1"
         f"/{original_uri_match_dict['name']}"
     )
-    if not live_backend:
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_headers={"Authorization": f"Bearer {token_mock}"},
-            match_json=[new_entity_file_to_be_uploaded],
-            status_code=201,  # created
-        )
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_headers={"Authorization": f"Bearer {token_mock}"},
+        match_json=[new_entity_file_to_be_uploaded],
+        status_code=201,  # created
+    )
 
     result = cli.invoke(
         APP,
@@ -532,14 +527,13 @@ def test_existing_entity_different_content(
         f"{original_uri_match_dict['namespace']}/{custom_version}"
         f"/{original_uri_match_dict['name']}"
     )
-    if not live_backend:
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_headers={"Authorization": f"Bearer {token_mock}"},
-            match_json=[new_entity_file_to_be_uploaded],
-            status_code=201,  # created
-        )
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_headers={"Authorization": f"Bearer {token_mock}"},
+        match_json=[new_entity_file_to_be_uploaded],
+        status_code=201,  # created
+    )
 
     result = cli.invoke(
         APP,
@@ -667,7 +661,6 @@ def test_existing_entity_errors(
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
-@pytest.mark.skip_if_live_backend("Does not raise HTTP errors in this case.")
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_http_errors(
     cli: CliRunner,
@@ -730,7 +723,6 @@ def test_http_errors(
     assert not result.stdout
 
 
-@pytest.mark.skip_if_live_backend("Does not raise JSON decode errors in this case.")
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_json_decode_errors(
     cli: CliRunner,
@@ -799,7 +791,6 @@ def test_unable_to_upload(
     static_dir: Path,
     httpx_mock: HTTPXMock,
     parameterized_entity: ParameterizeGetEntities,
-    live_backend: bool,
 ) -> None:
     """Ensure a proper error message is given if an entity cannot be uploaded."""
     import json
@@ -812,12 +803,11 @@ def test_unable_to_upload(
         ".json"
     )
 
-    if not live_backend:
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            status_code=401,
-            json=error_message,
-        )
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=401,
+        json=error_message,
+    )
 
     result = cli.invoke(APP, f"upload --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(

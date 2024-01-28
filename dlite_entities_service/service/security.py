@@ -37,7 +37,8 @@ async def get_openid_config() -> OpenIDConfiguration:
     async with AsyncClient() as client:
         try:
             response = await client.get(
-                f"{CONFIG.oauth2_provider}/.well-known/openid-configuration"
+                f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                "/.well-known/openid-configuration"
             )
         except HTTPError as exc:
             raise ValueError("Could not get OpenID configuration.") from exc
@@ -94,6 +95,11 @@ async def verify_token(
 
     if CONFIG.roles_group not in userinfo.groups:
         LOGGER.error("User is not a member of the entities-service group.")
+        credentials_exception.status_code = status.HTTP_403_FORBIDDEN
+        credentials_exception.detail = (
+            "You are not a member of the entities-service group. "
+            "Please contact the entities-service group maintainer."
+        )
         raise credentials_exception
 
     if not any(
@@ -106,8 +112,13 @@ async def verify_token(
     ):
         LOGGER.error(
             "User does not have the rights to create entities. "
-            "Change %s's role in the GitLab group %r",
+            "Hint: Change %s's role in the GitLab group %r",
             userinfo.preferred_username,
             CONFIG.roles_group,
+        )
+        credentials_exception.status_code = status.HTTP_403_FORBIDDEN
+        credentials_exception.detail = (
+            "You do not have the rights to create entities. "
+            "Please contact the entities-service group maintainer."
         )
         raise credentials_exception

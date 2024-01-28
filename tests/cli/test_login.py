@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
     from ..conftest import ParameterizeGetEntities
 
+pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
@@ -21,19 +22,17 @@ CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 def test_login(
     cli: CliRunner,
     httpx_mock: HTTPXMock,
-    live_backend: bool,
 ) -> None:
     """Test the `entities-service login` CLI command."""
     from dlite_entities_service.cli.main import APP
     from dlite_entities_service.service.config import CONFIG
 
-    if not live_backend:
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_json=[],
-            status_code=204,  # no content
-        )
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_json=[],
+        status_code=204,  # no content
+    )
 
     # Run the CLI command
     result = cli.invoke(APP, "login")
@@ -50,7 +49,6 @@ def test_token_persistence(
     httpx_mock: HTTPXMock,
     static_dir: Path,
     parameterized_entity: ParameterizeGetEntities,
-    live_backend: bool,
     tmp_cache_file: Path,
     token_mock: str,
 ) -> None:
@@ -70,23 +68,22 @@ def test_token_persistence(
         ".json"
     )
 
-    if not live_backend:
-        # Mock the authorization check response
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_json=[],
-            status_code=204,  # no content
-        )
+    # Mock the authorization check response
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_json=[],
+        status_code=204,  # no content
+    )
 
-        # Mock response for "Create entities"
-        httpx_mock.add_response(
-            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-            method="POST",
-            match_headers={"Authorization": f"Bearer {token_mock}"},
-            match_json=[parameterized_entity.backend_entity],
-            status_code=201,  # created
-        )
+    # Mock response for "Create entities"
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_headers={"Authorization": f"Bearer {token_mock}"},
+        match_json=[parameterized_entity.backend_entity],
+        status_code=201,  # created
+    )
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
@@ -133,7 +130,6 @@ def test_login_invalid_credentials(
         assert not result.stdout
 
 
-@pytest.mark.skip_if_live_backend("Does not raise HTTP errors in this case.")
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if an HTTP error occurs."""
@@ -165,7 +161,6 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     assert not result.stdout
 
 
-@pytest.mark.skip_if_live_backend("Does not raise JSON decode errors in this case.")
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_json_decode_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if a JSON decode error occurs."""
