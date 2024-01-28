@@ -47,13 +47,21 @@ jobs:
         env:
           MONGO_INITDB_ROOT_USERNAME: root
           MONGO_INITDB_ROOT_PASSWORD: root
+          IN_DOCKER: true
+        volumes:
+          - "${{ github.workspace }}/.github/docker_init/1_setup_mongo_security.sh:/docker-entrypoint-initdb.d/1_setup_mongo_security.sh"
+          - "${{ github.workspace }}/.github/docker_init/2_create_x509_user.js:/docker-entrypoint-initdb.d/2_create_x509_user.js"
+          - "${{ github.workspace }}/docker_security:/mongo_tls"
+        options: >-
+          --health-cmd "echo 'db.runCommand("ping").ok' | mongosh mongodb://root:root@localhost:27017/?authSource=admin --quiet"
+          --health-interval 40s
+          --health-timeout 10s
+          --health-retries 5
+          --entrypoint=["docker-entrypoint.sh", "--bind_ip_all", "--tlsMode", "allowTLS", "--tlsCertificateKeyFile", "/mongo_tls/test-server1.pem", "--tlsCAFile", "/mongo_tls/test-ca.pem", "--tlsAllowInvalidHostnames"]
 
     env:
       # "Regular" entities service configuration values
       ENTITY_SERVICE_MONGO_URI: mongodb://localhost:27017
-      ENTITY_SERVICE_ADMIN_USER: "root"  # should be the same as MONGO_INITDB_ROOT_USERNAME above
-      ENTITY_SERVICE_ADMIN_PASSWORD: "root"  # should be the same as MONGO_INITDB_ROOT_PASSWORD above
-      ENTITY_SERVICE_ADMIN_DB: admin
       # These are used in the Dockerfile as well as in pytest
       ENTITY_SERVICE_HOST: localhost
       ENTITY_SERVICE_PORT: 8000
@@ -67,8 +75,10 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Create test SSL key
-        run: echo "ENTITY_SERVICE_PRIVATE_SSL_KEY=$(openssl rand -hex 32)" >> $GITHUB_ENV
+      - name: Create mongo_tls folder
+        run: |
+          mkdir -p docker_security
+          chmod 777 docker_security
 
       - name: Build Docker image
         run: |
@@ -81,7 +91,7 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install -U pip
-          pip install -U setuptools wheel flit
+          pip install -U setuptools wheel
           pip install -U -e .[testing]
 
       - name: Run Docker container
@@ -93,10 +103,6 @@ jobs:
           # Run the service in the background
           docker run --rm -d \
             --env ENTITY_SERVICE_MONGO_URI \
-            --env ENTITY_SERVICE_ADMIN_USER \
-            --env ENTITY_SERVICE_ADMIN_PASSWORD \
-            --env ENTITY_SERVICE_ADMIN_DB \
-            --env ENTITY_SERVICE_PRIVATE_SSL_KEY \
             --env PORT=${ENTITY_SERVICE_PORT} \
             --env RUN_TIME=40 \
             --env STOP_TIME=3 \
