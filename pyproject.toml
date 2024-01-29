@@ -39,10 +39,10 @@ cli = [
     "typer[all] >=0.9.0,<1",
 ]
 testing = [
-    "dlite-python ~=0.4.6; python_version < '3.12'",
+    "dlite-python ~=0.5.1; python_version < '3.12'",
     "httpx >=0.25.1,<1",
     "mongomock ~=4.1",
-    "pytest ~=7.4",
+    "pytest >=7.4.0,<9",
     "pytest-cov ~=4.1",
     "pyyaml ~=6.0",
     "dlite-entities-service[cli]",
