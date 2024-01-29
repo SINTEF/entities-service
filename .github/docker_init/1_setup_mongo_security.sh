@@ -12,7 +12,7 @@ DNS_server_2="localhost"
 
 ORIGINAL_DIR=$(pwd)
 
-if [ -z "${IN_DOCKER}" ] && [ -z "${CI}" ]; then
+if [ -z "${IN_DOCKER}" && -z "${CI}" ]; then
     TARGET_DIR=${ORIGINAL_DIR}
 else
     # Running through Docker Compose
