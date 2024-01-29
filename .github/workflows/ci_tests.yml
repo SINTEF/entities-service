@@ -57,15 +57,15 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Create mongo_tls folder
+      - name: Run MongoDB
         run: |
+          # Create folder for certificates
           mkdir -p docker_security
           chmod 777 docker_security
 
-      - name: Run MongoDB
-        run: |
+          # Pull mongo:7 image and run it
           docker pull mongo:7
-          docker run --rm -d \
+          docker run --rm \
             --env MONGO_INITDB_ROOT_USERNAME=root \
             --env MONGO_INITDB_ROOT_PASSWORD=root \
             --env IN_DOCKER=true \
