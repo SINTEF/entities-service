@@ -101,6 +101,8 @@ jobs:
           mkdir -p logs
           touch -a logs/dlite_entities_service.log
 
+          docker logs mongo
+
           # Run the service in the background
           docker run --rm -d \
             --env ENTITY_SERVICE_MONGO_URI \
