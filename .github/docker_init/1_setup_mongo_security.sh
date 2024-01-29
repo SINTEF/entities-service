@@ -210,5 +210,3 @@ cat mongodb-test-client.crt mongodb-test-client.key > test-client.pem
 mv -fZ *.pem ${TARGET_DIR}
 cd ${TARGET_DIR}
 rm -rf /tmp/mongodb-test
-
-## 4. Create an accompanying user
