@@ -15,7 +15,7 @@ from pydantic import (
 )
 from pydantic.networks import AnyHttpUrl
 
-from dlite_entities_service.service.config import CONFIG
+from entities_service.service.config import CONFIG
 
 URI_REGEX = re.compile(
     r"^(?P<namespace>https?://.+)/(?P<version>\d(?:\.\d+){0,2})/(?P<name>[^/#?]+)$"

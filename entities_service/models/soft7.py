@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from dlite_entities_service.models.soft import SOFTEntity, SOFTProperty
+from entities_service.models.soft import SOFTEntity, SOFTProperty
 
 
 class SOFT7Property(SOFTProperty):

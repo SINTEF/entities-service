@@ -14,8 +14,8 @@ def test_soft_entity(static_dir: Path) -> None:
     """Test soft_entity function."""
     import json
 
-    from dlite_entities_service.models import soft_entity
-    from dlite_entities_service.models.dlite import DLiteSOFT5Entity, DLiteSOFT7Entity
+    from entities_service.models import soft_entity
+    from entities_service.models.dlite import DLiteSOFT5Entity, DLiteSOFT7Entity
 
     # Test that the function returns the correct version of the entity
     soft5_model_file = static_dir / "valid_entities" / "Cat.json"
@@ -34,10 +34,10 @@ def test_soft_entity_error(static_dir: Path) -> None:
 
     from pydantic import ValidationError
 
-    from dlite_entities_service.models import soft_entity
-    from dlite_entities_service.models.dlite import DLiteSOFT5Entity, DLiteSOFT7Entity
-    from dlite_entities_service.models.soft5 import SOFT5Entity
-    from dlite_entities_service.models.soft7 import SOFT7Entity
+    from entities_service.models import soft_entity
+    from entities_service.models.dlite import DLiteSOFT5Entity, DLiteSOFT7Entity
+    from entities_service.models.soft5 import SOFT5Entity
+    from entities_service.models.soft7 import SOFT7Entity
 
     # Test that the function returns the correct version of the entity
     invalid_model_file = static_dir / "invalid_entities" / "Cat.json"
@@ -82,7 +82,7 @@ def test_get_uri(static_dir: Path) -> None:
     """Test get_uri function."""
     import json
 
-    from dlite_entities_service.models import get_uri, soft_entity
+    from entities_service.models import get_uri, soft_entity
 
     # Test that the function returns the correct version of the entity
     model_file = static_dir / "valid_entities" / "Cat.json"
@@ -117,7 +117,7 @@ def test_get_version(static_dir: Path) -> None:
     """Test get_version function."""
     import json
 
-    from dlite_entities_service.models import URI_REGEX, get_version, soft_entity
+    from entities_service.models import URI_REGEX, get_version, soft_entity
 
     # Test that the function returns the correct version of the entity based on the URI
     model_file = static_dir / "valid_entities" / "Cat.json"
@@ -172,7 +172,7 @@ def test_get_updated_version(
     """
     import json
 
-    from dlite_entities_service.models import get_updated_version, soft_entity
+    from entities_service.models import get_updated_version, soft_entity
 
     model_file = static_dir / "valid_entities" / "Cat.json"
     model: dict[str, Any] = json.loads(model_file.read_text())
@@ -188,7 +188,7 @@ def test_get_updated_version_errors(static_dir: Path) -> None:
     """Test get_updated_version function errors as expected."""
     import json
 
-    from dlite_entities_service.models import get_updated_version, soft_entity
+    from entities_service.models import get_updated_version, soft_entity
 
     model_file = static_dir / "valid_entities" / "Cat.json"
     model: dict[str, Any] = json.loads(model_file.read_text())

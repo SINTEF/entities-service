@@ -6,8 +6,8 @@ from typing import Annotated
 from pydantic import AliasChoices, Field, field_validator
 from pydantic.networks import AnyHttpUrl
 
-from dlite_entities_service.models.soft5 import SOFT5Entity, SOFT5Property
-from dlite_entities_service.models.soft7 import SOFT7Entity, SOFT7Property
+from entities_service.models.soft5 import SOFT5Entity, SOFT5Property
+from entities_service.models.soft7 import SOFT7Entity, SOFT7Property
 
 
 class DLiteSOFT5Property(SOFT5Property):
