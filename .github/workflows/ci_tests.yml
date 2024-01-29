@@ -70,8 +70,8 @@ jobs:
           # Pull mongo:7 image and run it
           docker pull mongo:7
           docker run --rm -d \
-            --env IN_DOCKER=true \
-            --env CI \
+            --env MONGO_INITDB_ROOT_USERNAME=root \
+            --env MONGO_INITDB_ROOT_PASSWORD=root \
             --name "mongo" \
             --network "host" \
             --volume "${{ github.workspace }}/.github/docker_init/2_create_x509_user.js:/docker-entrypoint-initdb.d/2_create_x509_user.js" \
@@ -99,8 +99,6 @@ jobs:
           # Create logging directory and file
           mkdir -p logs
           touch -a logs/dlite_entities_service.log
-
-          docker logs mongo
 
           # Run the service in the background
           docker run --rm -d \
