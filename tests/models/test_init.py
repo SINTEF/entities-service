@@ -15,7 +15,8 @@ def test_soft_entity(static_dir: Path) -> None:
     import json
 
     from entities_service.models import soft_entity
-    from entities_service.models.dlite import DLiteSOFT5Entity, DLiteSOFT7Entity
+    from entities_service.models.dlite_soft5 import DLiteSOFT5Entity
+    from entities_service.models.dlite_soft7 import DLiteSOFT7Entity
 
     # Test that the function returns the correct version of the entity
     soft5_model_file = static_dir / "valid_entities" / "Cat.json"
@@ -35,7 +36,8 @@ def test_soft_entity_error(static_dir: Path) -> None:
     from pydantic import ValidationError
 
     from entities_service.models import soft_entity
-    from entities_service.models.dlite import DLiteSOFT5Entity, DLiteSOFT7Entity
+    from entities_service.models.dlite_soft5 import DLiteSOFT5Entity
+    from entities_service.models.dlite_soft7 import DLiteSOFT7Entity
     from entities_service.models.soft5 import SOFT5Entity
     from entities_service.models.soft7 import SOFT7Entity
 
@@ -52,9 +54,7 @@ def test_soft_entity_error(static_dir: Path) -> None:
     # The order here is important, as it represents the order in which the models
     # are tried in the soft_entity function.
     # The order is defined by the Union arguments in the Entity type:
-    # Entity = SOFT7Entity | SOFT5Entity | DLiteEntity
-    # And again the order of the Union arguments in the DLiteEntity type:
-    # DLiteEntity = DLiteSOFT7Entity | DLiteSOFT5Entity
+    # Entity = SOFT7Entity | SOFT5Entity | DLiteSOFT7Entity | DLiteSOFT5Entity
     try:
         SOFT7Entity(**invalid_model)
     except ValidationError as exc:

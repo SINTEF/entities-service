@@ -5,12 +5,13 @@ from typing import get_args
 
 from pydantic import ValidationError
 
-from .dlite import DLiteEntity
+from .dlite_soft5 import DLiteSOFT5Entity
+from .dlite_soft7 import DLiteSOFT7Entity
 from .soft import URI_REGEX
 from .soft5 import SOFT5Entity
 from .soft7 import SOFT7Entity
 
-Entity = SOFT7Entity | SOFT5Entity | DLiteEntity
+Entity = SOFT7Entity | SOFT5Entity | DLiteSOFT7Entity | DLiteSOFT5Entity
 
 
 def soft_entity(
