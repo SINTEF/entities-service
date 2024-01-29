@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from entities_service.models.dlite import DLiteEntity, DLiteProperty
+from entities_service.models.dlite_soft import DLiteEntity, DLiteProperty
 from entities_service.models.soft5 import SOFT5Entity, SOFT5Property
 
 
