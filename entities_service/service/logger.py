@@ -20,7 +20,7 @@ def disable_logging():
     Usage:
 
     ```python
-    from dlite_entities_service.logger import disable_logging
+    from entities_service.logger import disable_logging
 
     # Do stuff, logging to all handlers.
     # ...
@@ -43,7 +43,7 @@ def disable_logging():
 
 def _get_service_logger_handlers() -> list[logging.Handler]:
     """Return a list of handlers for the service logger."""
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     # Create logs directory
     root_dir = Path(__file__).resolve().parent.parent.parent.resolve()
@@ -52,7 +52,7 @@ def _get_service_logger_handlers() -> list[logging.Handler]:
 
     # Set handlers
     file_handler = logging.handlers.RotatingFileHandler(
-        logs_dir / "dlite_entities_service.log", maxBytes=1000000, backupCount=5
+        logs_dir / "entities_service.log", maxBytes=1000000, backupCount=5
     )
     file_handler.setLevel(logging.DEBUG)
 
@@ -74,7 +74,7 @@ def _get_service_logger_handlers() -> list[logging.Handler]:
 
 def setup_logger() -> None:
     """Return a logger with the given name."""
-    logger = logging.getLogger("dlite_entities_service")
+    logger = logging.getLogger("entities_service")
     logger.setLevel(logging.DEBUG)
 
     for handler in _get_service_logger_handlers():

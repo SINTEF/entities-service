@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from dlite_entities_service.models import VersionedSOFTEntity, get_uri
-from dlite_entities_service.service.backend import get_backend
-from dlite_entities_service.service.config import CONFIG
-from dlite_entities_service.service.security import verify_token
+from entities_service.models import VersionedSOFTEntity, get_uri
+from entities_service.service.backend import get_backend
+from entities_service.service.config import CONFIG
+from entities_service.service.security import verify_token
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

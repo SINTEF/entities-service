@@ -1,4 +1,4 @@
-"""SOFT7 models."""
+"""SOFT5 models."""
 from __future__ import annotations
 
 import difflib
@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 from pydantic.networks import AnyHttpUrl
 
-from dlite_entities_service.service.config import CONFIG
+from entities_service.service.config import CONFIG
 
 URI_REGEX = re.compile(
     r"^(?P<namespace>https?://.+)/(?P<version>\d(?:\.\d+){0,2})/(?P<name>[^/#?]+)$"
@@ -16,16 +16,22 @@ URI_REGEX = re.compile(
 """Regular expression to parse a SOFT entity URI."""
 
 
-class SOFT7Property(BaseModel):
-    """The defining metadata for a SOFT7 Entity's property."""
+class SOFT5Dimension(BaseModel):
+    """The defining metadata for a SOFT5 Entity's dimension."""
+
+    name: Annotated[str, Field(description="The name of the dimension.")]
+    description: Annotated[
+        str, Field(description="A human-readable description of the dimension.")
+    ]
+
+
+class SOFT5Property(BaseModel):
+    """The defining metadata for a SOFT5 Entity's property."""
 
     name: Annotated[
         str | None,
         Field(
-            description=(
-                "The name of the property. This is not necessary if the SOFT7 approach "
-                "to entities are taken."
-            ),
+            description=("The name of the property."),
         ),
     ] = None
     type_: Annotated[
@@ -46,7 +52,7 @@ class SOFT7Property(BaseModel):
             ),
         ),
     ] = None
-    shape: Annotated[
+    dims: Annotated[
         list[str] | None,
         Field(
             description=(
@@ -55,7 +61,7 @@ class SOFT7Property(BaseModel):
                 "instance, if an entity have dimensions with names `H`, `K`, and `L` "
                 "and a property with shape `['K', 'H+1']`, the property of an instance "
                 "of this entity with dimension values `H=2`, `K=2`, `L=6` will have "
-                "shape `[2, 3]`. Note, this was called `dims` in SOFT5."
+                "shape `[2, 3]`."
             ),
         ),
     ] = None
@@ -65,8 +71,8 @@ class SOFT7Property(BaseModel):
     ]
 
 
-class SOFT7Entity(BaseModel):
-    """A SOFT7 Entity returned from this service."""
+class SOFT5Entity(BaseModel):
+    """A SOFT5 Entity returned from this service."""
 
     name: Annotated[str | None, Field(description="The name of the entity.")] = None
     version: Annotated[
@@ -79,8 +85,8 @@ class SOFT7Entity(BaseModel):
         AnyHttpUrl | None,
         Field(
             description=(
-                "The universal identifier for the entity. This MUST start with the "
-                "base URL."
+                "The universal identifier for the entity. This MUST start with the base"
+                " URL."
             ),
         ),
     ] = None
@@ -95,28 +101,24 @@ class SOFT7Entity(BaseModel):
     ] = AnyHttpUrl("http://onto-ns.com/meta/0.3/EntitySchema")
     description: Annotated[str, Field(description="Description of the entity.")] = ""
     dimensions: Annotated[
-        dict[str, str],
-        Field(description="A dict of dimensions with an accompanying description."),
-    ] = {}
-    properties: Annotated[
-        dict[str, SOFT7Property],
+        list[SOFT5Dimension],
         Field(
             description=(
-                "A dictionary of properties, mapping the property name to a dictionary "
-                "of metadata defining the property."
+                "A list of dimensions with name and an accompanying description."
             ),
         ),
+    ] = []
+    properties: Annotated[
+        list[SOFT5Property], Field(description="A list of properties.")
     ]
 
     # @field_validator("uri", "namespace", mode="after")
     # @classmethod
     # def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
-    #     """Validate `uri` and `namespace` starts with the current base URL for the
-    #     service."""
+    #     """Validate `uri` starts with the current base URL for the service."""
     #     if not str(value).startswith(str(CONFIG.base_url)):
     #         error_message = (
-    #             "This service only works with DLite/SOFT entities at "
-    #             f"{CONFIG.base_url}.\n"
+    #             f"This service only works with entities at {CONFIG.base_url}.\n"
     #         )
     #         raise ValueError(error_message)
     #     return value
@@ -139,7 +141,7 @@ class SOFT7Entity(BaseModel):
         """Validate `meta` only refers to onto-ns.com EntitySchema v0.3."""
         if str(value) != "http://onto-ns.com/meta/0.3/EntitySchema":
             error_message = (
-                "This service only works with DLite/SOFT entities using EntitySchema "
+                "This service only works with entities using EntitySchema "
                 "v0.3 at onto-ns.com as the metadata entity.\n"
             )
             raise ValueError(error_message)

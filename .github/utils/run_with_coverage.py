@@ -13,7 +13,7 @@ from coverage import Coverage
 cov = Coverage(data_file=".coverage.docker", config_file="pyproject.toml")
 cov.start()
 
-from dlite_entities_service.main import APP  # noqa: F401, E402
+from entities_service.main import APP  # noqa: F401, E402
 
 
 def save_coverage():

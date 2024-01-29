@@ -24,8 +24,8 @@ def test_login(
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test the `entities-service login` CLI command."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     httpx_mock.add_response(
         url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
@@ -57,8 +57,8 @@ def test_token_persistence(
 
     from httpx_auth import JsonTokenFileCache, OAuth2
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     assert isinstance(OAuth2.token_cache, JsonTokenFileCache)
     assert OAuth2.token_cache.tokens_path == str(tmp_cache_file)
@@ -114,7 +114,7 @@ def test_login_invalid_credentials(
     request: pytest.FixtureRequest,
 ) -> None:
     """Test that the command fails with invalid credentials."""
-    from dlite_entities_service.cli.main import APP
+    from entities_service.cli.main import APP
 
     # Run the CLI command
     result = cli.invoke(APP, "login")
@@ -135,8 +135,8 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if an HTTP error occurs."""
     from httpx import HTTPError
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     error_message = "Generic HTTP error"
 
@@ -164,8 +164,8 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_json_decode_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Ensure proper error messages are given if a JSON decode error occurs."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     # Mock the login HTTPX response
     httpx_mock.add_response(

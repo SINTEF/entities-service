@@ -21,7 +21,7 @@ CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
 def test_upload_no_args(cli: CliRunner) -> None:
     """Test `entities-service upload` CLI command."""
-    from dlite_entities_service.cli.main import APP, upload
+    from entities_service.cli.main import APP, upload
 
     result = cli.invoke(APP, "upload")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -44,8 +44,8 @@ def test_upload_filepath(
     """Test upload with a filepath."""
     import json
 
-    from dlite_entities_service.cli import main
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli import main
+    from entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
@@ -89,8 +89,8 @@ def test_upload_filepath_invalid(
     cli: CliRunner, static_dir: Path, fail_fast: bool, httpx_mock: HTTPXMock
 ) -> None:
     """Test upload with an invalid filepath."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     # Mock a good login check
     httpx_mock.add_response(
@@ -128,8 +128,8 @@ def test_upload_filepath_invalid_format(
     cli: CliRunner, tmp_path: Path, httpx_mock: HTTPXMock
 ) -> None:
     """Test upload with an invalid file format."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     (tmp_path / "Person.txt").touch()
 
@@ -151,8 +151,8 @@ def test_upload_filepath_invalid_format(
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
 def test_upload_no_file_or_dir(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     """Test error when no file or directory is provided."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     # Mock a good login check
     httpx_mock.add_response(
@@ -179,8 +179,8 @@ def test_upload_directory(
     """Test upload with a directory."""
     import json
 
-    from dlite_entities_service.cli import main
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli import main
+    from entities_service.service.config import CONFIG
 
     directory = static_dir / "valid_entities"
     raw_entities: list[dict[str, Any]] = [
@@ -230,8 +230,8 @@ def test_upload_empty_dir(
     The outcome here should be the same whether an empty directory is
     provided or a directory with only invalid files.
     """
-    from dlite_entities_service.cli import main
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli import main
+    from entities_service.service.config import CONFIG
 
     # Mock a good login check
     httpx_mock.add_response(
@@ -265,8 +265,8 @@ def test_upload_files_with_unchosen_format(
     cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock
 ) -> None:
     """Test upload several files with a format not chosen."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     # Mock a good login check
     httpx_mock.add_response(
@@ -307,8 +307,8 @@ def test_upload_directory_invalid_entities(
     """Test uploading a directory full of invalid entities."""
     import re
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     directory = static_dir / "invalid_entities"
 
@@ -373,8 +373,8 @@ def test_existing_entity(
     """Test that an existing entity is not overwritten."""
     import json
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
@@ -420,9 +420,9 @@ def test_existing_entity_different_content(
     import json
     from copy import deepcopy
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.models import URI_REGEX
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.models import URI_REGEX
+    from entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
@@ -570,8 +570,8 @@ def test_existing_entity_errors(
     import json
     from copy import deepcopy
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
@@ -671,8 +671,8 @@ def test_http_errors(
     """Ensure proper error messages are given if an HTTP error occurs."""
     from httpx import HTTPError
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     error_message = "Generic HTTP Error"
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
@@ -731,8 +731,8 @@ def test_json_decode_errors(
     parameterized_entity: ParameterizeGetEntities,
 ) -> None:
     """Ensure proper error messages are given if a JSONDecodeError occurs."""
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
         ".json"
@@ -795,8 +795,8 @@ def test_unable_to_upload(
     """Ensure a proper error message is given if an entity cannot be uploaded."""
     import json
 
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     error_message = {"detail": "Could not validate credentials. Please log in."}
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(

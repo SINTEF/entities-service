@@ -8,18 +8,18 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import FastAPI, HTTPException, Path, status
 
-from dlite_entities_service import __version__
-from dlite_entities_service.models import VersionedSOFTEntity
-from dlite_entities_service.service.backend import get_backend
-from dlite_entities_service.service.config import CONFIG
-from dlite_entities_service.service.logger import setup_logger
-from dlite_entities_service.service.routers import get_routers
+from entities_service import __version__
+from entities_service.models import VersionedSOFTEntity
+from entities_service.service.backend import get_backend
+from entities_service.service.config import CONFIG
+from entities_service.service.logger import setup_logger
+from entities_service.service.routers import get_routers
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
 
-LOGGER = logging.getLogger("dlite_entities_service")
+LOGGER = logging.getLogger("entities_service")
 
 
 # Application lifespan function
@@ -96,7 +96,7 @@ async def get_entity(
         ),
     ],
 ) -> dict[str, Any]:
-    """Get a SOFT entity."""
+    """Get an entity."""
     uri = f"{str(CONFIG.base_url).rstrip('/')}/{version}/{name}"
     entity = get_backend().read(uri)
     if entity is None:

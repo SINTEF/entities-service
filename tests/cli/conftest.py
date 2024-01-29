@@ -31,8 +31,8 @@ def cli() -> CliRunner:
 @pytest.fixture(scope="session")
 def config_app() -> Typer:
     """Return the config APP."""
-    from dlite_entities_service.cli._utils.global_settings import global_options
-    from dlite_entities_service.cli.config import APP
+    from entities_service.cli._utils.global_settings import global_options
+    from entities_service.cli.config import APP
 
     # Add global options to the APP
     # This is done by the "main" APP, and should hence be done here manually to ensure
@@ -45,7 +45,7 @@ def config_app() -> Typer:
 @pytest.fixture()
 def tmp_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Create a temporary cache directory."""
-    from dlite_entities_service.cli._utils import generics
+    from entities_service.cli._utils import generics
 
     cache_dir = tmp_path / ".cache" / "entities-service"
     cache_dir.mkdir(parents=True)
@@ -68,7 +68,7 @@ def _function_specific_cli_cache_dir(
     """Set the CLI cache directory to a temporary one."""
     from httpx_auth import JsonTokenFileCache
 
-    from dlite_entities_service.cli._utils import generics
+    from entities_service.cli._utils import generics
 
     cache = JsonTokenFileCache(str(tmp_cache_file))
     cache.clear()
@@ -79,7 +79,7 @@ def _function_specific_cli_cache_dir(
 @pytest.fixture()
 def dotenv_file(tmp_path: Path) -> Path:
     """Create a path to a dotenv file in a temporary test folder."""
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     env_file = CONFIG.model_config["env_file"]
 
@@ -91,8 +91,8 @@ def dotenv_file(tmp_path: Path) -> Path:
 @pytest.fixture(autouse=True)
 def _reset_context(pytestconfig: pytest.Config) -> None:
     """Reset the context."""
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli._utils.global_settings import CONTEXT
+    from entities_service.service.config import CONFIG
 
     CONTEXT["dotenv_path"] = (
         pytestconfig.invocation_params.dir / str(CONFIG.model_config["env_file"])
@@ -109,7 +109,7 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
 
     from pydantic import AnyHttpUrl
 
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
         "ENTITY_SERVICE_PORT", "8000"
@@ -128,7 +128,7 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
     """Return a list of hosts that are not mocked by 'pytest-httpx."""
     import os
 
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     if live_backend:
         host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
@@ -151,7 +151,7 @@ def _mock_successful_oauth_response(
     """Mock a successful response from the request_new_grant function."""
     import httpx_auth.oauth2_authentication_responses_server
 
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     monkeypatch.setattr(
         httpx_auth.oauth2_authentication_responses_server,
@@ -182,7 +182,7 @@ def _mock_failed_oauth_response(
     """
     import httpx_auth.oauth2_authentication_responses_server
 
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     monkeypatch.setattr(
         httpx_auth.oauth2_authentication_responses_server,

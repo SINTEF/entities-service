@@ -1,4 +1,4 @@
-"""Test the service's only route to retrieve DLite/SOFT entities."""
+"""Test the service's only route to retrieve entities."""
 from __future__ import annotations
 
 import sys
@@ -14,7 +14,7 @@ def test_get_entity(
     parameterized_entity: ParameterizeGetEntities,
     client: ClientFixture,
 ) -> None:
-    """Test the route to retrieve a DLite/SOFT entity."""
+    """Test the route to retrieve an entity."""
     from fastapi import status
 
     with client() as client_:

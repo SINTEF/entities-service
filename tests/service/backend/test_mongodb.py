@@ -8,7 +8,7 @@ import pytest
 if TYPE_CHECKING:
     from typing import Literal, Protocol
 
-    from dlite_entities_service.service.backend.mongodb import MongoDBBackend
+    from entities_service.service.backend.mongodb import MongoDBBackend
 
     from ...conftest import GetBackendUserFixture, ParameterizeGetEntities
 
@@ -26,7 +26,7 @@ def mongo_backend(get_backend_user: GetBackendUserFixture) -> GetMongoBackend:
     """Get a MongoDB backend."""
 
     def _mongo_backend(auth: Literal["read", "write"] | None = None) -> MongoDBBackend:
-        from dlite_entities_service.service.backend import get_backend
+        from entities_service.service.backend import get_backend
 
         backend_user = get_backend_user(auth)
 
@@ -67,8 +67,8 @@ def test_multiple_initialize(mongo_backend: GetMongoBackend) -> None:
 
 def test_close() -> None:
     """Test closing the backend."""
-    from dlite_entities_service.service.backend import get_backend
-    from dlite_entities_service.service.backend.mongodb import (
+    from entities_service.service.backend import get_backend
+    from entities_service.service.backend.mongodb import (
         MONGO_CLIENTS,
     )
 
@@ -150,7 +150,7 @@ def test_update(
     """Test the update method."""
     from copy import deepcopy
 
-    from dlite_entities_service.service.backend.mongodb import URI_REGEX
+    from entities_service.service.backend.mongodb import URI_REGEX
 
     backend = mongo_backend("write")
 
@@ -198,7 +198,7 @@ def test_delete(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
     """Test the delete method."""
-    from dlite_entities_service.service.backend.mongodb import URI_REGEX
+    from entities_service.service.backend.mongodb import URI_REGEX
 
     backend = mongo_backend("write")
 
@@ -244,7 +244,7 @@ def test_search(
 
     Note, this method only accepts valid MongoDB queries.
     """
-    from dlite_entities_service.service.backend.mongodb import URI_REGEX
+    from entities_service.service.backend.mongodb import URI_REGEX
 
     backend = mongo_backend("read")
 
@@ -276,7 +276,7 @@ def test_count(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
     """Test the count method."""
-    from dlite_entities_service.service.backend.mongodb import URI_REGEX
+    from entities_service.service.backend.mongodb import URI_REGEX
 
     backend = mongo_backend("read")
 

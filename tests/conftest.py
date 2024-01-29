@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from httpx import Client
     from pytest_httpx import HTTPXMock
 
-    from dlite_entities_service.service.backend.mongodb import MongoDBBackend
+    from entities_service.service.backend.mongodb import MongoDBBackend
 
     class UserRoleDict(TypedDict):
         """Type for the user info dictionary with roles."""
@@ -80,16 +80,16 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Configure pytest - set ENTITY_SERVICE_BACKEND env var."""
+    """Configure pytest - set ENTITIES_SERVICE_BACKEND env var."""
     import os
 
     # Set the environment variable for the MongoDB database name
     live_backend: bool = config.getoption("--live-backend")
-    os.environ["ENTITY_SERVICE_BACKEND"] = "mongodb" if live_backend else "mongomock"
+    os.environ["ENTITIES_SERVICE_BACKEND"] = "mongodb" if live_backend else "mongomock"
     if not live_backend:
         # If live-backend, this is either set in the CI workflow or in the
         # service.
-        os.environ["ENTITY_SERVICE_X509_CERTIFICATE_FILE"] = (
+        os.environ["ENTITIES_SERVICE_X509_CERTIFICATE_FILE"] = (
             "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n"
             "-----BEING PRIVATE KEY-----\n-----END PRIVATE KEY-----\n"
         )
@@ -314,7 +314,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
     import yaml
 
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     def get_version_name(uri: str) -> tuple[str, str]:
         """Return the version and name part of a uri."""
@@ -399,8 +399,8 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
     import warnings
 
     required_environment_variables = (
-        "ENTITY_SERVICE_HOST",
-        "ENTITY_SERVICE_PORT",
+        "ENTITIES_SERVICE_HOST",
+        "ENTITIES_SERVICE_PORT",
     )
 
     value = request.config.getoption("--live-backend")
@@ -416,9 +416,9 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
                 stacklevel=1,
             )
 
-    # Sanity check - the ENTITY_SERVICE_BACKEND should be set to 'pymongo' if
+    # Sanity check - the ENTITIES_SERVICE_BACKEND should be set to 'pymongo' if
     # the tests are run with a live backend, and 'mongomock' otherwise
-    assert os.getenv("ENTITY_SERVICE_BACKEND") == "mongodb" if value else "mongomock"
+    assert os.getenv("ENTITIES_SERVICE_BACKEND") == "mongodb" if value else "mongomock"
 
     return value
 
@@ -440,7 +440,7 @@ def get_backend_user() -> GetBackendUserFixture:
 
     However, for testing, it is easier to do it this way using SCRAM.
     """
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     def _get_backend_user(
         auth_role: Literal["read", "write"] | None = None
@@ -489,8 +489,8 @@ def _mongo_test_collection(
     """Add MongoDB test data to the chosen backend."""
     import yaml
 
-    from dlite_entities_service.service.backend import Backends, get_backend
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.backend import Backends, get_backend
+    from entities_service.service.config import CONFIG
 
     # Convert all '$ref' to 'ref' in the valid_entities.yaml file
     entities: list[dict[str, Any]] = yaml.safe_load(
@@ -555,7 +555,7 @@ def _reset_mongo_test_collection(
     """Purge the MongoDB test collection."""
     import yaml
 
-    from dlite_entities_service.service.backend import get_backend
+    from entities_service.service.backend import get_backend
 
     # Convert all '$ref' to 'ref' in the valid_entities.yaml file
     entities: list[dict[str, Any]] = yaml.safe_load(
@@ -601,7 +601,7 @@ def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     # backend
     if not live_backend:
         monkeypatch.setattr(
-            "dlite_entities_service.service.backend.mongodb.MongoDBBackend.initialize",
+            "entities_service.service.backend.mongodb.MongoDBBackend.initialize",
             lambda _: None,
         )
 
@@ -611,7 +611,7 @@ def _empty_backend_collection(
     live_backend: bool, get_backend_user: GetBackendUserFixture
 ) -> None:
     """Empty the backend collection."""
-    from dlite_entities_service.service.backend import get_backend
+    from entities_service.service.backend import get_backend
 
     backend_settings = {}
     if live_backend:
@@ -661,7 +661,7 @@ def mock_auth_verification(
     auth_header: dict[Literal["Authorization"], str],
 ) -> MockAuthVerification:
     """Mock authentication on the /_admin endpoints."""
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     # OpenID configuration
     httpx_mock.add_response(
@@ -757,8 +757,8 @@ def client(
     from fastapi.testclient import TestClient
     from httpx import Client
 
-    from dlite_entities_service.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.main import APP
+    from entities_service.service.config import CONFIG
 
     def _client(
         auth_role: Literal["read", "write"] | None = None,
@@ -780,8 +780,8 @@ def client(
             "'write'."
         )
 
-        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
-            "ENTITY_SERVICE_PORT", "8000"
+        host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
+            "ENTITIES_SERVICE_PORT", "8000"
         )
 
         base_url = f"http://{host}"

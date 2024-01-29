@@ -13,11 +13,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from httpx import AsyncClient, HTTPError
 from pydantic import ValidationError
 
-from dlite_entities_service.models.auth import (
+from entities_service.models.auth import (
     GitLabUserInfo,
     OpenIDConfiguration,
 )
-from dlite_entities_service.service.config import CONFIG
+from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     pass

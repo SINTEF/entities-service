@@ -16,14 +16,14 @@ CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
 def test_version(cli: CliRunner) -> None:
     """Test that the version is printed."""
-    from dlite_entities_service import __version__
-    from dlite_entities_service.cli.main import APP
+    from entities_service import __version__
+    from entities_service.cli.main import APP
 
     result = cli.invoke(APP, "--version")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
-    assert f"dlite-entities-service version: {__version__}" in result.stdout.replace(
+    assert f"entities-service version: {__version__}" in result.stdout.replace(
         "\n", " "
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
@@ -35,9 +35,9 @@ def test_dotenv_path(
 
     Note, calling 'upload', since it returns the `--help` response on no arguments.
     """
-    from dlite_entities_service.cli._utils.global_settings import CONTEXT
-    from dlite_entities_service.cli.main import APP
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.cli._utils.global_settings import CONTEXT
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     # Check default value
     default_dotenv_path_value = (

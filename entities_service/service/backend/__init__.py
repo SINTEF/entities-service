@@ -22,7 +22,7 @@ else:
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
-    from dlite_entities_service.service.backend.backend import Backend
+    from entities_service.service.backend.backend import Backend
 
 
 class Backends(StrEnum):
@@ -36,7 +36,7 @@ class Backends(StrEnum):
     def get_class(self) -> type[Backend]:
         """Get the backend class."""
         if self in (self.MONGODB, self.MONGOMOCK):
-            from dlite_entities_service.service.backend.mongodb import MongoDBBackend
+            from entities_service.service.backend.mongodb import MongoDBBackend
 
             return MongoDBBackend
 
@@ -46,7 +46,7 @@ class Backends(StrEnum):
         self, auth_level: Literal["read", "write"] = "read"
     ) -> dict[str, Any]:
         """Get the settings for the auth level."""
-        from dlite_entities_service.service.config import CONFIG
+        from entities_service.service.config import CONFIG
 
         if self in (self.MONGODB, self.MONGOMOCK):
             if auth_level == "read":
@@ -76,7 +76,7 @@ def get_backend(
     settings: dict[str, Any] | None = None,
 ) -> Backend:
     """Get a backend instance."""
-    from dlite_entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG
 
     if backend is None:
         backend = CONFIG.backend

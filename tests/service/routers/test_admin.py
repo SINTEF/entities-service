@@ -210,7 +210,7 @@ def test_backend_write_error_exception(
     import yaml
 
     # Monkeypatch the backend create method to raise an exception
-    from dlite_entities_service.service.backend import mongodb as entities_backend
+    from entities_service.service.backend import mongodb as entities_backend
 
     def mock_create(*args: Any, **kwargs: Any) -> None:  # noqa: ARG001
         raise entities_backend.MongoDBBackendError("Test error.")
@@ -257,7 +257,7 @@ def test_backend_create_returns_bad_value(
     from the response checked in the `test_backend_write_error_exception` test.
     """
     # Monkeypatch the backend create method to return an unexpected value
-    from dlite_entities_service.service.backend import mongodb as entities_backend
+    from entities_service.service.backend import mongodb as entities_backend
 
     monkeypatch.setattr(
         entities_backend.MongoDBBackend,

@@ -14,7 +14,7 @@ try:
     from httpx_auth import JsonTokenFileCache, OAuth2, OAuth2AuthorizationCodePKCE
 except ImportError as exc:  # pragma: no cover
     raise ImportError(
-        "Please install the DLite entities service utility CLI with 'pip install "
+        "Please install the entities service utility CLI with 'pip install "
         f"{Path(__file__).resolve().parent.parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
@@ -25,16 +25,16 @@ from rich import get_console
 from rich import print as rich_print
 from rich.console import Console
 
-from dlite_entities_service.models.auth import OpenIDConfiguration
+from entities_service.models.auth import OpenIDConfiguration
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TextIO
 
 
 EXC_MSG_INSTALL_PACKAGE = (
-    "Please install the DLite entities service utility CLI with "
+    "Please install the entities service utility CLI with "
     f"'pip install {Path(__file__).resolve().parent.parent.parent.parent.resolve()}"
-    "[cli]' or 'pip install dlite-entities-service[cli]'"
+    "[cli]' or 'pip install entities-service[cli]'"
 )
 
 OUTPUT_CONSOLE = get_console()

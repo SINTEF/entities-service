@@ -1,4 +1,4 @@
-"""Typer CLI for doing SOFT entities service stuff."""
+"""Typer CLI for doing Entities Service stuff."""
 from __future__ import annotations
 
 import json
@@ -21,30 +21,30 @@ try:
     import httpx
     import typer
 except ImportError as exc:  # pragma: no cover
-    from dlite_entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
+    from entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
 
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
 import yaml
 from pydantic import AnyHttpUrl
 
-from dlite_entities_service.cli._utils.generics import (
+from entities_service.cli._utils.generics import (
     ERROR_CONSOLE,
     AuthenticationError,
     oauth,
     pretty_compare_dicts,
     print,
 )
-from dlite_entities_service.cli._utils.global_settings import global_options
-from dlite_entities_service.cli.config import APP as config_APP
-from dlite_entities_service.models import (
+from entities_service.cli._utils.global_settings import global_options
+from entities_service.cli.config import APP as config_APP
+from entities_service.models import (
     URI_REGEX,
     get_updated_version,
     get_uri,
     get_version,
     soft_entity,
 )
-from dlite_entities_service.service.config import CONFIG
+from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -67,7 +67,7 @@ OptionalStr = Optional[str]
 
 APP = typer.Typer(
     name="entities-service",
-    help="SOFT entities service utility CLI",
+    help="Entities Service utility CLI",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
     callback=global_options,

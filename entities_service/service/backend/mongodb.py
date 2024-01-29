@@ -15,15 +15,15 @@ from pymongo.errors import (
     WriteError,
 )
 
-from dlite_entities_service.models import URI_REGEX, SOFTModelTypes, soft_entity
-from dlite_entities_service.service.backend import Backends
-from dlite_entities_service.service.backend.backend import (
+from entities_service.models import URI_REGEX, SOFTModelTypes, soft_entity
+from entities_service.service.backend import Backends
+from entities_service.service.backend.backend import (
     Backend,
     BackendError,
     BackendSettings,
     BackendWriteAccessError,
 )
-from dlite_entities_service.service.config import CONFIG, MongoDsn
+from entities_service.service.config import CONFIG, MongoDsn
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
@@ -33,7 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from pymongo import MongoClient
     from pymongo.collection import Collection as MongoCollection
 
-    from dlite_entities_service.models import VersionedSOFTEntity
+    from entities_service.models import VersionedSOFTEntity
 
     class URIParts(TypedDict):
         """The parts of a SOFT entity URI."""

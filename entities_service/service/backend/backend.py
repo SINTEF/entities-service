@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from dlite_entities_service.models import (
+from entities_service.models import (
     SOFTModelTypes,
     VersionedSOFTEntity,
     get_uri,
