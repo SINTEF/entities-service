@@ -67,6 +67,8 @@ jobs:
           cd docker_security && ${{ github.workspace }}/.github/docker_init/1_setup_mongo_security.sh
           cd ${{ github.workspace }}
 
+
+          # --volume "${{ github.workspace }}/.github/docker_init/1_setup_mongo_security.sh:/docker-entrypoint-initdb.d/1_setup_mongo_security.sh" \
           # Pull mongo:7 image and run it
           docker pull mongo:7
           docker run --rm \
@@ -74,7 +76,6 @@ jobs:
             --env CI \
             --name "mongo" \
             --network "host" \
-            # --volume "${{ github.workspace }}/.github/docker_init/1_setup_mongo_security.sh:/docker-entrypoint-initdb.d/1_setup_mongo_security.sh" \
             --volume "${{ github.workspace }}/.github/docker_init/2_create_x509_user.js:/docker-entrypoint-initdb.d/2_create_x509_user.js" \
             --volume "${{ github.workspace }}/docker_security:/mongo_tls" \
             mongo:7 \
