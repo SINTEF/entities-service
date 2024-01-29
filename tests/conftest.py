@@ -86,13 +86,13 @@ def pytest_configure(config: pytest.Config) -> None:
     # Set the environment variable for the MongoDB database name
     live_backend: bool = config.getoption("--live-backend")
     os.environ["ENTITIES_SERVICE_BACKEND"] = "mongodb" if live_backend else "mongomock"
-    if not live_backend:
-        # If live-backend, this is either set in the CI workflow or in the
-        # service.
-        os.environ["ENTITIES_SERVICE_X509_CERTIFICATE_FILE"] = (
-            "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n"
-            "-----BEING PRIVATE KEY-----\n-----END PRIVATE KEY-----\n"
-        )
+
+    # These are only really (properly) used when running with --live-backend,
+    # but it's fine to set them here, since they are not checked when running without.
+    os.environ[
+        "ENTITIES_SERVICE_X509_CERTIFICATE_FILE"
+    ] = "docker_security/test-client.pem"
+    os.environ["ENTITIES_SERVICE_CA_FILE"] = "docker_security/test-ca.pem"
 
     # Add extra markers
     config.addinivalue_line(

@@ -89,6 +89,7 @@ docker run --rm -d \
   --env "ENTITIES_SERVICE_X509_CERTIFICATE_FILE=docker_security/test-client.pem" \
   --env "ENTITIES_SERVICE_CA_FILE=docker_security/test-ca.pem" \
   --name "entities-service" \
+  -u "${id -ur}:${id -gr}" \
   -p "8000:80" \
   entities-service
 ```
