@@ -10,6 +10,10 @@ DN_client="/C=NO/ST=Trondelag/L=Trondheim/O=SINTEF/OU=Team4.0 Client/CN=entities
 DNS_server_1="mongodb"
 DNS_server_2="localhost"
 
+if [ -z "${HOST_USER}" ]; then
+    echo "HOST_USER is not set. This means that the script will be run with 'root' user in a Docker container!"
+fi
+
 ORIGINAL_DIR=$(pwd)
 TARGET_DIR=${ORIGINAL_DIR}
 # if [ -z "${IN_DOCKER}" ] || [ -z "${CI}" ]; then
@@ -210,3 +214,8 @@ cat mongodb-test-client.crt mongodb-test-client.key > test-client.pem
 mv -fZ *.pem ${TARGET_DIR}
 cd ${TARGET_DIR}
 rm -rf /tmp/mongodb-test
+
+# Update ownership of files
+if [ -n "${HOST_USER}" ]; then
+    chown -R ${HOST_USER}:${HOST_USER} ${TARGET_DIR}
+fi

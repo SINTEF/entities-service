@@ -11,8 +11,8 @@ services:
       ENTITIES_SERVICE_BASE_URL: "${ENTITIES_SERVICE_HOST:-http://onto-ns.com/meta}"
       ENTITIES_SERVICE_BACKEND: mongodb
       ENTITIES_SERVICE_MONGO_URI: "mongodb://mongodb:27017"
-      ENTITIES_SERVICE_X509_CERTIFICATE_FILE: "/mongo_tls/test-client.pem"
-      ENTITIES_SERVICE_CA_FILE: "/mongo_tls/test-ca.pem"
+      ENTITIES_SERVICE_X509_CERTIFICATE_FILE: "docker_security/test-client.pem"
+      ENTITIES_SERVICE_CA_FILE: "docker_security/test-ca.pem"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -31,13 +31,13 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
       IN_DOCKER: "true"
+      HOST_USER: "${USER}"
     networks:
       - entities_service_net
     expose:
       - 27017
     volumes:
-      - "./.github/docker_init/1_setup_mongo_security.sh:/docker-entrypoint-initdb.d/1_setup_mongo_security.sh"
-      - "./.github/docker_init/2_create_x509_user.js:/docker-entrypoint-initdb.d/2_create_x509_user.js"
+      - "./.github/docker_init/create_x509_user.js:/docker-entrypoint-initdb.d/0_create_x509_user.js"
       - "./docker_security:/mongo_tls"
     command: --tlsMode allowTLS --tlsCertificateKeyFile /mongo_tls/test-server1.pem --tlsCAFile /mongo_tls/test-ca.pem
     healthcheck:

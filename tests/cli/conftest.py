@@ -13,11 +13,6 @@ if TYPE_CHECKING:
     from typer.testing import CliRunner
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    """Add custom markers to pytest."""
-    config.addinivalue_line("markers", "no_token: mark test to not use an auth token")
-
-
 @pytest.fixture()
 def cli() -> CliRunner:
     """Fixture for CLI runner."""

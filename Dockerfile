@@ -11,8 +11,10 @@ RUN python -m pip install -U pip && \
   pip install -U -e .[server]
 
 ## DEVELOPMENT target
-
 FROM base as development
+
+# Copy over the self-signed certificates for development
+COPY docker_security docker_security/
 
 ENV PORT=80
 EXPOSE ${PORT}
@@ -23,7 +25,6 @@ ENV ENTITY_SERVICE_DEBUG=1
 ENTRYPOINT gunicorn --bind "0.0.0.0:${PORT}" --log-level debug --workers 1 --worker-class entities_service.uvicorn.UvicornWorker --reload entities_service.main:APP
 
 ## PRODUCTION target
-
 FROM base as production
 
 ENV PORT=80
