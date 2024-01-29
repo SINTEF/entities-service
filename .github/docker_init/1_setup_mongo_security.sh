@@ -11,13 +11,13 @@ DNS_server_1="mongodb"
 DNS_server_2="localhost"
 
 ORIGINAL_DIR=$(pwd)
-
-if [ -z "${IN_DOCKER}" && -z "${CI}" ]; then
-    TARGET_DIR=${ORIGINAL_DIR}
-else
-    # Running through Docker Compose
-    TARGET_DIR=/mongo_tls
-fi
+TARGET_DIR=${ORIGINAL_DIR}
+# if [ -z "${IN_DOCKER}" ] || [ -z "${CI}" ]; then
+#     TARGET_DIR=${ORIGINAL_DIR}
+# else
+#     # Running through Docker Compose
+#     TARGET_DIR=/mongo_tls
+# fi
 
 echo "Generating certificates in ${TARGET_DIR}"
 mkdir -p ${TARGET_DIR}
