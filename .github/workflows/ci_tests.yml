@@ -83,6 +83,7 @@ jobs:
             --tlsCertificateKeyFile /mongo_tls/test-server1.pem \
             --tlsCAFile /mongo_tls/test-ca.pem \
             --tlsAllowInvalidHostnames
+          while ! docker ps | grep -E "mongo:7.*(healthy)"; do sleep 1; done
 
       - name: Build Docker image
         run: |
