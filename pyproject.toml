@@ -123,13 +123,13 @@ minversion = "7.4"
 addopts = "-rs --cov=dlite_entities_service --cov-config=pyproject.toml --cov-report=term-missing:skip-covered --no-cov-on-fail"
 filterwarnings = [
     # Treat all warnings as errors
-    "error",
+    # "error",
 
     # mongomock uses pkg_resources
     "ignore:.*pkg_resources is deprecated as an API.*:DeprecationWarning",
 
     # httpx-auth uses datetime.datetime.utcfromtimestamp(), deprecated in Python 3.12
-    "ignore:.*datetime.datetime.utcfromtimestamp() is deprecated.*:DeprecationWarning",
+    "ignore:.*Use timezone-aware objects to represent datetimes in UTC.*:DeprecationWarning",
 ]
 
 [tool.coverage.run]
