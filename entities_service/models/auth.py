@@ -70,10 +70,10 @@ class GitLabUserInfo(BaseModel):
     groups: list[str]
     groups_owner: Annotated[
         list[str], Field(alias="https://gitlab.org/claims/groups/owner")
-    ]
+    ] = []
     groups_maintainer: Annotated[
         list[str], Field(alias="https://gitlab.org/claims/groups/maintainer")
-    ]
+    ] = []
     groups_developer: Annotated[
         list[str], Field(alias="https://gitlab.org/claims/groups/developer")
-    ]
+    ] = []
