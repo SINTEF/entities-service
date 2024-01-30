@@ -203,6 +203,12 @@ def get_client(
         if ca_file or CONFIG.ca_file:
             client_options["tlsCAFile"] = str(ca_file or CONFIG.ca_file)
 
+        if client_options["tlsCertificateKeyFile"] is None:
+            raise MongoDBBackendError(
+                "MongoDB X.509 certificate for connecting with write-access rights "
+                "not set."
+            )
+
     new_client = MongoClient(uri or str(CONFIG.mongo_uri), **client_options)
 
     if MONGO_CLIENTS is None:

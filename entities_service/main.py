@@ -46,6 +46,7 @@ APP = FastAPI(
         sysPath(__file__).resolve().parent.parent.resolve() / "README.md"
     ).read_text(encoding="utf8"),
     lifespan=lifespan,
+    root_path=CONFIG.base_url.path if CONFIG.base_url.path != "/" else "",
 )
 
 # Add routers

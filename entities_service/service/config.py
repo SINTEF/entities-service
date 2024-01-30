@@ -93,14 +93,14 @@ class ServiceSettings(BaseSettings):
     ] = "entities"
 
     x509_certificate_file: Annotated[
-        Path,
+        Path | None,
         Field(
             description=(
                 "File path to a X.509 certificate for connecting to the MongoDB "
                 "backend with write-access rights."
             ),
         ),
-    ]
+    ] = None
 
     ca_file: Annotated[
         Path | None,
@@ -159,7 +159,7 @@ class ServiceSettings(BaseSettings):
     def _ensure_is_existing_file(cls, value: Path | None) -> Path | None:
         """Ensure the certificate file exists."""
         if value is None:
-            # No certificate file provided, ca_file only
+            # No certificate file provided
             return value
 
         if not value.exists():

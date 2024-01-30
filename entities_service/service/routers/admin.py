@@ -65,7 +65,7 @@ async def create_entities(
         ),
     )
 
-    entities_backend = get_backend(CONFIG.backend)
+    entities_backend = get_backend(CONFIG.backend, auth_level="write")
 
     try:
         created_entities = entities_backend.create(entities)

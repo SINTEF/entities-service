@@ -57,6 +57,12 @@ class Backends(StrEnum):
                 }
 
             if auth_level == "write":
+                if CONFIG.x509_certificate_file is None:
+                    raise ValueError(
+                        "Cannot use 'write' auth level without a X.509 certificate "
+                        "file."
+                    )
+
                 return {
                     "auth_level": auth_level,
                     "mongo_x509_certificate_file": CONFIG.x509_certificate_file,
