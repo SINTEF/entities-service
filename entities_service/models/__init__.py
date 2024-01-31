@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
 Entity = SOFT7Entity | SOFT5Entity | DLiteSOFT7Entity | DLiteSOFT5Entity
-EntityType = (SOFT7Entity, SOFT5Entity, DLiteSOFT7Entity, DLiteSOFT5Entity)
+EntityType = get_args(Entity)
 
 
 @overload
