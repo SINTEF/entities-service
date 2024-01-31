@@ -17,16 +17,26 @@ def test_soft_entity(static_dir: Path) -> None:
     from entities_service.models import soft_entity
     from entities_service.models.dlite_soft5 import DLiteSOFT5Entity
     from entities_service.models.dlite_soft7 import DLiteSOFT7Entity
+    from entities_service.models.soft5 import SOFT5Entity
+    from entities_service.models.soft7 import SOFT7Entity
 
     # Test that the function returns the correct version of the entity
-    soft5_model_file = static_dir / "valid_entities" / "Cat.json"
+    dlite_soft5_model_file = static_dir / "valid_entities" / "Cat.json"
+    dlite_soft7_model_file = static_dir / "valid_entities" / "Person.json"
     soft7_model_file = static_dir / "valid_entities" / "Dog.json"
 
-    soft5_model = json.loads(soft5_model_file.read_text())
-    soft7_model = json.loads(soft7_model_file.read_text())
+    dlite_soft5_model: dict[str, Any] = json.loads(dlite_soft5_model_file.read_text())
+    dlite_soft7_model: dict[str, Any] = json.loads(dlite_soft7_model_file.read_text())
+    soft7_model: dict[str, Any] = json.loads(soft7_model_file.read_text())
 
-    assert soft_entity(**soft5_model) == DLiteSOFT5Entity(**soft5_model)
-    assert soft_entity(**soft7_model) == DLiteSOFT7Entity(**soft7_model)
+    assert soft_entity(**dlite_soft5_model) == DLiteSOFT5Entity(**dlite_soft5_model)
+    assert soft_entity(**dlite_soft7_model) == DLiteSOFT7Entity(**dlite_soft7_model)
+    assert soft_entity(**soft7_model) == SOFT7Entity(**soft7_model)
+
+    # Force dlite_soft5_model to parse as a SOFT5Entity
+    # by removing the `meta` field.
+    dlite_soft5_model.pop("meta")
+    assert soft_entity(**dlite_soft5_model) == SOFT5Entity(**dlite_soft5_model)
 
 
 def test_soft_entity_error(static_dir: Path) -> None:
