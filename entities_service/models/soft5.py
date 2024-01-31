@@ -112,16 +112,16 @@ class SOFT5Entity(BaseModel):
         list[SOFT5Property], Field(description="A list of properties.")
     ]
 
-    # @field_validator("uri", "namespace", mode="after")
-    # @classmethod
-    # def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
-    #     """Validate `uri` starts with the current base URL for the service."""
-    #     if not str(value).startswith(str(CONFIG.base_url)):
-    #         error_message = (
-    #             f"This service only works with entities at {CONFIG.base_url}.\n"
-    #         )
-    #         raise ValueError(error_message)
-    #     return value
+    @field_validator("uri", "namespace", mode="after")
+    @classmethod
+    def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
+        """Validate `uri` starts with the current base URL for the service."""
+        if not str(value).startswith(str(CONFIG.base_url)):
+            error_message = (
+                f"This service only works with entities at {CONFIG.base_url}.\n"
+            )
+            raise ValueError(error_message)
+        return value
 
     @field_validator("uri", mode="after")
     @classmethod
