@@ -7,7 +7,7 @@ COPY pyproject.toml LICENSE README.md ./
 
 # Install dependencies
 RUN python -m pip install -U pip && \
-  pip install -U pip setuptools wheel && \
+  pip install -U setuptools wheel && \
   pip install -U -e .[server]
 
 ## DEVELOPMENT target
