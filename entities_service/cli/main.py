@@ -126,6 +126,14 @@ def upload(
     directories = list(set(directories or []))
     file_formats = list(set(file_formats or []))
 
+    # Handle YAML/YML file format
+    if EntityFileFormats.YAML in file_formats or EntityFileFormats.YML in file_formats:
+        # Ensure both YAML and YML are in the list
+        if EntityFileFormats.YAML not in file_formats:
+            file_formats.append(EntityFileFormats.YAML)
+        if EntityFileFormats.YML not in file_formats:
+            file_formats.append(EntityFileFormats.YML)
+
     # Ensure the user is logged in
     login(quiet=True)
 
