@@ -46,7 +46,7 @@ testing = [
     "mongomock ~=4.1",
     "pytest >=7.4.0,<9",
     "pytest-cov ~=4.1",
-    "pytest-httpx ~=0.28.0",
+    "pytest-httpx ~=0.29.0",
     "entities-service[cli]",
 ]
 server = [
