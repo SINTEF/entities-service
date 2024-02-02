@@ -1,4 +1,5 @@
 """Base (minimum set) models for SOFT entities."""
+
 from __future__ import annotations
 
 import difflib
@@ -61,9 +62,9 @@ class SOFTEntity(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: Annotated[str | None, Field(description="The name of the entity.")] = None
-    version: Annotated[
-        str | None, Field(description="The version of the entity.")
-    ] = None
+    version: Annotated[str | None, Field(description="The version of the entity.")] = (
+        None
+    )
     namespace: Annotated[
         AnyHttpUrl | None, Field(description="The namespace of the entity.")
     ] = None

@@ -1,4 +1,5 @@
 """DLite Entity model based on the SOFT7 Entity model."""
+
 from __future__ import annotations
 
 from typing import Annotated
