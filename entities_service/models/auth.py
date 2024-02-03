@@ -57,24 +57,77 @@ class OpenIDConfiguration(BaseModel):
 
 
 class GitLabUserInfo(BaseModel):
-    """OpenID userinfo response from GitLab."""
+    """OpenID userinfo response from GitLab.
 
-    sub: str
-    name: str
-    nickname: str
-    preferred_username: str
-    email: str | None = None
-    email_verified: bool | None = None
-    website: AnyHttpUrl | str
-    profile: AnyHttpUrl
-    picture: AnyHttpUrl
-    groups: list[str]
+    This is defined in the OpenID Connect specification.
+    Reference: https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+
+    Claims not defined in the OpenID Connect specification are prefixed with
+    `https://gitlab.org/claims/`.
+    As well as the `groups` claim, which is a list of groups the user is a member of.
+    """
+
+    sub: Annotated[
+        str, Field(description="Subject - Identifier for the End-User at the Issuer.")
+    ]
+    name: Annotated[
+        str | None,
+        Field(
+            description=(
+                "End-User's full name in displayable form including all name parts, "
+                "possibly including titles and suffixes, ordered according to the "
+                "End-User's locale and preferences."
+            ),
+        ),
+    ] = None
+    preferred_username: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Shorthand name by which the End-User wishes to be referred to at the "
+                "RP, such as `janedoe` or `j.doe`. This value MAY be any valid JSON "
+                "string including special characters such as `@`, `/`, or whitespace. "
+                "The RP MUST NOT rely upon this value being unique, as discussed in "
+                "[Section 5.7](https://openid.net/specs/openid-connect-core-1_0.html"
+                "#ClaimStability)."
+            ),
+        ),
+    ] = None
+    groups: Annotated[
+        list[str],
+        Field(
+            description=(
+                "Paths for the groups the user is a member of, either directly or "
+                "through an ancestor group."
+            ),
+        ),
+    ] = []
     groups_owner: Annotated[
-        list[str], Field(alias="https://gitlab.org/claims/groups/owner")
+        list[str],
+        Field(
+            alias="https://gitlab.org/claims/groups/owner",
+            description=(
+                "Names of the groups the user is a direct member of with Owner role."
+            ),
+        ),
     ] = []
     groups_maintainer: Annotated[
-        list[str], Field(alias="https://gitlab.org/claims/groups/maintainer")
+        list[str],
+        Field(
+            alias="https://gitlab.org/claims/groups/maintainer",
+            description=(
+                "Names of the groups the user is a direct member of with Maintainer "
+                "role."
+            ),
+        ),
     ] = []
     groups_developer: Annotated[
-        list[str], Field(alias="https://gitlab.org/claims/groups/developer")
+        list[str],
+        Field(
+            alias="https://gitlab.org/claims/groups/developer",
+            description=(
+                "Names of the groups the user is a direct member of with Developer "
+                "role."
+            ),
+        ),
     ] = []
