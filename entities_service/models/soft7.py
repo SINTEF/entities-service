@@ -53,11 +53,8 @@ URI_REGEX = re.compile(
 """Regular expression to parse a SOFT entity URI."""
 
 
-def _disallowed_characters(value: str | None) -> str | None:
+def _disallowed_characters(value: str) -> str:
     """Check that the value does not contain disallowed characters."""
-    if value is None:
-        return value
-
     special_url_characters = ["/", "?", "#", "@", ":"]
     if any(char in value for char in special_url_characters):
         raise ValueError(
@@ -68,11 +65,8 @@ def _disallowed_characters(value: str | None) -> str | None:
     return value
 
 
-def _ensure_url_encodeable(value: str | None) -> str | None:
+def _ensure_url_encodeable(value: str) -> str:
     """Ensure that the value is URL encodeable."""
-    if value is None:
-        return value
-
     try:
         quote(value)
     except Exception as error:  # noqa: BLE001
@@ -81,11 +75,11 @@ def _ensure_url_encodeable(value: str | None) -> str | None:
 
 
 EntityVersionType = Annotated[
-    str | None,
+    str,
     Field(description="The version of the entity.", pattern=rf"^{SEMVER_REGEX}$"),
 ]
 EntityNameType = Annotated[
-    str | None,
+    str,
     Field(description="The name of the entity."),
     AfterValidator(_disallowed_characters),
     AfterValidator(_ensure_url_encodeable),
@@ -144,8 +138,8 @@ class SOFT7Property(BaseModel):
 class SOFT7Entity(BaseModel):
     """A SOFT7 Entity returned from this service."""
 
-    name: EntityNameType = None
-    version: EntityVersionType = None
+    name: EntityNameType | None = None
+    version: EntityVersionType | None = None
     namespace: Annotated[
         AnyHttpUrl | None, Field(description="The namespace of the entity.")
     ] = None

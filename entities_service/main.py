@@ -10,7 +10,11 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import FastAPI, HTTPException, Path, status
 
 from entities_service import __version__
-from entities_service.models import SEMVER_REGEX, VersionedSOFTEntity
+from entities_service.models import (
+    EntityNameType,
+    EntityVersionType,
+    VersionedSOFTEntity,
+)
 from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.logger import setup_logger
@@ -63,10 +67,9 @@ for router in get_routers():
 )
 async def get_entity(
     version: Annotated[
-        str,
+        EntityVersionType,
         Path(
             title="Entity version",
-            pattern=SEMVER_REGEX,
             description=(
                 "The version part must be a semantic version, following the schema "
                 "laid out by SemVer.org."
@@ -74,7 +77,7 @@ async def get_entity(
         ),
     ],
     name: Annotated[
-        str,
+        EntityNameType,
         Path(
             title="Entity name",
             description=(
