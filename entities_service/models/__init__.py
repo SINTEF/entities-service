@@ -6,7 +6,13 @@ from typing import TYPE_CHECKING, get_args, overload
 
 from pydantic import ValidationError
 
-from .soft5 import URI_REGEX, SOFT5Entity
+from .soft5 import (
+    SEMVER_REGEX,
+    URI_REGEX,
+    EntityNameType,
+    EntityVersionType,
+    SOFT5Entity,
+)
 from .soft7 import SOFT7Entity
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -14,6 +20,20 @@ if TYPE_CHECKING:  # pragma: no cover
 
 VersionedSOFTEntity = SOFT7Entity | SOFT5Entity
 SOFTModelTypes = (SOFT7Entity, SOFT5Entity)
+
+__all__ = (
+    "VersionedSOFTEntity",
+    "SOFTModelTypes",
+    "soft_entity",
+    "get_uri",
+    "get_version",
+    "get_updated_version",
+    "URI_REGEX",
+    "SEMVER_REGEX",
+    "soft_entity",
+    "EntityNameType",
+    "EntityVersionType",
+)
 
 
 @overload
