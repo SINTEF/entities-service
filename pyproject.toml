@@ -5,6 +5,22 @@ build-backend = "flit_core.buildapi"
 [tool.flit.module]
 name = "entities_service"
 
+[tool.flit.sdist]
+exclude = [
+    ".*",
+    "tests",
+    "docs",
+    "CHANGELOG.md",
+    "docker-compose.yml",
+    "Dockerfile",
+]
+include = [
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+    "entities_service",
+]
+
 [project]
 name = "entities-service"
 authors = [
