@@ -11,9 +11,9 @@ from fastapi import FastAPI, HTTPException, Path, status
 
 from entities_service import __version__
 from entities_service.models import (
+    Entity,
     EntityNameType,
     EntityVersionType,
-    VersionedSOFTEntity,
 )
 from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
@@ -61,7 +61,7 @@ for router in get_routers():
 
 @APP.get(
     "/{version}/{name}",
-    response_model=VersionedSOFTEntity,
+    response_model=Entity,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
 )
