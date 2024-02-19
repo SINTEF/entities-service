@@ -163,13 +163,18 @@ class SOFTEntity(BaseModel):
             raise ValueError(error_message) from error
 
         if uri_deconstructed is None:
+            # The URI does not match the expected pattern.
+            # This will validate that the namespace starts with 'http(s)://' and the
+            # version is a semantic version.
             error_message = (
                 "The URI does not match the expected pattern. The URI must be of the "
-                "form `{namespace}/{version}/{name}`.\n"
+                "form `{namespace}/{version}/{name}`, where the 'version' must adhere "
+                "to the SemVer specification.\n"
             )
             raise ValueError(error_message)
 
         try:
+            # This validates the name part of the URI.
             TypeAdapter(EntityNameType).validate_python(uri_deconstructed.group("name"))
         except (ValueError, ValidationError) as error:
             error_message = f"The name part of the URI is invalid: {error}\n"
