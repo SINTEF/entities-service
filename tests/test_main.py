@@ -27,6 +27,12 @@ def test_get_entity(
         response.is_success
     ), f"Response: {response.json()}. Request: {response.request}"
     assert response.status_code == status.HTTP_200_OK, response.json()
+
+    # Convert SOFT5 properties' 'dims' to 'shape'
+    for entity_property in parameterized_entity.entity["properties"]:
+        if "dims" in entity_property:
+            entity_property["shape"] = entity_property.pop("dims")
+
     assert (
         resolved_entity := response.json()
     ) == parameterized_entity.entity, resolved_entity
@@ -47,6 +53,11 @@ def test_get_entity_instance(
         response = client_.get(
             f"/{parameterized_entity.version}/{parameterized_entity.name}", timeout=5
         )
+
+    # Convert SOFT5 properties' 'dims' to 'shape'
+    for entity_property in parameterized_entity.entity["properties"]:
+        if "dims" in entity_property:
+            entity_property["shape"] = entity_property.pop("dims")
 
     assert (
         resolve_entity := response.json()

@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 from entities_service.models import (
-    SOFTModelTypes,
-    VersionedSOFTEntity,
+    EntityType,
     get_uri,
     soft_entity,
 )
@@ -21,6 +20,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from pydantic import AnyHttpUrl
+
+    from entities_service.models import Entity
 
 
 LOGGER = logging.getLogger(__name__)
@@ -82,7 +83,7 @@ class Backend(ABC):
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:
         if isinstance(item, dict):
-            # Convert to SOFT Entity
+            # Convert to Entity
             item_or_errors = soft_entity(return_errors=True, **item)
             if isinstance(item_or_errors, list):
                 LOGGER.error(
@@ -98,7 +99,7 @@ class Backend(ABC):
             # Expect it to be a URI - let the backend handle validation
             return self.read(item) is not None
 
-        if isinstance(item, SOFTModelTypes):
+        if isinstance(item, EntityType):
             return self.read(get_uri(item)) is not None
 
         return False
@@ -120,7 +121,7 @@ class Backend(ABC):
     # Backend methods (CRUD)
     @abstractmethod
     def create(
-        self, entities: Sequence[VersionedSOFTEntity | dict[str, Any]]
+        self, entities: Sequence[Entity | dict[str, Any]]
     ) -> list[dict[str, Any]] | dict[str, Any] | None:  # pragma: no cover
         """Create an entity in the backend."""
         raise NotImplementedError
@@ -136,7 +137,7 @@ class Backend(ABC):
     def update(
         self,
         entity_identity: AnyHttpUrl | str,
-        entity: VersionedSOFTEntity | dict[str, Any],
+        entity: Entity | dict[str, Any],
     ) -> None:  # pragma: no cover
         """Update an entity in the backend."""
         raise NotImplementedError
