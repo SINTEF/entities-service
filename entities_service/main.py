@@ -66,26 +66,8 @@ for router in get_routers():
     response_model_exclude_unset=True,
 )
 async def get_entity(
-    version: Annotated[
-        EntityVersionType,
-        Path(
-            title="Entity version",
-            description=(
-                "The version part must be a semantic version, following the schema "
-                "laid out by SemVer.org."
-            ),
-        ),
-    ],
-    name: Annotated[
-        EntityNameType,
-        Path(
-            title="Entity name",
-            description=(
-                "The name part is without any white space. It is conventionally "
-                "written in PascalCase."
-            ),
-        ),
-    ],
+    version: Annotated[EntityVersionType, Path(title="Entity version")],
+    name: Annotated[EntityNameType, Path(title="Entity name")],
 ) -> dict[str, Any]:
     """Get an entity."""
     uri = f"{str(CONFIG.base_url).rstrip('/')}/{version}/{name}"

@@ -77,7 +77,13 @@ def _ensure_url_encodeable(value: str) -> str:
 
 EntityVersionType = Annotated[
     str,
-    Field(description="The version of the entity.", pattern=rf"^{SEMVER_REGEX}$"),
+    Field(
+        description=(
+            "The version of the entity. It must be a semantic version, following the "
+            "schema laid out by SemVer.org."
+        ),
+        pattern=rf"^{SEMVER_REGEX}$",
+    ),
 ]
 EntityNameType = Annotated[
     str,
