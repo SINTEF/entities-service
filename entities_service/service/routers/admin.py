@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from entities_service.models import VersionedSOFTEntity, get_uri
+from entities_service.models import Entity, get_uri
 from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.security import verify_token
@@ -36,13 +36,13 @@ ROUTER = APIRouter(
 # Entity-related endpoints
 @ROUTER.post(
     "/create",
-    response_model=list[VersionedSOFTEntity] | VersionedSOFTEntity | None,
+    response_model=list[Entity] | Entity | None,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_entities(
-    entities: list[VersionedSOFTEntity] | VersionedSOFTEntity,
+    entities: list[Entity] | Entity,
     response: Response,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Create one or more SOFT entities."""

@@ -16,7 +16,7 @@ from pymongo.errors import (
     WriteError,
 )
 
-from entities_service.models import URI_REGEX, SOFTModelTypes, soft_entity
+from entities_service.models import URI_REGEX, EntityType, soft_entity
 from entities_service.service.backend import Backends
 from entities_service.service.backend.backend import (
     Backend,
@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from pymongo import MongoClient
     from pymongo.collection import Collection as MongoCollection
 
-    from entities_service.models import VersionedSOFTEntity
+    from entities_service.models import Entity
 
     class URIParts(TypedDict):
         """The parts of a SOFT entity URI."""
@@ -298,7 +298,7 @@ class MongoDBBackend(Backend):
         )
 
     def create(
-        self, entities: Sequence[VersionedSOFTEntity | dict[str, Any]]
+        self, entities: Sequence[Entity | dict[str, Any]]
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
         """Create one or more entities in the MongoDB."""
         LOGGER.info("Creating entities: %s", entities)
@@ -326,7 +326,7 @@ class MongoDBBackend(Backend):
     def update(
         self,
         entity_identity: AnyHttpUrl | str,
-        entity: VersionedSOFTEntity | dict[str, Any],
+        entity: Entity | dict[str, Any],
     ) -> None:
         """Update an entity in the MongoDB."""
         entity = self._prepare_entity(entity)
@@ -376,9 +376,7 @@ class MongoDBBackend(Backend):
 
         return {"$or": [uri_parts, {"uri": uri}]}
 
-    def _prepare_entity(
-        self, entity: VersionedSOFTEntity | dict[str, Any]
-    ) -> dict[str, Any]:
+    def _prepare_entity(self, entity: Entity | dict[str, Any]) -> dict[str, Any]:
         """Clean and prepare the entity for interactions with the MongoDB backend."""
         if isinstance(entity, dict):
             uri = entity.get("uri", None) or (
@@ -390,9 +388,9 @@ class MongoDBBackend(Backend):
                 **entity,
             )
 
-        if not isinstance(entity, SOFTModelTypes):
+        if not isinstance(entity, EntityType):
             raise TypeError(
-                "Entity must be a dict or a SOFTModelTypes for "
+                "Entity must be a dict or an EntityType for "
                 f"{self.__class__.__name__}."
             )
 
