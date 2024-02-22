@@ -36,8 +36,8 @@ async def lifespan(_: FastAPI):
 
     LOGGER.debug("Starting service with config: %s", CONFIG)
 
-    # Initialize backend
-    get_backend(CONFIG.backend, auth_level="write").initialize()
+    # Initialize backend with core namespace
+    get_backend(CONFIG.backend, auth_level="write")
 
     # Run application
     yield
@@ -59,22 +59,67 @@ for router in get_routers():
     APP.include_router(router)
 
 
+async def _get_entity(version: str, name: str, db: str | None = None) -> dict[str, Any]:
+    """Utility function for the endpoints to retrieve an entity."""
+    uri = f"{str(CONFIG.base_url).rstrip('/')}"
+
+    if db:
+        uri += f"/{db}"
+
+    uri += f"/{version}/{name}"
+
+    entity = get_backend(db=db).read(uri)
+
+    if entity is None:
+        raise ValueError(f"Could not find entity: uri={uri}")
+
+    return entity
+
+
 @APP.get(
     "/{version}/{name}",
     response_model=Entity,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
+    tags=["Entities"],
 )
-async def get_entity(
+async def get_basic_entity(
     version: Annotated[EntityVersionType, Path(title="Entity version")],
     name: Annotated[EntityNameType, Path(title="Entity name")],
 ) -> dict[str, Any]:
-    """Get an entity."""
-    uri = f"{str(CONFIG.base_url).rstrip('/')}/{version}/{name}"
-    entity = get_backend().read(uri)
-    if entity is None:
+    """Get an entity from the core namespace."""
+    try:
+        return await _get_entity(version=version, name=name)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Could not find entity: uri={uri}",
-        )
-    return entity
+            detail=str(exc),
+        ) from exc
+
+
+@APP.get(
+    "/{specific_namespace:path}/{version}/{name}",
+    response_model=Entity,
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    tags=["Entities"],
+)
+async def get_namespaced_entity(
+    specific_namespace: Annotated[
+        str,
+        Path(
+            title="Specific namespace",
+            description="The specific namespace part of the URI.",
+        ),
+    ],
+    version: Annotated[EntityVersionType, Path(title="Entity version")],
+    name: Annotated[EntityNameType, Path(title="Entity name")],
+) -> dict[str, Any]:
+    """Get an entity from a specific namespace."""
+    try:
+        return await _get_entity(version=version, name=name, db=specific_namespace)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

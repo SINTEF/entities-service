@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import Field, SecretStr, model_validator
+from pydantic.functional_validators import AfterValidator
 from pymongo.errors import (
     BulkWriteError,
     InvalidDocument,
@@ -32,7 +33,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from pydantic import AnyHttpUrl
     from pymongo import MongoClient
-    from pymongo.collection import Collection as MongoCollection
 
     from entities_service.models import Entity
 
@@ -76,6 +76,50 @@ MongoDBBackendWriteAccessError = (
 """Exception raised when write access is denied."""
 
 
+# Special MongoDB types
+def _validate_database_name(value: str) -> str:
+    """Validate the MongoDB database name."""
+    illegal_characters = r'/\. "$'
+    if any(character in value for character in illegal_characters):
+        raise ValueError(
+            "Invalid database name - may not contain any of the "
+            f"{illegal_characters!r} characters."
+        )
+    return value.strip()
+
+
+def _validate_collection_name(value: str) -> str:
+    """Validate the MongoDB collection name."""
+    if "$" in value:
+        raise ValueError("Invalid collection name - may not contain a '$' character.")
+
+    if value.startswith("system."):
+        raise ValueError("Invalid collection name - may not start with 'system.'.")
+
+    return value.strip()
+
+
+DatabaseName = Annotated[
+    str,
+    Field(
+        description="The MongoDB database.",
+        pattern=r"^[a-zA-Z0-9_\-]+$",
+        min_length=1,
+        max_length=63,
+    ),
+    AfterValidator(_validate_database_name),
+]
+
+CollectionName = Annotated[
+    str,
+    Field(
+        description="The MongoDB collection.",
+        min_length=1,
+    ),
+    AfterValidator(_validate_collection_name),
+]
+
+
 class MongoDBSettings(BackendSettings):
     """Settings for the MongoDB backend.
 
@@ -114,13 +158,9 @@ class MongoDBSettings(BackendSettings):
         ),
     ] = None
 
-    mongo_db: Annotated[str, Field(description="The MongoDB database.")] = (
-        CONFIG.mongo_db
-    )
+    mongo_db: DatabaseName = CONFIG.mongo_db
 
-    mongo_collection: Annotated[str, Field(description="The MongoDB collection.")] = (
-        CONFIG.mongo_collection
-    )
+    mongo_collection: CollectionName = CONFIG.mongo_collection
 
     mongo_driver: Annotated[
         Literal["pymongo", "mongomock"],
@@ -240,8 +280,9 @@ class MongoDBBackend(Backend):
     ) -> None:
         super().__init__(settings)
 
+        # Set up the MongoDB collection
         try:
-            self._collection: MongoCollection = get_client(
+            self._collection = get_client(
                 auth_level=self._settings.auth_level,
                 uri=str(self._settings.mongo_uri),
                 username=self._settings.mongo_username,
@@ -256,6 +297,8 @@ class MongoDBBackend(Backend):
             )[self._settings.mongo_db][self._settings.mongo_collection]
         except ValueError as exc:
             raise MongoDBBackendError(str(exc)) from exc
+
+        self.initialize()
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: uri={self._settings.mongo_uri}"
