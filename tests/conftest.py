@@ -484,37 +484,11 @@ def get_backend_user() -> GetBackendUserFixture:
 
 @pytest.fixture(scope="session", autouse=True)
 def _mongo_test_collection(
-    static_dir: Path, live_backend: bool, get_backend_user: GetBackendUserFixture
+    live_backend: bool, get_backend_user: GetBackendUserFixture
 ) -> None:
     """Add MongoDB test data to the chosen backend."""
-    import yaml
-
     from entities_service.service.backend import Backends, get_backend
     from entities_service.service.config import CONFIG
-
-    # Convert all '$ref' to 'ref' in the valid_entities.yaml file
-    entities: list[dict[str, Any]] = yaml.safe_load(
-        (static_dir / "valid_entities.yaml").read_text()
-    )
-    for entity in entities:
-        # SOFT5
-        if isinstance(entity["properties"], list):
-            for index, property_value in enumerate(list(entity["properties"])):
-                entity["properties"][index] = {
-                    key.replace("$", ""): value for key, value in property_value.items()
-                }
-
-        # SOFT7
-        elif isinstance(entity["properties"], dict):
-            for property_name, property_value in list(entity["properties"].items()):
-                entity["properties"][property_name] = {
-                    key.replace("$", ""): value for key, value in property_value.items()
-                }
-
-        else:
-            raise TypeError(
-                f"Invalid type for entity['properties']: {type(entity['properties'])}"
-            )
 
     assert CONFIG.backend == (
         Backends.MONGODB if live_backend else Backends.MONGOMOCK

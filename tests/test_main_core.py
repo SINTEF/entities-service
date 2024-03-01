@@ -1,4 +1,4 @@
-"""Test the service's only route to retrieve entities."""
+"""Test the service's route to retrieve entities from the core namespace."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def test_get_entity(
 
 @pytest.mark.skipif(
     sys.version_info >= (3, 12),
-    reason="DLite-Python does not support Python3.12 and above.",
+    reason="DLite-Python does not support Python 3.12 and above.",
 )
 def test_get_entity_instance(
     parameterized_entity: ParameterizeGetEntities,
