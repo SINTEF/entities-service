@@ -62,7 +62,7 @@ def test_token_persistence(
     from entities_service.service.config import CONFIG
 
     assert isinstance(OAuth2.token_cache, JsonTokenFileCache)
-    assert OAuth2.token_cache.tokens_path == str(tmp_cache_file)
+    assert str(OAuth2.token_cache._tokens_path) == str(tmp_cache_file)
     OAuth2.token_cache.clear()
 
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(

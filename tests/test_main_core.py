@@ -33,9 +33,7 @@ def test_get_entity(
         if "dims" in entity_property:
             entity_property["shape"] = entity_property.pop("dims")
 
-    assert (
-        resolved_entity := response.json()
-    ) == parameterized_entity.entity, resolved_entity
+    assert response.json() == parameterized_entity.entity, response.json()
 
 
 @pytest.mark.skipif(
@@ -59,11 +57,10 @@ def test_get_entity_instance(
         if "dims" in entity_property:
             entity_property["shape"] = entity_property.pop("dims")
 
-    assert (
-        resolve_entity := response.json()
-    ) == parameterized_entity.entity, resolve_entity
+    resolved_entity = response.json()
+    assert resolved_entity == parameterized_entity.entity, resolved_entity
 
-    Instance.from_dict(resolve_entity)
+    Instance.from_dict(resolved_entity)
 
 
 def test_get_entity_not_found(client: ClientFixture) -> None:
