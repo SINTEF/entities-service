@@ -144,12 +144,12 @@ def _mock_successful_oauth_response(
     monkeypatch: pytest.MonkeyPatch, token_mock: str, httpx_mock: HTTPXMock
 ) -> None:
     """Mock a successful response from the request_new_grant function."""
-    import httpx_auth.oauth2_authentication_responses_server
+    import httpx_auth._oauth2.authentication_responses_server
 
     from entities_service.service.config import CONFIG
 
     monkeypatch.setattr(
-        httpx_auth.oauth2_authentication_responses_server,
+        httpx_auth._oauth2.authentication_responses_server,
         "request_new_grant",
         lambda *args: ("some_state", "some_code"),  # noqa: ARG005
     )
@@ -168,19 +168,19 @@ def _mock_failed_oauth_response(
 ) -> None:
     """Mock a failed response from the OAuth2ResponseHandler class.
 
-    This will/should raise httpx_auth.errors.InvalidGrantRequest
+    This will/should raise httpx_auth.InvalidGrantRequest
 
     error message: `temporarily_unavailable: The authorization server is currently
     unable to handle the request due to a temporary overloading or maintenance of the
     server.  (This error code is needed because a 503 Service Unavailable HTTP status
     code cannot be returned to the client via an HTTP redirect.)`
     """
-    import httpx_auth.oauth2_authentication_responses_server
+    import httpx_auth._oauth2.authentication_responses_server
 
     from entities_service.service.config import CONFIG
 
     monkeypatch.setattr(
-        httpx_auth.oauth2_authentication_responses_server,
+        httpx_auth._oauth2.authentication_responses_server,
         "request_new_grant",
         lambda *args: ("some_state", "some_code"),  # noqa: ARG005
     )
