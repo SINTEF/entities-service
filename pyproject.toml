@@ -132,7 +132,7 @@ filterwarnings = [
 
     # httpx app is deprecated, use Transport class instead
     # This should be updated in Starlette
-    "ignore:.* The 'app' shortcut is now deprecated. Use the explicit style 'transport=WSGITransport(app=...)' instead..*:DeprecationWarning",
+    "ignore:.*shortcut is now deprecated. Use the explicit style.*:DeprecationWarning",
 ]
 
 [tool.coverage.run]
