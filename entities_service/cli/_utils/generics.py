@@ -12,14 +12,23 @@ from typing import TYPE_CHECKING
 try:
     import httpx
     import rich.pretty
-    from httpx_auth import JsonTokenFileCache, OAuth2, OAuth2AuthorizationCodePKCE
+    from httpx_auth import (
+        AuthenticationFailed,
+        GrantNotProvided,
+        InvalidGrantRequest,
+        InvalidToken,
+        JsonTokenFileCache,
+        OAuth2,
+        OAuth2AuthorizationCodePKCE,
+        StateNotProvided,
+        TokenExpiryNotProvided,
+    )
 except ImportError as exc:  # pragma: no cover
     raise ImportError(
         "Please install the entities service utility CLI with 'pip install "
         f"{Path(__file__).resolve().parent.parent.parent.parent.resolve()}[cli]'"
     ) from exc
 
-from httpx_auth import errors as auth_errors
 from pydantic import ValidationError
 from pydantic.networks import AnyHttpUrl
 from rich import get_console
@@ -55,12 +64,12 @@ OAuth2.token_cache = JsonTokenFileCache(
     str(CACHE_DIRECTORY / "oauth2_token_cache.json")
 )
 AuthenticationError = (
-    auth_errors.AuthenticationFailed,
-    auth_errors.InvalidToken,
-    auth_errors.GrantNotProvided,
-    auth_errors.StateNotProvided,
-    auth_errors.TokenExpiryNotProvided,
-    auth_errors.InvalidGrantRequest,
+    AuthenticationFailed,
+    InvalidToken,
+    GrantNotProvided,
+    StateNotProvided,
+    TokenExpiryNotProvided,
+    InvalidGrantRequest,
 )
 """The exceptions that can be raised by the OAuth2 authentication flow."""
 OPENID_CONFIG_URL = "https://gitlab.sintef.no/.well-known/openid-configuration"
