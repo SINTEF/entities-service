@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, get_args, overload
 
 from pydantic import ValidationError
+
+from entities_service.service.config import CONFIG
 
 from .dlite_soft5 import DLiteSOFT5Entity
 from .dlite_soft7 import DLiteSOFT7Entity
@@ -33,10 +36,18 @@ __all__ = (
     "get_updated_version",
     "URI_REGEX",
     "SEMVER_REGEX",
+    "SERVICE_URI_REGEX",
     "NO_GROUPS_SEMVER_REGEX",
     "EntityNameType",
     "EntityVersionType",
 )
+
+
+SERVICE_URI_REGEX = re.compile(
+    rf"^{re.escape(str(CONFIG.base_url).rstrip('/'))}(?:/(?P<specific_namespace>.+))?"
+    rf"/(?P<version>{NO_GROUPS_SEMVER_REGEX})/(?P<name>[^/#?]+)$"
+)
+"""Regular expression to parse a SOFT entity URI including a specific namespace."""
 
 
 @overload

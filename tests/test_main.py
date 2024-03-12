@@ -17,6 +17,8 @@ def test_get_entity(
     namespace: str | None,
 ) -> None:
     """Test the route to retrieve an entity."""
+    import json
+
     from fastapi import status
 
     from entities_service.service.config import CONFIG
@@ -27,9 +29,14 @@ def test_get_entity(
     with client() as client_:
         response = client_.get(url_path, timeout=5)
 
+    try:
+        response_json = response.json()
+    except json.JSONDecodeError as exc:
+        pytest.fail(f"Response is not JSON: {exc}\n\nText response:\n{response.text}")
+
     assert (
         response.is_success
-    ), f"Response: {response.json()}. Request: {response.request}"
+    ), f"Response: {response_json}. Request: {response.request}"
     assert response.status_code == status.HTTP_200_OK, response.json()
 
     # Convert SOFT5 properties' 'dims' to 'shape'
@@ -39,7 +46,7 @@ def test_get_entity(
 
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
-    retrieved_entity = response.json()
+    retrieved_entity = response_json
     print(retrieved_entity)
     for key, value in retrieved_entity.items():
         assert key in parameterized_entity.entity, retrieved_entity

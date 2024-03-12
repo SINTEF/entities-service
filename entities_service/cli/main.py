@@ -21,6 +21,7 @@ else:
 try:
     import httpx
     import typer
+    from rich.table import Table
 except ImportError as exc:  # pragma: no cover
     from entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
 
@@ -39,6 +40,7 @@ from entities_service.cli._utils.generics import (
 from entities_service.cli._utils.global_settings import global_options
 from entities_service.cli.config import APP as config_APP
 from entities_service.models import (
+    SERVICE_URI_REGEX,
     URI_REGEX,
     get_updated_version,
     get_uri,
@@ -87,7 +89,7 @@ def upload(
         dir_okay=False,
         readable=True,
         resolve_path=True,
-        help="Path to entity file.",
+        help="Path to file with one or more entities.",
         show_default=False,
     ),
     directories: OptionalListPath = typer.Option(
@@ -100,8 +102,8 @@ def upload(
         readable=True,
         resolve_path=True,
         help=(
-            "Path to directory with entities. All files matching the given "
-            "format(s) in the directory will be uploaded. "
+            "Path to directory with files that include one or more entities. "
+            "All files matching the given format(s) in the directory will be uploaded. "
             "Subdirectories will be ignored. This option can be provided multiple "
             "times, e.g., to include multiple subdirectories."
         ),
@@ -163,6 +165,9 @@ def upload(
     skipped: list[Path] = []
     failed: list[Path] = []
 
+    unique_entity_uris: set[str] = set()
+    unique_entities: list[dict[str, Any]] = []
+
     informed_file_formats: set[str] = set()
     for filepath in unique_filepaths:
         if (file_format := filepath.suffix[1:].lower()) not in file_formats:
@@ -190,12 +195,48 @@ def upload(
             skipped.append(filepath)
             continue
 
-        entity: dict[str, Any] = (
+        entities: list[dict[str, Any]] | dict[str, Any] = (
             json.loads(filepath.read_bytes())
             if file_format == "json"
             else yaml.safe_load(filepath.read_bytes())
         )
 
+        if isinstance(entities, dict):
+            entities = [entities]
+
+        if not isinstance(entities, list) or not all(
+            isinstance(entity, dict) for entity in entities
+        ):
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: {filepath} can not be read as either a "
+                "single or a list of SOFT entities."
+            )
+            if fail_fast:
+                raise typer.Exit(1)
+            failed.append(filepath)
+            continue
+
+        for entity in entities:
+            uri = (
+                entity.get("uri", None)
+                or f"{entity['namespace']}/{entity['version']}/{entity['name']}"
+            )
+
+            if uri in unique_entity_uris:
+                ERROR_CONSOLE.print(
+                    f"[bold red]Error[/bold red]: {filepath} contains a "
+                    f"duplicate URI: {uri}"
+                )
+                if fail_fast:
+                    raise typer.Exit(1)
+                failed.append(filepath)
+                continue
+
+            unique_entity_uris.add(uri)
+            unique_entities.append(entity)
+
+    # Evaluate each unique entity
+    for entity in unique_entities:
         # Validate entity
         entity_model_or_errors = soft_entity(return_errors=True, **entity)
         if isinstance(entity_model_or_errors, list):
@@ -365,8 +406,56 @@ def upload(
         )
         raise typer.Exit(1)
 
-    # Upload entities
     if successes:
+        # Have the user confirm the list of entities to upload
+        table = Table(title="Entities to upload")
+
+        table.add_column("Namespace", style="bold", no_wrap=True)
+        table.add_column("Entity", style="bold", no_wrap=True)
+
+        for _, entity in successes:
+            if all(key in entity for key in ("namespace", "version", "name")):
+                namespace = (
+                    entity["namespace"][len(str(CONFIG.base_url).rstrip("/")) :] or "/"
+                )
+                version = entity["version"]
+                name = entity["name"]
+            else:
+                # Use the uri/identity
+                matched_uri = SERVICE_URI_REGEX.match(entity["uri"])
+                if matched_uri is None:
+                    raise ValueError(
+                        f"Could not parse URI {entity['uri']} with regular expression "
+                        f"{SERVICE_URI_REGEX.pattern}"
+                    )
+                namespace = matched_uri.group("specific_namespace")
+                version = matched_uri.group("version")
+                name = matched_uri.group("name")
+
+            table.add_row(namespace, f"{name} (v{version})")
+
+        print(table)
+
+        try:
+            upload_entities = typer.confirm(
+                "These entities will be uploaded. Do you want to continue?",
+                default=True,
+            )
+        except typer.Abort as exc:  # pragma: no cover
+            # Can only happen if the user presses Ctrl-C, which can not be tested
+            # currently
+            # Take an Abort as a "no"
+            print("[bold blue]Aborted: No entities were uploaded.[/bold blue]")
+            raise typer.Exit() from exc
+
+        if not upload_entities:
+            print("[bold blue]No entities were uploaded.[/bold blue]")
+            raise typer.Exit()
+
+        print("temporarily exiting here...")
+        raise typer.Exit()
+
+        # Upload entities
         with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:
             try:
                 response = client.post(

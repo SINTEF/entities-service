@@ -10,13 +10,12 @@ The endpoints in this router are not documented in the OpenAPI schema.
 from __future__ import annotations
 
 import logging
-import re
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from entities_service.models import NO_GROUPS_SEMVER_REGEX, Entity, get_uri
+from entities_service.models import SERVICE_URI_REGEX, Entity, get_uri
 from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.security import verify_token
@@ -71,13 +70,8 @@ async def create_entities(
     # Determine backends needed
     namespace_entities_mapping: dict[str | None, list[Entity]] = defaultdict(list)
 
-    core_namespace = str(CONFIG.base_url).rstrip("/")
-    service_uri_regex = (
-        rf"^{re.escape(core_namespace)}(?:/(?P<specific_namespace>.+))?"
-        rf"/(?P<version>{NO_GROUPS_SEMVER_REGEX})/(?P<name>[^/#?]+)$"
-    )
     for entity in entities:
-        if (match := re.match(service_uri_regex, get_uri(entity))) is None:
+        if (match := SERVICE_URI_REGEX.match(get_uri(entity))) is None:
             raise write_fail_exception
 
         namespace_entities_mapping[match.group("specific_namespace")].append(entity)

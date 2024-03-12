@@ -316,6 +316,10 @@ class MongoDBBackend(Backend):
 
     def initialize(self) -> None:
         """Initialize the MongoDB backend."""
+        if self._settings.auth_level == "read":
+            # Not enough rights to create an index
+            return
+
         # Check index exists
         if "URI" in (indices := self._collection.index_information()):
             if not indices["URI"].get("unique", False):
