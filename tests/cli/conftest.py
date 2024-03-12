@@ -41,12 +41,14 @@ def config_app() -> Typer:
 @pytest.fixture()
 def tmp_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Create a temporary cache directory."""
-    from entities_service.cli._utils import generics, global_settings
-
     cache_dir = tmp_path / ".cache" / "entities-service"
 
-    monkeypatch.setattr(generics, "CACHE_DIRECTORY", cache_dir)
-    monkeypatch.setattr(global_settings, "CACHE_DIRECTORY", cache_dir)
+    monkeypatch.setattr(
+        "entities_service.cli._utils.generics.CACHE_DIRECTORY", cache_dir
+    )
+    monkeypatch.setattr(
+        "entities_service.cli._utils.global_settings.CACHE_DIRECTORY", cache_dir
+    )
 
     return cache_dir
 
@@ -64,11 +66,11 @@ def _function_specific_cli_cache_dir(
     """Set the CLI cache directory to a temporary one."""
     from httpx_auth import JsonTokenFileCache
 
-    from entities_service.cli._utils import generics
-
     cache = JsonTokenFileCache(str(tmp_cache_file))
 
-    monkeypatch.setattr(generics.OAuth2, "token_cache", cache)
+    monkeypatch.setattr(
+        "entities_service.cli._utils.generics.OAuth2.token_cache", cache
+    )
 
 
 @pytest.fixture()
@@ -104,8 +106,6 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
 
     from pydantic import AnyHttpUrl
 
-    from entities_service.service.config import CONFIG
-
     host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
         "ENTITY_SERVICE_PORT", "8000"
     )
@@ -115,7 +115,9 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
     if port:
         live_base_url += f":{port}"
 
-    monkeypatch.setattr(CONFIG, "base_url", AnyHttpUrl(live_base_url))
+    monkeypatch.setattr(
+        "entities_service.service.config.CONFIG.base_url", AnyHttpUrl(live_base_url)
+    )
 
 
 @pytest.fixture()
@@ -144,13 +146,10 @@ def _mock_successful_oauth_response(
     monkeypatch: pytest.MonkeyPatch, token_mock: str, httpx_mock: HTTPXMock
 ) -> None:
     """Mock a successful response from the request_new_grant function."""
-    import httpx_auth._oauth2.authentication_responses_server
-
     from entities_service.service.config import CONFIG
 
     monkeypatch.setattr(
-        httpx_auth._oauth2.authentication_responses_server,
-        "request_new_grant",
+        "httpx_auth._oauth2.authentication_responses_server.request_new_grant",
         lambda *args: ("some_state", "some_code"),  # noqa: ARG005
     )
 
@@ -175,13 +174,10 @@ def _mock_failed_oauth_response(
     server.  (This error code is needed because a 503 Service Unavailable HTTP status
     code cannot be returned to the client via an HTTP redirect.)`
     """
-    import httpx_auth._oauth2.authentication_responses_server
-
     from entities_service.service.config import CONFIG
 
     monkeypatch.setattr(
-        httpx_auth._oauth2.authentication_responses_server,
-        "request_new_grant",
+        "httpx_auth._oauth2.authentication_responses_server.request_new_grant",
         lambda *args: ("some_state", "some_code"),  # noqa: ARG005
     )
 
