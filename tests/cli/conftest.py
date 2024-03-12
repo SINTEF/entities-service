@@ -193,3 +193,17 @@ def _mock_failed_oauth_response(
         headers={"WWW-Authenticate": "Bearer"},
         json={"error": ["temporarily_unavailable"]},
     )
+
+
+@pytest.fixture(autouse=True)
+def _large_width_consoles(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Set the consoles' width to a large number."""
+    from rich.console import Console
+
+    monkeypatch.setattr(
+        "entities_service.cli._utils.generics.OUTPUT_CONSOLE", Console(width=999)
+    )
+    monkeypatch.setattr(
+        "entities_service.cli._utils.generics.ERROR_CONSOLE",
+        Console(stderr=True, width=999),
+    )

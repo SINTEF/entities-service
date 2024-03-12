@@ -13,7 +13,12 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any, Literal
 
-    from ...conftest import ClientFixture, MockAuthVerification, ParameterizeGetEntities
+    from ...conftest import (
+        ClientFixture,
+        GetBackendUserFixture,
+        MockAuthVerification,
+        ParameterizeGetEntities,
+    )
 
 
 pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
@@ -24,16 +29,33 @@ def test_create_single_entity(
     parameterized_entity: ParameterizeGetEntities,
     mock_auth_verification: MockAuthVerification,
     auth_header: dict[Literal["Authorization"], str],
+    namespace: str | None,
 ) -> None:
     """Test creating a single entity."""
+    from copy import deepcopy
+
+    from entities_service.service.config import CONFIG
+
     # Setup mock responses for OAuth2 verification
     mock_auth_verification(auth_role="write")
+
+    entity = deepcopy(parameterized_entity.entity)
+
+    if namespace:
+        core_namespace = str(CONFIG.base_url).rstrip("/")
+        current_namespace = f"{core_namespace}/{namespace}"
+
+        # Update namespace in entity
+        if "namespace" in entity:
+            entity["namespace"] = current_namespace
+        if "uri" in entity:
+            entity["uri"] = entity["uri"].replace(core_namespace, current_namespace)
 
     # Create single entity
     with client(auth_role="write") as client_:
         response = client_.post(
             "/_admin/create",
-            json=parameterized_entity.entity,
+            json=entity,
             headers=auth_header,
         )
 
@@ -42,7 +64,7 @@ def test_create_single_entity(
     # Check response
     assert response.status_code == 201, response_json
     assert isinstance(response_json, dict), response_json
-    assert response_json == parameterized_entity.entity, response_json
+    assert response_json == entity, response_json
 
 
 def test_create_multiple_entities(
@@ -50,9 +72,14 @@ def test_create_multiple_entities(
     client: ClientFixture,
     mock_auth_verification: MockAuthVerification,
     auth_header: dict[Literal["Authorization"], str],
+    existing_specific_namespace: str,
+    get_backend_user: GetBackendUserFixture,
 ) -> None:
     """Test creating multiple entities."""
     import yaml
+
+    from entities_service.service.backend import get_backend
+    from entities_service.service.config import CONFIG
 
     # Setup mock responses for OAuth2 verification
     mock_auth_verification(auth_role="write")
@@ -61,6 +88,17 @@ def test_create_multiple_entities(
     entities: list[dict[str, Any]] = yaml.safe_load(
         (static_dir / "valid_entities.yaml").read_text()
     )
+    original_length = len(entities)
+
+    # Add specific namespace entities
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+    specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
+    for entity in list(entities):
+        if "namespace" in entity:
+            entity["namespace"] = specific_namespace
+        if "uri" in entity:
+            entity["uri"] = entity["uri"].replace(core_namespace, specific_namespace)
+        entities.append(entity)
 
     # Create multiple entities
     with client(auth_role="write") as client_:
@@ -76,6 +114,78 @@ def test_create_multiple_entities(
     assert response.status_code == 201, response_json
     assert isinstance(response_json, list), response_json
     assert response_json == entities, response_json
+    assert len(response_json) == 2 * original_length, response_json
+
+    # Check they can be retrieved
+    for entity in entities:
+        uri = entity.get("uri", None) or (
+            f"{entity.get('namespace', '')}/{entity.get('version', '')}"
+            f"/{entity.get('name', '')}"
+        )
+        test_url = uri[len(core_namespace) :]
+        with client() as client_:
+            response = client_.get(test_url, timeout=5)
+
+        assert (
+            response.is_success
+        ), f"Response: {response.json()}. Request: {response.request}"
+        assert response.status_code == 200, response.json()
+        assert response.json() == entity, response.json()
+
+    # Check the entities exist in separate MongoDB collections
+    backend_user = get_backend_user()
+    core_backend = get_backend(
+        settings={
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        }
+    )
+    specific_backend = get_backend(
+        settings={
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        },
+        db=existing_specific_namespace,
+    )
+    for entity in entities:
+        uri = entity.get("uri", None) or (
+            f"{entity.get('namespace', '')}/{entity.get('version', '')}"
+            f"/{entity.get('name', '')}"
+        )
+
+        # Match the entity with how they are stored in the backend (MongoDB)
+        # SOFT5 style
+        if isinstance(entity.get("properties", None), list):
+            entity["properties"] = [
+                {key.replace("$ref", "ref"): value for key, value in property_.items()}
+                for property_ in entity["properties"]
+            ]
+        # SOFT7 style
+        elif isinstance(entity.get("properties", None), dict):
+            for property_name, property_value in list(entity["properties"].items()):
+                entity["properties"][property_name] = {
+                    key.replace("$ref", "ref"): value
+                    for key, value in property_value.items()
+                }
+        else:
+            pytest.fail("Invalid entity: {entity}")
+
+        if uri.startswith(specific_namespace):
+            assert specific_backend.read(uri) == entity, (
+                f"uri={uri} collection={specific_backend._collection.name} "
+                f"entity={entity}"
+            )
+            assert (
+                core_backend.read(uri) is None
+            ), f"uri={uri} collection={core_backend._collection.name} entity={entity}"
+        else:
+            assert specific_backend.read(uri) is None, (
+                f"uri={uri} collection={specific_backend._collection.name} "
+                f"entity={entity}"
+            )
+            assert (
+                core_backend.read(uri) == entity
+            ), f"uri={uri} collection={core_backend._collection.name} entity={entity}"
 
 
 def test_create_no_entities(
