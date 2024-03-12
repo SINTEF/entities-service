@@ -21,6 +21,7 @@ else:
 try:
     import httpx
     import typer
+    from rich import box
     from rich.table import Table
 except ImportError as exc:  # pragma: no cover
     from entities_service.cli._utils.generics import EXC_MSG_INSTALL_PACKAGE
@@ -408,10 +409,16 @@ def upload(
 
     if successes:
         # Have the user confirm the list of entities to upload
-        table = Table(title="Entities to upload")
+        table = Table(
+            title="Entities to upload:",
+            title_style="bold",
+            title_justify="left",
+            box=box.SIMPLE_HEAD,
+            highlight=True,
+        )
 
-        table.add_column("Namespace", style="bold", no_wrap=True)
-        table.add_column("Entity", style="bold", no_wrap=True)
+        table.add_column("Namespace", no_wrap=True)
+        table.add_column("Entity", no_wrap=True)
 
         for _, entity in successes:
             if all(key in entity for key in ("namespace", "version", "name")):
@@ -428,13 +435,13 @@ def upload(
                         f"Could not parse URI {entity['uri']} with regular expression "
                         f"{SERVICE_URI_REGEX.pattern}"
                     )
-                namespace = matched_uri.group("specific_namespace")
+                namespace = matched_uri.group("specific_namespace") or "/"
                 version = matched_uri.group("version")
                 name = matched_uri.group("name")
 
-            table.add_row(namespace, f"{name} (v{version})")
+            table.add_row(namespace, f"{name} (ver. {version})")
 
-        print(table)
+        print(f"\n{table}\n")
 
         try:
             upload_entities = typer.confirm(
@@ -451,9 +458,6 @@ def upload(
         if not upload_entities:
             print("[bold blue]No entities were uploaded.[/bold blue]")
             raise typer.Exit()
-
-        print("temporarily exiting here...")
-        raise typer.Exit()
 
         # Upload entities
         with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:

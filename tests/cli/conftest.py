@@ -106,8 +106,8 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
 
     from pydantic import AnyHttpUrl
 
-    host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
-        "ENTITY_SERVICE_PORT", "8000"
+    host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
+        "ENTITIES_SERVICE_PORT", "8000"
     )
 
     live_base_url = f"http://{host}"
@@ -128,8 +128,8 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
     from entities_service.service.config import CONFIG
 
     if live_backend:
-        host, port = os.getenv("ENTITY_SERVICE_HOST", "localhost"), os.getenv(
-            "ENTITY_SERVICE_PORT", "8000"
+        host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
+            "ENTITIES_SERVICE_PORT", "8000"
         )
 
         localhost = host + (f":{port}" if port else "")
