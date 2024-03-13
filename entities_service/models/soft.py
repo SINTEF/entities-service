@@ -5,23 +5,92 @@ from __future__ import annotations
 import difflib
 import re
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from pydantic import (
     AliasChoices,
     BaseModel,
     ConfigDict,
     Field,
+    TypeAdapter,
+    ValidationError,
     field_validator,
     model_validator,
 )
+from pydantic.functional_validators import AfterValidator
 from pydantic.networks import AnyHttpUrl
 
 from entities_service.service.config import CONFIG
 
+SEMVER_REGEX = (
+    r"(?P<major>0|[1-9]\d*)(?:\.(?P<minor>0|[1-9]\d*))?(?:\.(?P<patch>0|[1-9]\d*))?"
+    r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
+    r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+    r"(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
+)
+"""Semantic Versioning regular expression.
+
+Slightly changed version of the one found at https://semver.org.
+The changed bits pertain to `minor` and `patch`, which are now both optional.
+"""
+
+NO_GROUPS_SEMVER_REGEX = (
+    r"(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*))?(?:\.(?:0|[1-9]\d*))?"
+    r"(?:-(?:(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
+    r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+    r"(?:\+(?:[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
+)
+"""Semantic Versioning regular expression.
+
+Slightly changed version of the one found at https://semver.org.
+The changed bits pertain to `minor` and `patch`, which are now both optional.
+
+This is the same as `SEMVER_REGEX`, but without the named groups.
+"""
+
 URI_REGEX = re.compile(
-    r"^(?P<namespace>https?://.+)/(?P<version>\d(?:\.\d+){0,2})/(?P<name>[^/#?]+)$"
+    rf"^(?P<namespace>https?://.+)/(?P<version>{NO_GROUPS_SEMVER_REGEX})/(?P<name>[^/#?]+)$"
 )
 """Regular expression to parse a SOFT entity URI."""
+
+
+def _disallowed_characters(value: str) -> str:
+    """Check that the value does not contain disallowed characters."""
+    special_url_characters = ["/", "?", "#", "@", ":"]
+    if any(char in value for char in special_url_characters):
+        raise ValueError(
+            f"The value must not contain any of {special_url_characters} characters."
+        )
+    if " " in value:
+        raise ValueError("The value must not contain any spaces.")
+    return value
+
+
+def _ensure_url_encodeable(value: str) -> str:
+    """Ensure that the value is URL encodeable."""
+    try:
+        quote(value)
+    except Exception as error:  # noqa: BLE001
+        raise ValueError(f"The value is not URL encodeable: {error}") from error
+    return value
+
+
+EntityVersionType = Annotated[
+    str,
+    Field(
+        description=(
+            "The version of the entity. It must be a semantic version, following the "
+            "schema laid out by SemVer.org."
+        ),
+        pattern=rf"^{SEMVER_REGEX}$",
+    ),
+]
+EntityNameType = Annotated[
+    str,
+    Field(description="The name of the entity."),
+    AfterValidator(_disallowed_characters),
+    AfterValidator(_ensure_url_encodeable),
+]
 
 
 class SOFTProperty(BaseModel):
@@ -61,10 +130,8 @@ class SOFTEntity(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: Annotated[str | None, Field(description="The name of the entity.")] = None
-    version: Annotated[str | None, Field(description="The version of the entity.")] = (
-        None
-    )
+    name: EntityNameType | None = None
+    version: EntityVersionType | None = None
     namespace: Annotated[
         AnyHttpUrl | None, Field(description="The namespace of the entity.")
     ] = None
@@ -86,7 +153,7 @@ class SOFTEntity(BaseModel):
         service."""
         if not str(value).startswith(str(CONFIG.base_url)):
             error_message = (
-                "This service only works with SOFT entities at " f"{CONFIG.base_url}.\n"
+                f"This service only works with SOFT entities at {CONFIG.base_url}.\n"
             )
             raise ValueError(error_message)
         return value
@@ -94,13 +161,31 @@ class SOFTEntity(BaseModel):
     @field_validator("uri", mode="after")
     @classmethod
     def _validate_uri(cls, value: AnyHttpUrl) -> AnyHttpUrl:
-        """Validate `uri` is consistent with `name`, `version`, and `namespace`."""
-        if URI_REGEX.match(str(value)) is None:
+        """Validate all parts of the `uri`."""
+        try:
+            uri_deconstructed = URI_REGEX.match(str(value))
+        except Exception as error:  # noqa: BLE001
+            error_message = f"The URI is invalid: {error}\n"
+            raise ValueError(error_message) from error
+
+        if uri_deconstructed is None:
+            # The URI does not match the expected pattern.
+            # This will validate that the namespace starts with 'http(s)://' and the
+            # version is a semantic version.
             error_message = (
-                "The 'uri' is not a valid SOFT7 entity URI. It must be of the form "
-                f"{str(CONFIG.base_url).rstrip('/')}/{{version}}/{{name}}.\n"
+                "The URI does not match the expected pattern. The URI must be of the "
+                "form `{namespace}/{version}/{name}`, where the 'version' must adhere "
+                "to the SemVer specification.\n"
             )
             raise ValueError(error_message)
+
+        try:
+            # This validates the name part of the URI.
+            TypeAdapter(EntityNameType).validate_python(uri_deconstructed.group("name"))
+        except (ValueError, ValidationError) as error:
+            error_message = f"The name part of the URI is invalid: {error}\n"
+            raise ValueError(error_message) from error
+
         return value
 
     @model_validator(mode="before")
