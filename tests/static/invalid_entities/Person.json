@@ -1,5 +1,5 @@
 {
-    "uri": "http://onto-ns.com/meta/0.1/Person",
+    "uri": "http://onto-ns.com/meta/0.2/Person",
     "meta": "http://onto-ns.com/meta/0.3/EntitySchema",
     "description": "A person, living or dead",
     "dimensions": ["n_skills"],

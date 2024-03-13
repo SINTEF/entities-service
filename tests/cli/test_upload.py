@@ -148,8 +148,6 @@ def test_upload_filepath_invalid(
         APP,
         f"upload {'--fail-fast ' if fail_fast else ''}"
         f"--file {invalid_entity_filepath}",
-        terminal_width=999,
-        max_content_width=999,
     )
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -423,11 +421,13 @@ def test_upload_directory_invalid_entities(
     )
     assert (
         re.search(r"validation errors? for DLiteSOFT7Entity", result.stderr) is not None
-    )
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert (
         re.search(r"validation errors? for DLiteSOFT5Entity", result.stderr) is not None
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
     )
-    assert not result.stdout
 
     if fail_fast:
         errored_entity = set()
@@ -812,7 +812,7 @@ def test_http_errors(
     # Mock response for "Check if entity already exists"
     httpx_mock.add_exception(HTTPError(error_message), url=parameterized_entity.uri)
 
-    result = cli.invoke(APP, f"upload --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -820,8 +820,10 @@ def test_http_errors(
     assert (
         "Error: Could not check if entity already exists. HTTP exception: "
         f"{error_message}" in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
     )
-    assert not result.stdout
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
@@ -834,7 +836,7 @@ def test_http_errors(
         match_json=[parameterized_entity.backend_entity],
     )
 
-    result = cli.invoke(APP, f"upload --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -842,8 +844,10 @@ def test_http_errors(
     assert (
         f"Error: Could not upload entity. HTTP exception: {error_message}"
         in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
     )
-    assert not result.stdout
 
 
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
@@ -873,7 +877,7 @@ def test_json_decode_errors(
         url=parameterized_entity.uri, status_code=200, content=b"not json"
     )
 
-    result = cli.invoke(APP, f"upload --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -881,8 +885,10 @@ def test_json_decode_errors(
     assert (
         "Error: Could not check if entity already exists. JSON decode error: "
         in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
     )
-    assert not result.stdout
 
     # Mock response for "Upload entities"
     httpx_mock.add_response(
@@ -896,13 +902,17 @@ def test_json_decode_errors(
         match_json=[parameterized_entity.backend_entity],
     )
 
-    result = cli.invoke(APP, f"upload --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
 
-    assert "Error: Could not upload entity. JSON decode error: " in result.stderr
-    assert not result.stdout
+    assert (
+        "Error: Could not upload entity. JSON decode error: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
 
 
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
@@ -940,3 +950,73 @@ def test_unable_to_upload(
         f"{dumped_error_message}" in result.stderr.replace("\n", "").replace("  ", "")
     )
     assert not result.stdout
+
+
+@pytest.mark.parametrize("fail_fast", [True, False])
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
+def test_non_unique_uris(
+    cli: CliRunner,
+    static_dir: Path,
+    fail_fast: bool,
+    httpx_mock: HTTPXMock,
+    namespace: str | None,
+    tmp_path: Path,
+) -> None:
+    """Test that non-unique URIs result in an error."""
+    import json
+
+    from entities_service.cli.config import CONFIG
+    from entities_service.cli.main import APP
+
+    entity_filepath = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    target_directory = tmp_path / "duplicate_uri_entities"
+    target_directory.mkdir(parents=True, exist_ok=False)
+
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+    current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
+
+    if namespace:
+        # Update entity to the current namespace
+        # This is to ensure the same error is given when hitting the specific
+        # namespace endpoint
+        if "namespace" in raw_entity:
+            raw_entity["namespace"] = current_namespace
+        if "uri" in raw_entity:
+            raw_entity["uri"] = raw_entity["uri"].replace(
+                f"{core_namespace}/", f"{current_namespace}/"
+            )
+
+    # Write the entity to file in the target directory
+    (target_directory / "Person.json").write_text(json.dumps(raw_entity))
+
+    # Write the same entity to file in the target directory, but with a different
+    # file name
+    (target_directory / "duplicate.json").write_text(json.dumps(raw_entity))
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
+
+    result = cli.invoke(
+        APP, f"upload {'--fail-fast ' if fail_fast else ''}--dir {target_directory}"
+    )
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    uri = raw_entity.get("uri") or (
+        f"{raw_entity.get('namespace', '')}"
+        f"/{raw_entity.get('version', ')')}/{raw_entity.get('name', '')}"
+    )
+    assert (
+        f"Error: Duplicate URI found: {uri}" in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )

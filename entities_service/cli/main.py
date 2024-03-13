@@ -53,6 +53,8 @@ from entities_service.service.config import CONFIG
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
+    from entities_service.models import Entity
+
 
 class EntityFileFormats(StrEnum):
     """Supported entity file formats."""
@@ -124,6 +126,19 @@ def upload(
         help="Stop uploading entities on the first error during file validation.",
         show_default=True,
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "--silent",
+        "-q",
+        "-s",
+        "-y",
+        help=(
+            "Do not print anything on success and do not ask for confirmation. "
+            "IMPORTANT, for content conflicts the defaults will be chosen."
+        ),
+        show_default=True,
+    ),
 ) -> None:
     """Upload (local) entities to a remote location."""
     unique_filepaths = set(filepaths or [])
@@ -167,12 +182,13 @@ def upload(
     failed: list[Path] = []
 
     unique_entity_uris: set[str] = set()
-    unique_entities: list[dict[str, Any]] = []
+    unique_entities: list[Entity] = []
 
     informed_file_formats: set[str] = set()
     for filepath in unique_filepaths:
         if (file_format := filepath.suffix[1:].lower()) not in file_formats:
-            print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+            if not quiet:
+                print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
 
             # The rest of the code in this block is to ensure we only print extra info
             # or warning messages the first time a new file format is encountered.
@@ -180,7 +196,7 @@ def upload(
                 skipped.append(filepath)
                 continue
 
-            if file_format in EntityFileFormats.__members__.values():
+            if file_format in EntityFileFormats.__members__.values() and not quiet:
                 print(
                     "[bold blue]Info[/bold blue]: Entities using the file format "
                     f"{file_format!r} can be uploaded by adding the option: "
@@ -218,15 +234,24 @@ def upload(
             continue
 
         for entity in entities:
-            uri = (
-                entity.get("uri", None)
-                or f"{entity['namespace']}/{entity['version']}/{entity['name']}"
-            )
-
-            if uri in unique_entity_uris:
+            # Validate entity
+            entity_model_or_errors = soft_entity(return_errors=True, **entity)
+            if isinstance(entity_model_or_errors, list):
+                # Error(s) occurred !
+                error_list = "\n\n".join(str(error) for error in entity_model_or_errors)
                 ERROR_CONSOLE.print(
-                    f"[bold red]Error[/bold red]: {filepath} contains a "
-                    f"duplicate URI: {uri}"
+                    f"[bold red]Error[/bold red]: {filepath} is not a valid SOFT "
+                    f"entity:\n\n{error_list}\n"
+                )
+                if fail_fast:
+                    raise typer.Exit(1)
+                failed.append(filepath)
+                continue
+
+            # Check for duplicate URIs
+            if (uri := get_uri(entity_model_or_errors)) in unique_entity_uris:
+                ERROR_CONSOLE.print(
+                    f"[bold red]Error[/bold red]: Duplicate URI found: {uri}"
                 )
                 if fail_fast:
                     raise typer.Exit(1)
@@ -234,27 +259,14 @@ def upload(
                 continue
 
             unique_entity_uris.add(uri)
-            unique_entities.append(entity)
+            unique_entities.append(entity_model_or_errors)
 
     # Evaluate each unique entity
-    for entity in unique_entities:
-        # Validate entity
-        entity_model_or_errors = soft_entity(return_errors=True, **entity)
-        if isinstance(entity_model_or_errors, list):
-            error_list = "\n\n".join(str(error) for error in entity_model_or_errors)
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: {filepath} is not a valid SOFT entity:"
-                f"\n\n{error_list}\n"
-            )
-            if fail_fast:
-                raise typer.Exit(1)
-            failed.append(filepath)
-            continue
-
+    for entity_model in unique_entities:
         # Check if entity already exists
         with httpx.Client(follow_redirects=True) as client:
             try:
-                response = client.get(get_uri(entity_model_or_errors))
+                response = client.get(get_uri(entity_model))
             except httpx.HTTPError as exc:
                 ERROR_CONSOLE.print(
                     "[bold red]Error[/bold red]: Could not check if entity already "
@@ -277,67 +289,78 @@ def upload(
             # Compare existing model with new model
 
             # Prepare entities: Dump new entity from model
-            dumped_entity = entity_model_or_errors.model_dump(
+            dumped_entity = entity_model.model_dump(
                 by_alias=True, mode="json", exclude_unset=True
             )
 
             if existing_entity == dumped_entity:
+                if not quiet:
+                    print(
+                        "[bold blue]Info[/bold blue]: Entity already exists in the "
+                        f"database. Skipping file: {filepath}"
+                    )
+                skipped.append(filepath)
+                continue
+
+            if not quiet:
                 print(
                     "[bold blue]Info[/bold blue]: Entity already exists in the "
-                    f"database. Skipping file: {filepath}"
+                    "database, but they differ in their content.\nDifference between "
+                    f"existing entity (first) and incoming entity (second) {filepath}:"
+                    f"\n\n{pretty_compare_dicts(existing_entity, dumped_entity)}\n"
                 )
-                skipped.append(filepath)
-                continue
 
-            print(
-                "[bold blue]Info[/bold blue]: Entity already exists in the "
-                "database, but they differ in their content.\nDifference between "
-                f"existing entity (first) and incoming entity (second) {filepath}:\n\n"
-                + pretty_compare_dicts(existing_entity, dumped_entity)
-                + "\n"
-            )
-
-            try:
-                update_version = typer.confirm(
-                    "You cannot overwrite existing entities. Do you wish to upload the "
-                    "new entity with an updated version number?",
-                    default=True,
-                )
-            except typer.Abort:  # pragma: no cover
-                # Can only happen if the user presses Ctrl-C, which can not be tested
-                # currently
-                update_version = False
+            if not quiet:
+                try:
+                    update_version = typer.confirm(
+                        "You cannot overwrite existing entities. Do you wish to upload "
+                        "the new entity with an updated version number?",
+                        default=True,
+                    )
+                except typer.Abort:  # pragma: no cover
+                    # Can only happen if the user presses Ctrl-C, which can not be
+                    # tested currently
+                    update_version = False
+            else:
+                # Use default
+                update_version = True
 
             if not update_version:
-                print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+                if not quiet:
+                    print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
                 skipped.append(filepath)
                 continue
 
-            # Passing incoming entity-as-model here, since the URIs (and thereby the
-            # versions) have already been determined to be the same, and the function
-            # only accepts models.
-            try:
-                new_version: str = typer.prompt(
-                    "The existing entity's version is "
-                    f"{get_version(entity_model_or_errors)!r}. Please enter the new "
-                    "version",
-                    default=get_updated_version(entity_model_or_errors),
-                    type=str,
-                )
-            except typer.Abort:  # pragma: no cover
-                # Can only happen if the user presses Ctrl-C, which can not be tested
-                # currently
-                print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
-                skipped.append(filepath)
-                continue
+            if not quiet:
+                # Passing incoming entity-as-model here, since the URIs (and thereby the
+                # versions) have already been determined to be the same, and the
+                # function only accepts models.
+                try:
+                    new_version: str = typer.prompt(
+                        "The existing entity's version is "
+                        f"{get_version(entity_model)!r}. Please enter the new "
+                        "version",
+                        default=get_updated_version(entity_model),
+                        type=str,
+                    )
+                except typer.Abort:  # pragma: no cover
+                    # Can only happen if the user presses Ctrl-C, which can not be
+                    # tested currently
+                    if not quiet:
+                        print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
+                    skipped.append(filepath)
+                    continue
+            else:
+                # Use default
+                new_version = get_updated_version(entity_model)
 
             # Validate new version
             error_message = ""
-            if new_version == get_version(entity_model_or_errors):
+            if new_version == get_version(entity_model):
                 error_message = (
                     "[bold red]Error[/bold red]: Could not update entity. "
                     f"New version ({new_version}) is the same as the existing version "
-                    f"({get_version(entity_model_or_errors)})."
+                    f"({get_version(entity_model)})."
                 )
             elif re.match(r"^\d+(?:\.\d+){0,2}$", new_version) is None:
                 error_message = (
@@ -353,28 +376,27 @@ def upload(
                 continue
 
             # Update version and URI
-            if entity_model_or_errors.version is not None:
-                entity_model_or_errors.version = new_version
-                entity_model_or_errors.uri = AnyHttpUrl(
-                    f"{entity_model_or_errors.namespace}/{new_version}"
-                    f"/{entity_model_or_errors.name}"
+            if entity_model.version is not None:
+                entity_model.version = new_version
+                entity_model.uri = AnyHttpUrl(
+                    f"{entity_model.namespace}/{new_version}" f"/{entity_model.name}"
                 )
 
-            if entity_model_or_errors.uri is not None:
-                match = URI_REGEX.match(str(entity_model_or_errors.uri))
+            if entity_model.uri is not None:
+                match = URI_REGEX.match(str(entity_model.uri))
 
                 # match will always be a match object, since the URI has already been
                 # validated by the model
                 if TYPE_CHECKING:  # pragma: no cover
                     assert match is not None  # nosec
 
-                entity_model_or_errors.uri = AnyHttpUrl(
+                entity_model.uri = AnyHttpUrl(
                     f"{match.group('namespace')}/{new_version}/{match.group('name')}"
                 )
 
         # Prepare entity for upload
         # Specifically, rename '$ref' keys to 'ref'
-        dumped_entity = entity_model_or_errors.model_dump(
+        dumped_entity = entity_model.model_dump(
             by_alias=True, mode="json", exclude_unset=True
         )
 
@@ -408,56 +430,58 @@ def upload(
         raise typer.Exit(1)
 
     if successes:
-        # Have the user confirm the list of entities to upload
-        table = Table(
-            title="Entities to upload:",
-            title_style="bold",
-            title_justify="left",
-            box=box.SIMPLE_HEAD,
-            highlight=True,
-        )
-
-        table.add_column("Namespace", no_wrap=True)
-        table.add_column("Entity", no_wrap=True)
-
-        for _, entity in successes:
-            if all(key in entity for key in ("namespace", "version", "name")):
-                namespace = (
-                    entity["namespace"][len(str(CONFIG.base_url).rstrip("/")) :] or "/"
-                )
-                version = entity["version"]
-                name = entity["name"]
-            else:
-                # Use the uri/identity
-                matched_uri = SERVICE_URI_REGEX.match(entity["uri"])
-                if matched_uri is None:
-                    raise ValueError(
-                        f"Could not parse URI {entity['uri']} with regular expression "
-                        f"{SERVICE_URI_REGEX.pattern}"
-                    )
-                namespace = matched_uri.group("specific_namespace") or "/"
-                version = matched_uri.group("version")
-                name = matched_uri.group("name")
-
-            table.add_row(namespace, f"{name} (ver. {version})")
-
-        print(f"\n{table}\n")
-
-        try:
-            upload_entities = typer.confirm(
-                "These entities will be uploaded. Do you want to continue?",
-                default=True,
+        if not quiet:
+            # Have the user confirm the list of entities to upload
+            table = Table(
+                title="Entities to upload:",
+                title_style="bold",
+                title_justify="left",
+                box=box.SIMPLE_HEAD,
+                highlight=True,
             )
-        except typer.Abort as exc:  # pragma: no cover
-            # Can only happen if the user presses Ctrl-C, which can not be tested
-            # currently
-            # Take an Abort as a "no"
-            print("[bold blue]Aborted: No entities were uploaded.[/bold blue]")
-            raise typer.Exit() from exc
 
-        if not upload_entities:
-            print("[bold blue]No entities were uploaded.[/bold blue]")
-            raise typer.Exit()
+            table.add_column("Namespace", no_wrap=True)
+            table.add_column("Entity", no_wrap=True)
+
+            for _, entity in successes:
+                if all(key in entity for key in ("namespace", "version", "name")):
+                    namespace = (
+                        entity["namespace"][len(str(CONFIG.base_url).rstrip("/")) :]
+                        or "/"
+                    )
+                    version = entity["version"]
+                    name = entity["name"]
+                else:
+                    # Use the uri/identity
+                    matched_uri = SERVICE_URI_REGEX.match(entity["uri"])
+                    if matched_uri is None:
+                        raise ValueError(
+                            f"Could not parse URI {entity['uri']} with regular "
+                            f"expression {SERVICE_URI_REGEX.pattern}"
+                        )
+                    namespace = matched_uri.group("specific_namespace") or "/"
+                    version = matched_uri.group("version")
+                    name = matched_uri.group("name")
+
+                table.add_row(namespace, f"{name} (ver. {version})")
+
+            print(f"\n{table}\n")
+
+            try:
+                upload_entities = typer.confirm(
+                    "These entities will be uploaded. Do you want to continue?",
+                    default=True,
+                )
+            except typer.Abort as exc:  # pragma: no cover
+                # Can only happen if the user presses Ctrl-C, which can not be tested
+                # currently
+                # Take an Abort as a "no"
+                print("[bold blue]Aborted: No entities were uploaded.[/bold blue]")
+                raise typer.Exit() from exc
+
+            if not upload_entities:
+                print("[bold blue]No entities were uploaded.[/bold blue]")
+                raise typer.Exit()
 
         # Upload entities
         with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:
@@ -492,15 +516,16 @@ def upload(
             )
             raise typer.Exit(1)
 
-        print(
-            f"[bold green]Successfully uploaded {len(successes)} "
-            f"entit{'y' if len(successes) == 1 else 'ies'}:[/bold green]\n"
-            + "\n".join([str(entity_filepath) for entity_filepath, _ in successes])
-        )
-    else:
+        if not quiet:
+            print(
+                f"[bold green]Successfully uploaded {len(successes)} "
+                f"entit{'y' if len(successes) == 1 else 'ies'}:[/bold green]\n"
+                + "\n".join([str(entity_filepath) for entity_filepath, _ in successes])
+            )
+    elif not quiet:
         print("[bold blue]No entities were uploaded.[/bold blue]")
 
-    if skipped:
+    if skipped and not quiet:
         print(
             f"\n[bold yellow]Skipped {len(skipped)} "
             f"entit{'y' if len(skipped) == 1 else 'ies'}:[/bold yellow]\n"
@@ -513,8 +538,11 @@ def login(
     quiet: bool = typer.Option(
         False,
         "--quiet",
+        "--silent",
         "-q",
-        help="Do not print anything on success.",
+        "-s",
+        "-y",
+        help="Do not print anything on success and do not ask for confirmation.",
         show_default=True,
     ),
 ) -> None:
