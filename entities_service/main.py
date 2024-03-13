@@ -83,7 +83,7 @@ async def _get_entity(version: str, name: str, db: str | None = None) -> dict[st
     response_model_exclude_unset=True,
     tags=["Entities"],
 )
-async def get_basic_entity(
+async def get_core_namespace_entity(
     version: Annotated[EntityVersionType, Path(title="Entity version")],
     name: Annotated[EntityNameType, Path(title="Entity name")],
 ) -> dict[str, Any]:
@@ -104,7 +104,7 @@ async def get_basic_entity(
     response_model_exclude_unset=True,
     tags=["Entities"],
 )
-async def get_namespaced_entity(
+async def get_specific_namespace_entity(
     specific_namespace: Annotated[
         str,
         Path(
