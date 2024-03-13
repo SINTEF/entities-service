@@ -8,7 +8,12 @@ from pydantic import ValidationError
 
 from .dlite_soft5 import DLiteSOFT5Entity
 from .dlite_soft7 import DLiteSOFT7Entity
-from .soft import URI_REGEX
+from .soft import (
+    SEMVER_REGEX,
+    URI_REGEX,
+    EntityNameType,
+    EntityVersionType,
+)
 from .soft5 import SOFT5Entity
 from .soft7 import SOFT7Entity
 
@@ -17,6 +22,19 @@ if TYPE_CHECKING:  # pragma: no cover
 
 Entity = SOFT7Entity | SOFT5Entity | DLiteSOFT7Entity | DLiteSOFT5Entity
 EntityType = get_args(Entity)
+
+__all__ = (
+    "Entity",
+    "EntityType",
+    "soft_entity",
+    "get_uri",
+    "get_version",
+    "get_updated_version",
+    "URI_REGEX",
+    "SEMVER_REGEX",
+    "EntityNameType",
+    "EntityVersionType",
+)
 
 
 @overload
