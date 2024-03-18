@@ -465,7 +465,7 @@ def upload(
 
                 table.add_row(namespace, f"{name} (ver. {version})")
 
-            print(f"\n{table}\n")
+            print("", table)
 
             try:
                 upload_entities = typer.confirm(

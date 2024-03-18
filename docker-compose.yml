@@ -29,8 +29,6 @@ services:
     ports:
       - "${MONGO_PORT:-27017}:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root
       IN_DOCKER: "true"
       HOST_USER: "${USER}"
     networks:
