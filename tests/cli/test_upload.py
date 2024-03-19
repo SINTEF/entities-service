@@ -376,7 +376,11 @@ def test_upload_directory_invalid_entities(
     namespace: str | None,
     tmp_path: Path,
 ) -> None:
-    """Test uploading a directory full of invalid entities."""
+    """Test uploading a directory full of invalid entities.
+
+    This test ensures all invalid entities are recognized and reported prior to any
+    attempts to upload.
+    """
     import json
     import re
 
@@ -397,7 +401,9 @@ def test_upload_directory_invalid_entities(
             # namespace endpoint
             invalid_entity: dict[str, Any] = json.loads(filepath.read_text())
             if "namespace" in invalid_entity:
-                invalid_entity["namespace"] = current_namespace
+                invalid_entity["namespace"] = invalid_entity["namespace"].replace(
+                    core_namespace, current_namespace
+                )
             if "uri" in invalid_entity:
                 invalid_entity["uri"] = invalid_entity["uri"].replace(
                     f"{core_namespace}/", f"{current_namespace}/"
@@ -444,7 +450,7 @@ def test_upload_directory_invalid_entities(
         assert all(
             f"{invalid_entity.name} is not a valid SOFT entity:" in result.stderr
             for invalid_entity in directory.glob("*.json")
-        )
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
         assert (
             f"Failed to upload {len(list(directory.glob('*.json')))} entities, see "
