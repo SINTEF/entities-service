@@ -41,7 +41,6 @@ from entities_service.cli._utils.generics import (
 from entities_service.cli._utils.global_settings import global_options
 from entities_service.cli.config import APP as config_APP
 from entities_service.models import (
-    SERVICE_URI_REGEX,
     URI_REGEX,
     get_updated_version,
     get_uri,
@@ -453,11 +452,11 @@ def upload(
                     name = entity["name"]
                 else:
                     # Use the uri/identity
-                    matched_uri = SERVICE_URI_REGEX.match(entity["uri"])
+                    matched_uri = URI_REGEX.match(entity["uri"])
                     if matched_uri is None:
                         raise ValueError(
                             f"Could not parse URI {entity['uri']} with regular "
-                            f"expression {SERVICE_URI_REGEX.pattern}"
+                            f"expression {URI_REGEX.pattern}"
                         )
                     namespace = matched_uri.group("specific_namespace") or "/"
                     version = matched_uri.group("version")

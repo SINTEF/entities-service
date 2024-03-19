@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from entities_service.models import SERVICE_URI_REGEX, Entity, get_uri
+from entities_service.models import URI_REGEX, Entity, get_uri
 from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.security import verify_token
@@ -71,7 +71,7 @@ async def create_entities(
     namespace_entities_mapping: dict[str | None, list[Entity]] = defaultdict(list)
 
     for entity in entities:
-        if (match := SERVICE_URI_REGEX.match(get_uri(entity))) is None:
+        if (match := URI_REGEX.match(get_uri(entity))) is None:
             raise write_fail_exception
 
         namespace_entities_mapping[match.group("specific_namespace")].append(entity)

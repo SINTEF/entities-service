@@ -49,13 +49,40 @@ This is the same as `SEMVER_REGEX`, but without the named groups.
 """
 
 URI_REGEX = re.compile(
-    rf"^(?P<namespace>https?://.+)/(?P<version>{NO_GROUPS_SEMVER_REGEX})/(?P<name>[^/#?]+)$"
+    rf"^(?P<namespace>{re.escape(str(CONFIG.base_url).rstrip('/'))}(?:/(?P<specific_namespace>.+))?)"
+    rf"/(?P<version>{NO_GROUPS_SEMVER_REGEX})/(?P<name>[^/#?]+)$"
 )
 """Regular expression to parse a SOFT entity URI."""
 
 
-def _disallowed_characters(value: str) -> str:
-    """Check that the value does not contain disallowed characters."""
+def _disallowed_namespace_characters(value: str) -> str:
+    """Check that the namespace does not contain disallowed characters.
+
+    This is especially important for the specific namespace, which must be a valid
+    MongoDB (backend) collection name.
+    """
+    base_error_message = "Invalid specific namespace -"
+
+    if not value.startswith(str(CONFIG.base_url).rstrip("/")):
+        raise ValueError(
+            f"{base_error_message} must start with the base URL of the service "
+            f"({CONFIG.base_url})."
+        )
+
+    if "$" in value:
+        raise ValueError(f"{base_error_message} may not contain a '$' character.")
+
+    if value.startswith("system."):
+        raise ValueError(f"{base_error_message} may not start with 'system.'.")
+
+    if " " in value:
+        raise ValueError(f"{base_error_message} may not contain any spaces.")
+
+    return value.strip()
+
+
+def _disallowed_name_characters(value: str) -> str:
+    """Check that the name does not contain disallowed characters."""
     special_url_characters = ["/", "?", "#", "@", ":"]
     if any(char in value for char in special_url_characters):
         raise ValueError(
@@ -75,6 +102,12 @@ def _ensure_url_encodeable(value: str) -> str:
     return value
 
 
+EntityNamespaceType = Annotated[
+    str,
+    Field(description="The namespace of the entity."),
+    AfterValidator(_disallowed_namespace_characters),
+    AfterValidator(_ensure_url_encodeable),
+]
 EntityVersionType = Annotated[
     str,
     Field(
@@ -84,11 +117,12 @@ EntityVersionType = Annotated[
         ),
         pattern=rf"^{SEMVER_REGEX}$",
     ),
+    AfterValidator(_ensure_url_encodeable),
 ]
 EntityNameType = Annotated[
     str,
     Field(description="The name of the entity."),
-    AfterValidator(_disallowed_characters),
+    AfterValidator(_disallowed_name_characters),
     AfterValidator(_ensure_url_encodeable),
 ]
 
@@ -132,9 +166,7 @@ class SOFTEntity(BaseModel):
 
     name: EntityNameType | None = None
     version: EntityVersionType | None = None
-    namespace: Annotated[
-        AnyHttpUrl | None, Field(description="The namespace of the entity.")
-    ] = None
+    namespace: EntityNamespaceType | None = None
     uri: Annotated[
         AnyHttpUrl | None,
         Field(
@@ -145,18 +177,6 @@ class SOFTEntity(BaseModel):
         ),
     ] = None
     description: Annotated[str, Field(description="Description of the entity.")] = ""
-
-    @field_validator("uri", "namespace", mode="after")
-    @classmethod
-    def _validate_base_url(cls, value: AnyHttpUrl) -> AnyHttpUrl:
-        """Validate `uri` and `namespace` starts with the current base URL for the
-        service."""
-        if not str(value).startswith(str(CONFIG.base_url)):
-            error_message = (
-                f"This service only works with SOFT entities at {CONFIG.base_url}.\n"
-            )
-            raise ValueError(error_message)
-        return value
 
     @field_validator("uri", mode="after")
     @classmethod
@@ -179,8 +199,26 @@ class SOFTEntity(BaseModel):
             )
             raise ValueError(error_message)
 
+        # Validate the namespace
         try:
-            # This validates the name part of the URI.
+            TypeAdapter(EntityNamespaceType).validate_python(
+                uri_deconstructed.group("namespace")
+            )
+        except (ValueError, ValidationError) as error:
+            error_message = f"The namespace part of the URI is invalid: {error}\n"
+            raise ValueError(error_message) from error
+
+        # Validate the version
+        try:
+            TypeAdapter(EntityVersionType).validate_python(
+                uri_deconstructed.group("version")
+            )
+        except (ValueError, ValidationError) as error:
+            error_message = f"The version part of the URI is invalid: {error}\n"
+            raise ValueError(error_message) from error
+
+        # Validate the name part of the URI.
+        try:
             TypeAdapter(EntityNameType).validate_python(uri_deconstructed.group("name"))
         except (ValueError, ValidationError) as error:
             error_message = f"The name part of the URI is invalid: {error}\n"

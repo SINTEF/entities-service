@@ -29,19 +29,12 @@ from entities_service.service.config import CONFIG, MongoDsn
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
-    from typing import Any, TypedDict
+    from typing import Any
 
     from pydantic import AnyHttpUrl
     from pymongo import MongoClient
 
     from entities_service.models import Entity
-
-    class URIParts(TypedDict):
-        """The parts of a SOFT entity URI."""
-
-        namespace: str
-        version: str
-        name: str
 
 
 LOGGER = logging.getLogger(__name__)
@@ -414,7 +407,8 @@ class MongoDBBackend(Backend):
     def _single_uri_query(self, uri: str) -> dict[str, Any]:
         """Build a query for a single URI."""
         if (match := URI_REGEX.match(uri)) is not None:
-            uri_parts: URIParts = match.groupdict()  # type: ignore[assignment]
+            uri_parts = match.groupdict()
+            uri_parts.pop("specific_namespace", None)
         else:
             raise ValueError(f"Invalid entity URI: {uri}")
 
