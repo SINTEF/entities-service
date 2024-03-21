@@ -52,7 +52,8 @@ ERROR_CONSOLE = Console(stderr=True)
 
 CACHE_DIRECTORY: Path = Path(
     os.getenv(
-        "ENTITY_SERVICE_CLI_CACHE_DIR", str(Path.home() / ".cache" / "entities-service")
+        "ENTITIES_SERVICE_CLI_CACHE_DIR",
+        str(Path.home() / ".cache" / "entities-service"),
     )
 ).resolve()
 """The directory where the CLI caches data."""

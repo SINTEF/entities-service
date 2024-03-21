@@ -1,0 +1,23 @@
+{
+    "namespace": "http://onto-ns.com/meta/$invalid",
+    "version": "1.0",
+    "name": "Owl",
+    "description": "A wise owl.",
+    "properties": [
+        {
+            "name": "specific-species",
+            "type": "string",
+            "description": "Specific species of owl."
+        },
+        {
+            "name": "age",
+            "type": "int",
+            "description": "Age of the owl."
+        },
+        {
+            "name": "color",
+            "type": "string",
+            "description": "Color of the owl."
+        }
+    ]
+}

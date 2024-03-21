@@ -138,6 +138,7 @@ def test_get_version(static_dir: Path) -> None:
     model: dict[str, Any] = json.loads(model_file.read_text())
 
     split_uri = URI_REGEX.match(model["uri"]).groupdict()
+    split_uri.pop("specific_namespace", None)
     expected_version = split_uri["version"]
 
     entity = soft_entity(**model)
