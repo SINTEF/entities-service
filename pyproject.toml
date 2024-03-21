@@ -131,7 +131,7 @@ filterwarnings = [
     "ignore:.*Use timezone-aware objects to represent datetimes in UTC.*:DeprecationWarning",
 
     # httpx app is deprecated, use Transport class instead
-    # This should be updated in Starlette
+    # This should be updated in Starlette's TestClient
     "ignore:.*shortcut is now deprecated. Use the explicit style.*:DeprecationWarning",
 ]
 

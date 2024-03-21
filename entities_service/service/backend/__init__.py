@@ -76,11 +76,23 @@ class Backends(StrEnum):
 
         raise NotImplementedError(f"Backend {self} not implemented")
 
+    def set_db(self, db: str) -> dict[str, Any]:
+        """Set the database."""
+        if self in (self.MONGODB, self.MONGOMOCK):
+            return {
+                "mongo_collection": db.replace("-", "_")
+                .replace(".", "_")
+                .replace("/", ".")
+            }
+
+        raise NotImplementedError(f"Backend {self} not implemented")
+
 
 def get_backend(
     backend: Backends | str | None = None,
     auth_level: Literal["read", "write"] = "read",
     settings: dict[str, Any] | None = None,
+    db: str | None = None,
 ) -> Backend:
     """Get a backend instance."""
     from entities_service.service.config import CONFIG
@@ -98,7 +110,12 @@ def get_backend(
 
     backend_class = backend.get_class()
 
+    # Get the settings
     backend_settings = backend.get_auth_level_settings(auth_level)
+
+    if db is not None:
+        backend_settings.update(backend.set_db(db))
+
     if settings is not None:
         backend_settings.update(settings)
 

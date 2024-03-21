@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from .dlite_soft5 import DLiteSOFT5Entity
 from .dlite_soft7 import DLiteSOFT7Entity
 from .soft import (
+    NO_GROUPS_SEMVER_REGEX,
     SEMVER_REGEX,
     URI_REGEX,
     EntityNameType,
@@ -32,6 +33,7 @@ __all__ = (
     "get_updated_version",
     "URI_REGEX",
     "SEMVER_REGEX",
+    "NO_GROUPS_SEMVER_REGEX",
     "EntityNameType",
     "EntityVersionType",
 )
