@@ -18,6 +18,7 @@ def test_get_entity(
 ) -> None:
     """Test the route to retrieve an entity."""
     import json
+    from copy import deepcopy
 
     from fastapi import status
 
@@ -47,9 +48,14 @@ def test_get_entity(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
     retrieved_entity = response_json
-    print(retrieved_entity)
+
+    # Created expected entity
+    expected_entity = deepcopy(parameterized_entity.entity)
+    if "identity" in expected_entity:
+        expected_entity["uri"] = expected_entity.pop("identity")
+
     for key, value in retrieved_entity.items():
-        assert key in parameterized_entity.entity, retrieved_entity
+        assert key in expected_entity, retrieved_entity
 
         if key == "uri":
             assert value == (
@@ -59,7 +65,7 @@ def test_get_entity(
         elif key == "namespace":
             assert value == current_namespace, f"key: {key}"
         else:
-            assert value == parameterized_entity.entity[key], f"key: {key}"
+            assert value == expected_entity[key], f"key: {key}"
 
 
 @pytest.mark.skipif(
@@ -74,18 +80,38 @@ def test_get_entity_instance(
     """Validate that we can instantiate a DLite Instance from the response"""
     from dlite import Instance
 
+    from entities_service.service.config import CONFIG
+
     url_path = namespace or ""
     url_path += f"/{parameterized_entity.version}/{parameterized_entity.name}"
 
     with client() as client_:
         response = client_.get(url_path, timeout=5)
 
-    # Convert SOFT5 properties' 'dims' to 'shape'
-    for entity_property in parameterized_entity.entity["properties"]:
-        if "dims" in entity_property:
-            entity_property["shape"] = entity_property.pop("dims")
+    response_json = response.json()
 
-    Instance.from_dict(response.json())
+    # Assert 'uri' is always returned, even if 'identity' was in the uploaded entity
+    if "identity" in parameterized_entity.entity:
+        assert "uri" in response_json
+        assert "identity" not in response_json
+
+        if namespace:
+            assert response_json["uri"] == (
+                f"{str(CONFIG.base_url).rstrip('/')}/{namespace}/{parameterized_entity.version}/{parameterized_entity.name}"
+            )
+        else:
+            assert response_json["uri"] == parameterized_entity.entity["identity"]
+
+    # Ensure an empty dimension is always returned
+    if (
+        "dimensions" not in parameterized_entity.entity
+        or not parameterized_entity.entity["dimensions"]
+    ):
+        assert "dimensions" in response_json
+        assert isinstance(response_json["dimensions"], (list, dict))
+        assert not response_json["dimensions"]
+
+    Instance.from_dict(response_json)
 
 
 def test_get_entity_not_found(client: ClientFixture, namespace: str | None) -> None:

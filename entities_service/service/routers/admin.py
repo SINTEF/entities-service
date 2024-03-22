@@ -83,6 +83,12 @@ async def create_entities(
             CONFIG.backend, auth_level="write", db=namespace
         )
 
+        LOGGER.debug(
+            "Creating %s entities in namespace '%s'",
+            len(namespaced_entities),
+            namespace,
+        )
+
         try:
             created_namespaced_entities = namespaced_entities_backend.create(
                 namespaced_entities
@@ -97,7 +103,7 @@ async def create_entities(
                     "Already created entities: uris=%s",
                     ", ".join(
                         (
-                            entity.get("uri", "")
+                            entity.get("uri", entity.get("identity", ""))
                             or (
                                 f"{entity.get('namespace', '')}"
                                 f"/{entity.get('version', '')}"

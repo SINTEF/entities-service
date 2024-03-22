@@ -55,20 +55,22 @@ def test_validate_filepath(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
 
+    assert "uri" in raw_entity
+
     if namespace:
         # Update the entity's namespace to the current namespace
         if "namespace" in raw_entity:
             raw_entity["namespace"] = current_namespace
-        if "uri" in raw_entity:
-            raw_entity["uri"] = raw_entity["uri"].replace(
-                f"{core_namespace}/", f"{current_namespace}/"
-            )
+
+        raw_entity["uri"] = raw_entity["uri"].replace(
+            f"{core_namespace}/", f"{current_namespace}/"
+        )
+
         # Write the updated entity to file
         entity_filepath = tmp_path / "Person.json"
         entity_filepath.write_text(json.dumps(raw_entity))
 
     # Mock response for "Check if entity already exists"
-    assert "uri" in raw_entity
     httpx_mock.add_response(
         url=raw_entity["uri"],
         status_code=404,  # not found
@@ -116,6 +118,9 @@ def test_validate_filepath_invalid(
         # This is to ensure the same error is given when hitting the specific namespace
         # endpoint
         invalid_entity: dict[str, Any] = json.loads(invalid_entity_filepath.read_text())
+
+        assert "identity" not in invalid_entity
+
         if "namespace" in invalid_entity:
             invalid_entity["namespace"] = current_namespace
         if "uri" in invalid_entity:
@@ -246,10 +251,12 @@ def test_validate_directory(
         directory.mkdir(parents=True, exist_ok=True)
         for index, raw_entity in enumerate(raw_entities):
             # Update the entity's namespace to the current namespace
+            id_key = "identity" if "identity" in raw_entity else "uri"
+
             if "namespace" in raw_entity:
                 raw_entity["namespace"] = current_namespace
-            if "uri" in raw_entity:
-                raw_entity["uri"] = raw_entity["uri"].replace(
+            if id_key in raw_entity:
+                raw_entity[id_key] = raw_entity[id_key].replace(
                     f"{core_namespace}/", f"{current_namespace}/"
                 )
 
@@ -258,9 +265,10 @@ def test_validate_directory(
 
     # Mock response for "Check if entity already exists"
     for raw_entity in raw_entities:
-        assert "uri" in raw_entity
+        id_key = "identity" if "identity" in raw_entity else "uri"
+        assert id_key in raw_entity
         httpx_mock.add_response(
-            url=raw_entity["uri"],
+            url=raw_entity[id_key],
             status_code=404,  # not found
         )
 
@@ -368,12 +376,15 @@ def test_validate_directory_invalid_entities(
             # This is to ensure the same error is given when hitting the specific
             # namespace endpoint
             invalid_entity: dict[str, Any] = json.loads(filepath.read_text())
+
+            id_key = "identity" if "identity" in invalid_entity else "uri"
+
             if "namespace" in invalid_entity:
                 invalid_entity["namespace"] = invalid_entity["namespace"].replace(
                     core_namespace, current_namespace
                 )
-            if "uri" in invalid_entity:
-                invalid_entity["uri"] = invalid_entity["uri"].replace(
+            if id_key in invalid_entity:
+                invalid_entity[id_key] = invalid_entity[id_key].replace(
                     f"{core_namespace}/", f"{current_namespace}/"
                 )
 
@@ -943,9 +954,10 @@ def test_list_of_entities_in_single_file(
 
     # Mock response for "Check if entity already exists"
     for raw_entity in raw_entities:
-        assert "uri" in raw_entity
+        id_key = "identity" if "identity" in raw_entity else "uri"
+        assert id_key in raw_entity
         httpx_mock.add_response(
-            url=raw_entity["uri"],
+            url=raw_entity[id_key],
             status_code=404,  # not found
         )
 
@@ -1172,7 +1184,8 @@ def test_validate_strict(
 
         file_inputs += f" {filepath}"
 
-        assert "uri" in raw_entity
+        id_key = "identity" if "identity" in raw_entity else "uri"
+        assert id_key in raw_entity
 
         # Let's say half exist externally already
         if index % 2 == 0:
@@ -1198,7 +1211,7 @@ def test_validate_strict(
                 number_existing_changed_entities += 1
 
             httpx_mock.add_response(
-                url=existing_entity_content["uri"],
+                url=existing_entity_content[id_key],
                 status_code=200,  # ok
                 json=existing_entity_content,
             )
@@ -1209,7 +1222,7 @@ def test_validate_strict(
         # While the other half do not exist externally...
         else:
             httpx_mock.add_response(
-                url=raw_entity["uri"],
+                url=raw_entity[id_key],
                 status_code=404,  # not found
             )
 
