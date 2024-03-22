@@ -266,9 +266,9 @@ def test_upload_directory(
 
     # Mock response for "Check if entity already exists"
     for raw_entity in raw_entities:
-        assert "uri" in raw_entity
+        assert any(_ in raw_entity for _ in ("uri", "identity"))
         httpx_mock.add_response(
-            url=raw_entity["uri"],
+            url=raw_entity.get("uri", raw_entity.get("identity")),
             status_code=404,  # not found
         )
 
@@ -1016,7 +1016,7 @@ def test_non_unique_uris(
         stdout=result.stdout, stderr=result.stderr
     )
 
-    uri = raw_entity.get("uri") or (
+    uri = raw_entity.get("uri", raw_entity.get("identity")) or (
         f"{raw_entity.get('namespace', '')}"
         f"/{raw_entity.get('version', ')')}/{raw_entity.get('name', '')}"
     )

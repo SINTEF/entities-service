@@ -61,6 +61,7 @@ class ParameterizeGetEntities(NamedTuple):
     name: str
     uri: str
     backend_entity: dict[str, Any]
+    specific_namespace: str | None
 
 
 ## Pytest configuration functions and hooks ##
@@ -207,7 +208,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     for entity in entities:
         name: str | None = entity.get("name")
         if name is None:
-            uri: str | None = entity.get("uri")
+            uri: str | None = entity.get("uri", entity.get("identity"))
             if uri is None:
                 raise ValueError(
                     "Could not retrieve neither uri and name from test entity."
@@ -316,22 +317,27 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
     from entities_service.service.config import CONFIG
 
-    def get_version_name(uri: str) -> tuple[str, str]:
-        """Return the version and name part of a uri."""
+    def get_uri_parts(uri: str) -> tuple[str | None, str, str]:
+        """Return the specific namespace, version, and name part of a uri."""
         # namespace = "http://onto-ns.com/meta"
         namespace = str(CONFIG.base_url).rstrip("/")
 
         match = re.match(
-            rf"^{re.escape(namespace)}/(?P<version>[^/]+)/(?P<name>[^/]+)$", uri
+            rf"^{re.escape(namespace)}(?:/(?P<specific_namespace>[^$]+))?/(?P<version>[^/]+)/(?P<name>[^/]+)$",
+            uri,
         )
         assert match is not None, (
             f"Could not retrieve version and name from {uri!r}. "
             "URI must be of the form: "
-            f"{namespace}/{{version}}/{{name}}\n\n"
+            f"{namespace}[/{{specific namespace}}]/{{version}}/{{name}}\n\n"
             "Hint: Did you (inadvertently) set the base_url to something?"
         )
 
-        return match.group("version") or "", match.group("name") or ""
+        return (
+            match.group("specific_namespace") or None,
+            match.group("version") or "",
+            match.group("name") or "",
+        )
 
     def get_uri(entity: dict[str, Any]) -> str:
         """Return the uri for an entity."""
@@ -354,13 +360,22 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     )
 
     for entity in entities:
-        uri = entity.get("uri") or get_uri(entity)
+        uri = entity.get("uri", entity.get("identity")) or get_uri(entity)
 
-        version, name = get_version_name(uri)
+        specific_namespace, version, name = get_uri_parts(uri)
 
-        # Replace $ref with ref
         backend_entity = deepcopy(entity)
 
+        # Replace 'identity' with 'uri'
+        if "identity" in backend_entity:
+            if "uri" in backend_entity:
+                raise ValueError(
+                    "Both 'identity' and 'uri' keys are present in the test entity. "
+                    "Please remove one of them."
+                )
+            backend_entity["uri"] = backend_entity.pop("identity")
+
+        # Replace '$ref' with 'ref'
         # SOFT5
         if isinstance(backend_entity["properties"], list):
             backend_entity["properties"] = [
@@ -379,13 +394,22 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
                 }
 
         results.append(
-            ParameterizeGetEntities(entity, version, name, uri, backend_entity)
+            ParameterizeGetEntities(
+                entity, version, name, uri, backend_entity, specific_namespace
+            )
         )
 
     metafunc.parametrize(
         "parameterized_entity",
         results,
-        ids=[f"{_.version}/{_.name}" for _ in results],
+        ids=[
+            (
+                f"{_.specific_namespace}/{_.version}/{_.name}"
+                if _.specific_namespace
+                else f"{_.version}/{_.name}"
+            )
+            for _ in results
+        ],
     )
 
 
@@ -538,6 +562,8 @@ def _reset_mongo_test_collections(
 ) -> None:
     """Reset the MongoDB test collections, dropping them and re-filling them with test
     entities."""
+    import re
+    from collections import defaultdict
     from copy import deepcopy
 
     import yaml
@@ -572,22 +598,53 @@ def _reset_mongo_test_collections(
             )
 
     # For the specific namespace collection, rename all uris (and namespaces) to be
-    # within the specific namespace
+    # within the specific namespace.
+    # Note, do this only with the valid entities that belong to the core namespace.
+    specific_namespaced_entities: dict[str, list[dict[str, Any]]] = defaultdict(list)
     core_namespace = str(CONFIG.base_url).rstrip("/")
-    specific_namespace_entities = deepcopy(entities)
-    for entity in specific_namespace_entities:
-        if "uri" in entity:
-            entity["uri"] = entity["uri"].replace(
+    specific_namespaced_core_entities = deepcopy(entities)
+    uri_pattern = (
+        rf"^{re.escape(core_namespace)}(?:/(?P<specific_namespace>[^$]+))?"
+        r"/(?P<version>[^/]+)/(?P<name>[^/]+)$"
+    )
+    for entity in specific_namespaced_core_entities:
+        id_key = "uri" if "uri" in entity else "identity"
+
+        if id_key in entity:
+            if specific_namespace := re.match(uri_pattern, entity[id_key]).group(
+                "specific_namespace"
+            ):
+                # This entity is already namespaced
+                # Wait with updating the uri until the entity is removed from the other
+                # entity lists (see below)
+                specific_namespaced_entities[specific_namespace].append(entity)
+                continue
+
+            # Ensure the backend uses `uri` instead of `identity`
+            entity["uri"] = entity.pop(id_key).replace(
                 core_namespace,
                 f"{core_namespace}/{existing_specific_namespace}",
             )
+
         if "namespace" in entity:
             entity["namespace"] = f"{core_namespace}/{existing_specific_namespace}"
 
     backend_user = get_backend_user("write")
 
+    # Remove already namespaced entities from 'entities' and
+    # 'specific_namespaced_core_entities'
+    for namespaced_entities in specific_namespaced_entities.values():
+        for entity in namespaced_entities:
+            entities.remove(entity)
+            specific_namespaced_core_entities.remove(entity)
+
+            # Ensure the backend uses `uri` instead of `identity`
+            id_key = "uri" if "uri" in entity else "identity"
+            if id_key in entity:
+                entity["uri"] = entity.pop(id_key)
+
     # None is equal to the core namespace
-    for namespace in (None, existing_specific_namespace):
+    for namespace in (None, existing_specific_namespace, *specific_namespaced_entities):
         backend: MongoDBBackend = get_backend(
             auth_level="write",
             settings={
@@ -597,11 +654,13 @@ def _reset_mongo_test_collections(
             db=namespace,
         )
         backend._collection.drop()
-        backend._collection.insert_many(
-            specific_namespace_entities
-            if namespace == existing_specific_namespace
-            else entities
-        )
+        if namespace is None:
+            entities_to_insert = entities
+        elif namespace == existing_specific_namespace:
+            entities_to_insert = specific_namespaced_core_entities
+        else:
+            entities_to_insert = specific_namespaced_entities[namespace]
+        backend._collection.insert_many(entities_to_insert)
 
 
 @pytest.fixture(autouse=True)
@@ -673,44 +732,46 @@ def mock_auth_verification(
     """Mock authentication on the /_admin endpoints."""
     from entities_service.service.config import CONFIG
 
-    # OpenID configuration
-    httpx_mock.add_response(
-        url=(
-            f"{str(CONFIG.oauth2_provider).rstrip('/')}"
-            "/.well-known/openid-configuration"
-        ),
-        json={
-            "issuer": str(CONFIG.oauth2_provider).rstrip("/"),
-            "authorization_endpoint": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/authorize"
-            ),
-            "token_endpoint": f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
-            "userinfo_endpoint": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo"
-            ),
-            "jwks_uri": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/discovery/keys"
-            ),
-            "response_types_supported": [
-                "code",
-            ],
-            "subject_types_supported": [
-                "public",
-            ],
-            "id_token_signing_alg_values_supported": [
-                "RS256",
-            ],
-            "code_challenge_methods_supported": [
-                "plain",
-                "S256",
-            ],
-        },
-    )
-
     def _mock_auth_verification(
         auth_role: Literal["read", "write"] | None = None
     ) -> None:
         """Mock authentication on the /_admin endpoints."""
+        # OpenID configuration
+        httpx_mock.add_response(
+            url=(
+                f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                "/.well-known/openid-configuration"
+            ),
+            json={
+                "issuer": str(CONFIG.oauth2_provider).rstrip("/"),
+                "authorization_endpoint": (
+                    f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/authorize"
+                ),
+                "token_endpoint": (
+                    f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token"
+                ),
+                "userinfo_endpoint": (
+                    f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo"
+                ),
+                "jwks_uri": (
+                    f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/discovery/keys"
+                ),
+                "response_types_supported": [
+                    "code",
+                ],
+                "subject_types_supported": [
+                    "public",
+                ],
+                "id_token_signing_alg_values_supported": [
+                    "RS256",
+                ],
+                "code_challenge_methods_supported": [
+                    "plain",
+                    "S256",
+                ],
+            },
+        )
+
         if auth_role is None:
             auth_role = "read"
 
