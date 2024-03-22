@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.2.0](https://github.com/SINTEF/entities-service/tree/v0.2.0) (2024-03-22)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.1.0...v0.2.0)
+
+**Fixed bugs:**
+
+- The pydantic model for `GitLabUserInfo` is too strict [\#83](https://github.com/SINTEF/entities-service/issues/83)
+- The cache dir is not being created automatically [\#82](https://github.com/SINTEF/entities-service/issues/82)
+
+**Closed issues:**
+
+- Loosen name regex for retrieving entities [\#90](https://github.com/SINTEF/entities-service/issues/90)
+- Minimize code repeats in SOFT models [\#64](https://github.com/SINTEF/entities-service/issues/64)
+- Test with different "versions" of entity schemas [\#5](https://github.com/SINTEF/entities-service/issues/5)
+
+**Merged pull requests:**
+
+- Support specific namespaces [\#101](https://github.com/SINTEF/entities-service/pull/101) ([CasperWA](https://github.com/CasperWA))
+- Unify entity version and name validation [\#91](https://github.com/SINTEF/entities-service/pull/91) ([CasperWA](https://github.com/CasperWA))
+- Clean up authorization models [\#88](https://github.com/SINTEF/entities-service/pull/88) ([CasperWA](https://github.com/CasperWA))
+- Try to create cache directory on each CLI call [\#87](https://github.com/SINTEF/entities-service/pull/87) ([CasperWA](https://github.com/CasperWA))
+- Separate out entity models in SOFT and DLite [\#74](https://github.com/SINTEF/entities-service/pull/74) ([CasperWA](https://github.com/CasperWA))
+
 ## [v0.1.0](https://github.com/SINTEF/entities-service/tree/v0.1.0) (2024-01-31)
 
 [Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.0.1...v0.1.0)
