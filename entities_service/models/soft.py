@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import difflib
 import re
-from typing import Annotated, Any
+from typing import Annotated
 from urllib.parse import quote
 
 from pydantic import (
@@ -174,6 +174,7 @@ class SOFTEntity(BaseModel):
                 "The universal identifier for the entity. This MUST start with the base"
                 " URL."
             ),
+            validation_alias=AliasChoices("identity", "uri"),
         ),
     ] = None
     description: Annotated[str, Field(description="Description of the entity.")] = ""
@@ -226,14 +227,13 @@ class SOFTEntity(BaseModel):
 
         return value
 
-    @model_validator(mode="before")
-    @classmethod
-    def _check_cross_dependent_fields(cls, data: Any) -> Any:
+    @model_validator(mode="after")
+    def _check_cross_dependent_fields(self) -> SOFTEntity:
         """Check that `name`, `version`, and `namespace` are all set or all unset."""
-        if (
-            isinstance(data, dict)
-            and any(data.get(_) is None for _ in ("name", "version", "namespace"))
-            and not all(data.get(_) is None for _ in ("name", "version", "namespace"))
+        if any(
+            getattr(self, _) is None for _ in ("name", "version", "namespace")
+        ) and not all(
+            getattr(self, _) is None for _ in ("name", "version", "namespace")
         ):
             error_message = (
                 "Either all of `name`, `version`, and `namespace` must be set "
@@ -242,9 +242,8 @@ class SOFTEntity(BaseModel):
             raise ValueError(error_message)
 
         if (
-            isinstance(data, dict)
-            and any(data.get(_) is None for _ in ("name", "version", "namespace"))
-            and data.get("uri") is None
+            any(getattr(self, _) is None for _ in ("name", "version", "namespace"))
+            and self.uri is None
         ):
             error_message = (
                 "Either `name`, `version`, and `namespace` or `uri` must be set.\n"
@@ -252,16 +251,15 @@ class SOFTEntity(BaseModel):
             raise ValueError(error_message)
 
         if (
-            isinstance(data, dict)
-            and all(data.get(_) is not None for _ in ("name", "version", "namespace"))
-            and data.get("uri") is not None
-            and data["uri"] != f"{data['namespace']}/{data['version']}/{data['name']}"
+            all(getattr(self, _) is not None for _ in ("name", "version", "namespace"))
+            and self.uri is not None
+            and str(self.uri) != f"{self.namespace}/{self.version}/{self.name}"
         ):
             # Ensure that `uri` is consistent with `name`, `version`, and `namespace`.
             diff = "\n  ".join(
                 difflib.ndiff(
-                    [data["uri"]],
-                    [f"{data['namespace']}/{data['version']}/{data['name']}"],
+                    [str(self.uri)],
+                    [f"{self.namespace}/{self.version}/{self.name}"],
                 )
             )
             error_message = (
@@ -269,4 +267,5 @@ class SOFTEntity(BaseModel):
                 f"`namespace`:\n\n  {diff}\n\n"
             )
             raise ValueError(error_message)
-        return data
+
+        return self

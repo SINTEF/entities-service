@@ -43,15 +43,17 @@ def test_create_single_entity(
 
     entity = deepcopy(parameterized_entity.entity)
 
-    if namespace:
+    if namespace and not parameterized_entity.specific_namespace:
         core_namespace = str(CONFIG.base_url).rstrip("/")
         current_namespace = f"{core_namespace}/{namespace}"
 
         # Update namespace in entity
         if "namespace" in entity:
             entity["namespace"] = current_namespace
-        if "uri" in entity:
-            entity["uri"] = entity["uri"].replace(core_namespace, current_namespace)
+
+        id_key = "uri" if "uri" in entity else "identity"
+        if id_key in entity:
+            entity[id_key] = entity[id_key].replace(core_namespace, current_namespace)
 
     # Create single entity
     with client(auth_role="write") as client_:
@@ -62,6 +64,10 @@ def test_create_single_entity(
         )
 
     response_json = response.json()
+
+    # Update entity according to the expected response
+    if "identity" in entity:
+        entity["uri"] = entity.pop("identity")
 
     # Check response
     assert response.status_code == 201, response_json
@@ -78,6 +84,8 @@ def test_create_multiple_entities(
     get_backend_user: GetBackendUserFixture,
 ) -> None:
     """Test creating multiple entities."""
+    import re
+
     import yaml
 
     from entities_service.service.backend import get_backend
@@ -95,11 +103,43 @@ def test_create_multiple_entities(
     # Add specific namespace entities
     core_namespace = str(CONFIG.base_url).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
+    uri_pattern = (
+        rf"^{re.escape(core_namespace)}(?:/(?P<specific_namespace>[^$]+))?"
+        r"/(?P<version>[^/]+)/(?P<name>[^/]+)$"
+    )
+    namespace_pattern = (
+        rf"^{re.escape(core_namespace)}(?:/(?P<specific_namespace>[^$]+))?$"
+    )
     for entity in list(entities):
+        id_key = "uri" if "uri" in entity else "identity"
+        if id_key in entity:
+            original_namespace = re.match(uri_pattern, entity[id_key]).group(
+                "specific_namespace"
+            )
+            if (
+                isinstance(original_namespace, str)
+                and original_namespace != existing_specific_namespace
+            ):
+                entities.remove(entity)
+                original_length -= 1
+                continue
+
+            entity[id_key] = entity[id_key].replace(core_namespace, specific_namespace)
+
         if "namespace" in entity:
+            original_namespace = re.match(namespace_pattern, entity["namespace"]).group(
+                "specific_namespace"
+            )
+            if (
+                isinstance(original_namespace, str)
+                and original_namespace != existing_specific_namespace
+            ):
+                entities.remove(entity)
+                original_length -= 1
+                continue
+
             entity["namespace"] = specific_namespace
-        if "uri" in entity:
-            entity["uri"] = entity["uri"].replace(core_namespace, specific_namespace)
+
         entities.append(entity)
 
     # Create multiple entities
@@ -111,6 +151,11 @@ def test_create_multiple_entities(
         )
 
     response_json = response.json()
+
+    # Update entities according to the expected response
+    for entity in entities:
+        if "identity" in entity:
+            entity["uri"] = entity.pop("identity")
 
     # Check response
     assert response.status_code == 201, response_json
@@ -252,7 +297,7 @@ def test_create_invalid_entity(
 
     # Create single invalid entities
     for entity in entities:
-        uri = entity.get("uri", None) or (
+        uri = entity.get("uri", entity.get("identity", None)) or (
             f"{entity.get('namespace', '')}/{entity.get('version', '')}"
             f"/{entity.get('name', '')}"
         )
@@ -352,7 +397,7 @@ def test_backend_write_error_exception(
     assert "detail" in response_json, response_json
     assert response_json["detail"] == (
         "Could not create entities with uris: "
-        f"{', '.join(entity['uri'] for entity in entities)}"
+        f"{', '.join(entity.get('uri', entity.get('identity')) for entity in entities)}"
     ), response_json
 
 
@@ -407,6 +452,9 @@ def test_create_entity_in_new_namespace(
     get_backend_user: GetBackendUserFixture,
 ) -> None:
     """Test creating an entity in a previously non-existent specific namespace."""
+    if parameterized_entity.specific_namespace:
+        pytest.skip("Entity already has a specific namespace.")
+
     from copy import deepcopy
 
     from entities_service.service.backend import get_backend

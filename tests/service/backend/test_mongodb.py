@@ -25,7 +25,9 @@ if TYPE_CHECKING:
 def mongo_backend(get_backend_user: GetBackendUserFixture) -> GetMongoBackend:
     """Get a MongoDB backend."""
 
-    def _mongo_backend(auth: Literal["read", "write"] | None = None) -> MongoDBBackend:
+    def _mongo_backend(
+        auth: Literal["read", "write"] | None = None, db: str | None = None
+    ) -> MongoDBBackend:
         from entities_service.service.backend import get_backend
 
         backend_user = get_backend_user(auth)
@@ -36,6 +38,7 @@ def mongo_backend(get_backend_user: GetBackendUserFixture) -> GetMongoBackend:
                 "mongo_username": backend_user["username"],
                 "mongo_password": backend_user["password"],
             },
+            db=db,
         )
 
     return _mongo_backend
@@ -92,7 +95,7 @@ def test_create(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
     """Test the create method."""
-    backend = mongo_backend("write")
+    backend = mongo_backend("write", db=parameterized_entity.specific_namespace)
 
     # Create a single entity
     entity_from_backend = backend.create([parameterized_entity.backend_entity])
@@ -136,7 +139,7 @@ def test_read(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
     """Test the read method."""
-    backend = mongo_backend("read")
+    backend = mongo_backend("read", db=parameterized_entity.specific_namespace)
 
     entity_from_backend = backend.read(parameterized_entity.uri)
 
@@ -152,7 +155,7 @@ def test_update(
 
     from entities_service.service.backend.mongodb import URI_REGEX
 
-    backend = mongo_backend("write")
+    backend = mongo_backend("write", db=parameterized_entity.specific_namespace)
 
     # Change current entity
     changed_raw_entity = deepcopy(parameterized_entity.backend_entity)
@@ -197,7 +200,7 @@ def test_delete(
     """Test the delete method."""
     from entities_service.service.backend.mongodb import URI_REGEX
 
-    backend = mongo_backend("write")
+    backend = mongo_backend("write", db=parameterized_entity.specific_namespace)
 
     # Ensure the entity currently exists in the backend
     parsed_uri = URI_REGEX.match(parameterized_entity.uri).groupdict()
@@ -237,7 +240,7 @@ def test_search(
     """
     from entities_service.service.backend.mongodb import URI_REGEX
 
-    backend = mongo_backend("read")
+    backend = mongo_backend("read", db=parameterized_entity.specific_namespace)
 
     # Search for the entity
     parsed_uri = URI_REGEX.match(parameterized_entity.uri).groupdict()
@@ -264,7 +267,7 @@ def test_count(
     """Test the count method."""
     from entities_service.service.backend.mongodb import URI_REGEX
 
-    backend = mongo_backend("read")
+    backend = mongo_backend("read", db=parameterized_entity.specific_namespace)
 
     # Count all entities
     number_of_entities = len(backend)
@@ -280,7 +283,7 @@ def test_contains(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
     """Test the magic method __contains__."""
-    backend = mongo_backend("read")
+    backend = mongo_backend("read", db=parameterized_entity.specific_namespace)
 
     assert 42 not in backend
 
@@ -292,7 +295,7 @@ def test_iter(
     mongo_backend: GetMongoBackend, parameterized_entity: ParameterizeGetEntities
 ) -> None:
     """Test the magic method: __iter__."""
-    backend = mongo_backend("read")
+    backend = mongo_backend("read", db=parameterized_entity.specific_namespace)
 
     entities = list(backend)
     assert parameterized_entity.backend_entity in entities
