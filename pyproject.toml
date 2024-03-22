@@ -130,9 +130,9 @@ filterwarnings = [
     # httpx-auth uses datetime.datetime.utcfromtimestamp(), deprecated in Python 3.12
     "ignore:.*Use timezone-aware objects to represent datetimes in UTC.*:DeprecationWarning",
 
-    # httpx app is deprecated, use Transport class instead
-    # This should be updated in Starlette's TestClient
-    "ignore:.*shortcut is now deprecated. Use the explicit style.*:DeprecationWarning",
+    # 'app' parameter is deprecated in httpx
+    # starlette's TestClient should be updated
+    "ignore:.*'app' shortcut is now deprecated.*:DeprecationWarning",
 ]
 
 [tool.coverage.run]
