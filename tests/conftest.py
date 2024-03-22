@@ -677,10 +677,54 @@ def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture()
 def _empty_backend_collection(
-    live_backend: bool, get_backend_user: GetBackendUserFixture
+    live_backend: bool,
+    get_backend_user: GetBackendUserFixture,
+    existing_specific_namespace: str,
+    static_dir: Path,
 ) -> None:
     """Empty the backend collection."""
+    import re
+
+    import yaml
+
     from entities_service.service.backend import get_backend
+    from entities_service.service.config import CONFIG
+
+    # Get all specific namespaced entities
+    entities: list[dict[str, Any]] = yaml.safe_load(
+        (static_dir / "valid_entities.yaml").read_text()
+    )
+
+    specific_namespaces: set[str] = {existing_specific_namespace}
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+    uri_pattern = (
+        rf"^{re.escape(core_namespace)}(?:/(?P<specific_namespace>[^$]+))?"
+        r"/(?P<version>[^/]+)/(?P<name>[^/]+)$"
+    )
+    namespace_pattern = (
+        rf"^{re.escape(core_namespace)}(?:/(?P<specific_namespace>[^$]+))?$"
+    )
+    for entity in entities:
+        id_key = "uri" if "uri" in entity else "identity"
+
+        if id_key in entity and (
+            specific_namespace := re.match(uri_pattern, entity[id_key]).group(
+                "specific_namespace"
+            )
+        ):
+            # This entity is already namespaced
+            # Add the specific namespace to the set
+            specific_namespaces.add(specific_namespace)
+            continue
+
+        if "namespace" in entity and (
+            specific_namespace := re.match(
+                namespace_pattern, entity["namespace"]
+            ).group("specific_namespace")
+        ):
+            # This entity is already namespaced
+            # Add the specific namespace to the set
+            specific_namespaces.add(specific_namespace)
 
     backend_settings = {}
     if live_backend:
@@ -690,9 +734,11 @@ def _empty_backend_collection(
             "mongo_password": backend_user["password"],
         }
 
-    backend: MongoDBBackend = get_backend(settings=backend_settings)
-    backend._collection.delete_many({})
-    assert backend._collection.count_documents({}) == 0
+    # None is equal to the core namespace
+    for namespace in (None, *specific_namespaces):
+        backend: MongoDBBackend = get_backend(settings=backend_settings, db=namespace)
+        backend._collection.delete_many({})
+        assert backend._collection.count_documents({}) == 0
 
 
 @pytest.fixture()
