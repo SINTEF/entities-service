@@ -45,7 +45,7 @@ testing = [
     "dlite-python ~=0.5.1; python_version < '3.12'",
     "mongomock ~=4.1",
     "pytest ~=8.1",
-    "pytest-cov ~=4.1",
+    "pytest-cov ~=5.0",
     "pytest-httpx ~=0.30.0",
     "entities-service[cli]",
 ]
@@ -53,7 +53,7 @@ server = [
     "gunicorn ~=21.2",
 ]
 dev = [
-    "pre-commit ~=3.6",
+    "pre-commit ~=3.7",
     "entities-service[cli,testing]",
 ]
 
