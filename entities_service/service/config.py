@@ -9,6 +9,7 @@ from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic.networks import AnyHttpUrl, MultiHostUrl, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from entities_service.models.auth import OAuth2Provider
 from entities_service.service.backend import Backends
 
 MongoDsn = Annotated[
@@ -47,8 +48,19 @@ class ServiceSettings(BaseSettings):
 
     # Security
     oauth2_provider: Annotated[
+        OAuth2Provider,
+        Field(
+            description="OAuth2 provider. (Currently only GitLab is supported.)",
+        ),
+    ] = OAuth2Provider.GITLAB
+
+    oauth2_provider_base_url: Annotated[
         AnyHttpUrl, Field(description="OAuth2 provider base URL.")
     ] = AnyHttpUrl("https://gitlab.sintef.no")
+
+    access_token: Annotated[
+        SecretStr | None, Field(description="Access token for the OAuth2 provider.")
+    ] = None
 
     roles_group: Annotated[str, Field(description="GitLab group for roles.")] = (
         "team4.0-authentication/entities-service"

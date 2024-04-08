@@ -155,7 +155,7 @@ def _mock_successful_oauth_response(
 
     # Mock response for "Get token"
     httpx_mock.add_response(
-        url=f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
+        url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/token",
         method="POST",
         json={"access_token": token_mock},
     )
@@ -183,7 +183,7 @@ def _mock_failed_oauth_response(
 
     # Mock response for "Get token"
     httpx_mock.add_response(
-        url=f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
+        url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/token",
         method="POST",
         status_code=401,
         headers={"WWW-Authenticate": "Bearer"},

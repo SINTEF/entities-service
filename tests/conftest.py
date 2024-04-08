@@ -676,20 +676,22 @@ def mock_auth_verification(
     # OpenID configuration
     httpx_mock.add_response(
         url=(
-            f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+            f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
             "/.well-known/openid-configuration"
         ),
         json={
-            "issuer": str(CONFIG.oauth2_provider).rstrip("/"),
+            "issuer": str(CONFIG.oauth2_provider_base_url).rstrip("/"),
             "authorization_endpoint": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/authorize"
+                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/authorize"
             ),
-            "token_endpoint": f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
+            "token_endpoint": (
+                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/token"
+            ),
             "userinfo_endpoint": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo"
+                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/userinfo"
             ),
             "jwks_uri": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/discovery/keys"
+                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/discovery/keys"
             ),
             "response_types_supported": [
                 "code",
@@ -728,22 +730,22 @@ def mock_auth_verification(
 
         # Userinfo endpoint
         httpx_mock.add_response(
-            url=f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo",
+            url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/userinfo",
             json={
                 "sub": backend_user["username"],
                 "name": backend_user["username"],
                 "nickname": backend_user["username"],
                 "preferred_username": backend_user["username"],
                 "website": (
-                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
                     f"/{backend_user['username']}"
                 ),
                 "profile": (
-                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
                     f"/{backend_user['username']}"
                 ),
                 "picture": (
-                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
                     f"/{backend_user['username']}"
                 ),
                 "groups": [CONFIG.roles_group],

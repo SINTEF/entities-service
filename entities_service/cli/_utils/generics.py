@@ -15,6 +15,7 @@ try:
     from httpx_auth import (
         AuthenticationFailed,
         GrantNotProvided,
+        HeaderApiKey,
         InvalidGrantRequest,
         InvalidToken,
         JsonTokenFileCache,
@@ -36,6 +37,7 @@ from rich import print as rich_print
 from rich.console import Console
 
 from entities_service.models.auth import OpenIDConfiguration
+from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TextIO
@@ -107,6 +109,17 @@ def pretty_compare_dicts(
     )
 
 
+def initialize_access_token() -> HeaderApiKey | None:
+    """Create an API key header."""
+    if CONFIG.access_token is None:
+        return None
+
+    return HeaderApiKey(
+        api_key=f"Bearer {CONFIG.access_token.get_secret_value()}",
+        header_name="Authorization",
+    )
+
+
 def initialize_oauth2(
     openid_config_url: str | None = None,
 ) -> OAuth2AuthorizationCodePKCE:
@@ -161,5 +174,5 @@ def initialize_oauth2(
     )
 
 
-# OAuth2 authorization code flow
-oauth = initialize_oauth2()
+# Access Token and OAuth2 authorization code flow
+oauth = initialize_access_token() or initialize_oauth2()
