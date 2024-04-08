@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum, IntEnum
+from enum import IntEnum
 from typing import Annotated
 
 from pydantic import (
@@ -12,12 +12,6 @@ from pydantic import (
 from pydantic.networks import Url, UrlConstraints
 
 AnyHttpsUrl = Annotated[Url, UrlConstraints(allowed_schemes=["https"])]
-
-
-class OAuth2Provider(Enum):
-    """Enumeration of supported OAuth2 providers."""
-
-    GITLAB = "gitlab"
 
 
 class OpenIDConfiguration(BaseModel):

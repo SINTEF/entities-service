@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -9,13 +10,18 @@ from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic.networks import AnyHttpUrl, MultiHostUrl, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from entities_service.models.auth import OAuth2Provider
 from entities_service.service.backend import Backends
 
 MongoDsn = Annotated[
     MultiHostUrl, UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"])
 ]
 """Support MongoDB schemes with hidden port (no default port)."""
+
+
+class OAuth2Provider(Enum):
+    """Enumeration of supported OAuth2 providers."""
+
+    GITLAB = "gitlab"
 
 
 class ServiceSettings(BaseSettings):

@@ -37,7 +37,6 @@ from rich import print as rich_print
 from rich.console import Console
 
 from entities_service.models.auth import OpenIDConfiguration
-from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TextIO
@@ -111,6 +110,8 @@ def pretty_compare_dicts(
 
 def initialize_access_token() -> HeaderApiKey | None:
     """Create an API key header."""
+    from entities_service.cli.config import CONFIG
+
     if CONFIG.access_token is None:
         return None
 
