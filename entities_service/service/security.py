@@ -206,15 +206,8 @@ async def verify_token(
 
     if error or not response.is_success:
         LOGGER.error("Could not get user info from OAuth2 provider.")
-        raise credentials_exception
 
-    try:
-        userinfo = GitLabOpenIDUserInfo(**response.json())
-    except (JSONDecodeError, ValidationError) as exc:
-        LOGGER.error("Could not parse user info from OAuth2 provider.")
-        LOGGER.error("Response:\n%s", response.text)
-
-        # If this fails, it may be that we are dealing with a user-provided access token
+        # Since this failed, we may be dealing with a user-provided access token
         verified, status_code, error_msg = await verify_user_access_token(
             credentials.credentials
         )
@@ -228,6 +221,13 @@ async def verify_token(
         if error_msg is not None:
             credentials_exception.detail = error_msg
 
+        raise credentials_exception
+
+    try:
+        userinfo = GitLabOpenIDUserInfo(**response.json())
+    except (JSONDecodeError, ValidationError) as exc:
+        LOGGER.error("Could not parse user info from OAuth2 provider.")
+        LOGGER.error("Response:\n%s", response.text)
         LOGGER.exception(exc)
         raise credentials_exception from exc
 
