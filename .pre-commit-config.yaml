@@ -72,3 +72,14 @@ repos:
         - types-requests
         - types-pyyaml
       args: [--explicit-package-bases]
+
+  - repo: local
+    hooks:
+    - id: build-cli-docs
+      name: Build CLI docs
+      entry: typer
+      language: python
+      types: [python]
+      files: ^entities_service/cli/.*\.py$
+      args: ["entities_service.cli.main", "utils", "docs", "--output", "docs/CLI.md"]
+      pass_filenames: false
