@@ -52,6 +52,11 @@ if TYPE_CHECKING:
             self, auth_role: Literal["read", "write"] | None = None
         ) -> None: ...
 
+    class MockOpenIDConfigCall(Protocol):
+        """Protocol for the mock_openid_config_call fixture."""
+
+        def __call__(self, base_url: str) -> None: ...
+
 
 class ParameterizeGetEntities(NamedTuple):
     """Returned tuple from parameterizing all entities."""
@@ -665,49 +670,41 @@ def auth_header(token_mock: str) -> dict[Literal["Authorization"], str]:
 
 
 @pytest.fixture()
+def mock_openid_config_call(httpx_mock: HTTPXMock) -> MockOpenIDConfigCall:
+    """Mock the OpenID configuration."""
+
+    def _mock_openid_config_call(base_url: str) -> None:
+        """Mock the OpenID configuration at `base_url`."""
+        httpx_mock.add_response(
+            url=f"{base_url}/.well-known/openid-configuration",
+            json={
+                "issuer": base_url,
+                "authorization_endpoint": f"{base_url}/oauth/authorize",
+                "token_endpoint": f"{base_url}/oauth/token",
+                "userinfo_endpoint": f"{base_url}/oauth/userinfo",
+                "jwks_uri": f"{base_url}/oauth/discovery/keys",
+                "response_types_supported": ["code"],
+                "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["RS256"],
+                "code_challenge_methods_supported": ["plain", "S256"],
+            },
+        )
+
+    return _mock_openid_config_call
+
+
+@pytest.fixture()
 def mock_auth_verification(
     httpx_mock: HTTPXMock,
     get_backend_user: GetBackendUserFixture,
+    mock_openid_config_call: MockOpenIDConfigCall,
     auth_header: dict[Literal["Authorization"], str],
 ) -> MockAuthVerification:
     """Mock authentication on the /_admin endpoints."""
     from entities_service.service.config import CONFIG
 
-    # OpenID configuration
-    httpx_mock.add_response(
-        url=(
-            f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
-            "/.well-known/openid-configuration"
-        ),
-        json={
-            "issuer": str(CONFIG.oauth2_provider_base_url).rstrip("/"),
-            "authorization_endpoint": (
-                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/authorize"
-            ),
-            "token_endpoint": (
-                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/token"
-            ),
-            "userinfo_endpoint": (
-                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/userinfo"
-            ),
-            "jwks_uri": (
-                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/discovery/keys"
-            ),
-            "response_types_supported": [
-                "code",
-            ],
-            "subject_types_supported": [
-                "public",
-            ],
-            "id_token_signing_alg_values_supported": [
-                "RS256",
-            ],
-            "code_challenge_methods_supported": [
-                "plain",
-                "S256",
-            ],
-        },
-    )
+    # Mock OpenID configuration response
+    mock_openid_config_call(base_url=str(CONFIG.oauth2_provider_base_url).rstrip("/"))
 
     def _mock_auth_verification(
         auth_role: Literal["read", "write"] | None = None

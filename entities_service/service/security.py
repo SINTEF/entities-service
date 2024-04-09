@@ -33,6 +33,8 @@ SECURITY_SCHEME = HTTPBearer()
 
 LOGGER = logging.getLogger(__name__)
 
+MINIMUM_GROUP_ACCESS_LEVEL = GitLabRole.DEVELOPER
+
 
 async def get_openid_config() -> OpenIDConfiguration:
     """Get the OpenID configuration."""
@@ -55,13 +57,17 @@ async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | 
     """Verify a user-provided GitLab access token."""
     # Get current user
     async with AsyncClient(headers={"Authorization": f"Bearer {token}"}) as client:
+        error = False
         try:
             response = await client.get(
                 f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user"
             )
         except HTTPError as exc:
-            LOGGER.error("Could not get user info from GitLab provider.")
             LOGGER.exception(exc)
+            error = True
+
+        if error or not response.is_success:
+            LOGGER.error("Could not get user info from GitLab provider.")
             return False, None, None
 
     try:
@@ -74,7 +80,7 @@ async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | 
 
     # Check user validity
     if user.state != "active" or user.locked:
-        LOGGER.error("User is not active or is locked.")
+        LOGGER.error("User is not active or is locked. (Username: %s)", user.username)
         return (
             False,
             status.HTTP_403_FORBIDDEN,
@@ -86,14 +92,18 @@ async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | 
 
     # Check if user is a member of the roles group
     async with AsyncClient(headers={"Authorization": f"Bearer {token}"}) as client:
+        error = False
         try:
             response = await client.get(
                 f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4"
                 f"/groups/{quote_plus(CONFIG.roles_group)}/members/{user.id}",
             )
         except HTTPError as exc:
-            LOGGER.error("User is not a member of the entities-service group.")
             LOGGER.exception(exc)
+            error = True
+
+        if error or not response.is_success:
+            LOGGER.error("User is not a member of the entities-service group.")
             return (
                 False,
                 status.HTTP_403_FORBIDDEN,
@@ -120,7 +130,7 @@ async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | 
         LOGGER.error("Member info does not match the user info.")
         return False, None, None
 
-    if member.access_level < GitLabRole.DEVELOPER:
+    if member.access_level < MINIMUM_GROUP_ACCESS_LEVEL:
         LOGGER.error(
             "User does not have the rights to create entities. "
             "Hint: Change %s's role in the GitLab group %r",
