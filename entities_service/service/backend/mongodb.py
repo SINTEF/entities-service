@@ -217,7 +217,7 @@ def get_client(
         LOGGER.debug("Using cached MongoDB client for %r.", auth_level)
         return MONGO_CLIENTS[auth_level]
 
-    LOGGER.debug("Creating new MongoDB client for %r.", username)
+    LOGGER.debug("Creating new MongoDB client for %r.", username or "X.509 certificate")
 
     # Ensure all required settings are set
     if auth_level == "read":
@@ -342,7 +342,6 @@ class MongoDBBackend(Backend):
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
         """Create one or more entities in the MongoDB."""
         LOGGER.info("Creating entities: %s", entities)
-        LOGGER.info("The creator's user name: %s", self._settings.mongo_username)
 
         entities = [self._prepare_entity(entity) for entity in entities]
 
