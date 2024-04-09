@@ -39,13 +39,18 @@ MINIMUM_GROUP_ACCESS_LEVEL = GitLabRole.DEVELOPER
 async def get_openid_config() -> OpenIDConfiguration:
     """Get the OpenID configuration."""
     async with AsyncClient() as client:
+        error = False
         try:
             response = await client.get(
                 f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
                 "/.well-known/openid-configuration"
             )
         except HTTPError as exc:
-            raise ValueError("Could not get OpenID configuration.") from exc
+            LOGGER.exception(exc)
+            error = True
+
+    if error or not response.is_success:
+        raise ValueError("Could not get OpenID configuration.")
 
     try:
         return OpenIDConfiguration(**response.json())
@@ -55,20 +60,22 @@ async def get_openid_config() -> OpenIDConfiguration:
 
 async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | None]:
     """Verify a user-provided GitLab access token."""
-    # Get current user
-    async with AsyncClient(headers={"Authorization": f"Bearer {token}"}) as client:
-        error = False
-        try:
-            response = await client.get(
-                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user"
-            )
-        except HTTPError as exc:
-            LOGGER.exception(exc)
-            error = True
+    client = AsyncClient(headers={"Authorization": f"Bearer {token}"})
+    error = False
 
-        if error or not response.is_success:
-            LOGGER.error("Could not get user info from GitLab provider.")
-            return False, None, None
+    # Get current user
+    try:
+        response = await client.get(
+            f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user"
+        )
+    except HTTPError as exc:
+        LOGGER.exception(exc)
+        error = True
+
+    if error or not response.is_success:
+        LOGGER.error("Could not get user info from GitLab provider.")
+        await client.aclose()
+        return False, None, None
 
     try:
         user = GitLabUser(**response.json())
@@ -76,11 +83,13 @@ async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | 
         LOGGER.error("Could not parse user info from GitLab provider.")
         LOGGER.error("Response:\n%s", response.text)
         LOGGER.exception(exc)
+        await client.aclose()
         return False, None, None
 
     # Check user validity
     if user.state != "active" or user.locked:
         LOGGER.error("User is not active or is locked. (Username: %s)", user.username)
+        await client.aclose()
         return (
             False,
             status.HTTP_403_FORBIDDEN,
@@ -91,27 +100,28 @@ async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | 
         )
 
     # Check if user is a member of the roles group
-    async with AsyncClient(headers={"Authorization": f"Bearer {token}"}) as client:
-        error = False
-        try:
-            response = await client.get(
-                f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4"
-                f"/groups/{quote_plus(CONFIG.roles_group)}/members/{user.id}",
-            )
-        except HTTPError as exc:
-            LOGGER.exception(exc)
-            error = True
+    try:
+        response = await client.get(
+            f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4"
+            f"/groups/{quote_plus(CONFIG.roles_group)}/members/{user.id}",
+        )
+    except HTTPError as exc:
+        LOGGER.exception(exc)
+        error = True
 
-        if error or not response.is_success:
-            LOGGER.error("User is not a member of the entities-service group.")
-            return (
-                False,
-                status.HTTP_403_FORBIDDEN,
-                (
-                    "You are not a member of the entities-service group. "
-                    "Please contact the entities-service group maintainer."
-                ),
-            )
+    # We no longer need the client
+    await client.aclose()
+
+    if error or not response.is_success:
+        LOGGER.error("User is not a member of the entities-service group.")
+        return (
+            False,
+            status.HTTP_403_FORBIDDEN,
+            (
+                "You are not a member of the entities-service group. "
+                "Please contact the entities-service group maintainer."
+            ),
+        )
 
     # Check if user has the rights to create entities
     try:
@@ -184,18 +194,19 @@ async def verify_token(
         raise credentials_exception
 
     # Get the user info from the OAuth2 provider based on the current credentials
-    async with AsyncClient() as client:
+    async with AsyncClient(
+        headers={"Authorization": f"{credentials.scheme} {credentials.credentials}"}
+    ) as client:
+        error = False
         try:
-            response = await client.get(
-                str(openid_config.userinfo_endpoint),
-                headers={
-                    "Authorization": f"{credentials.scheme} {credentials.credentials}"
-                },
-            )
+            response = await client.get(str(openid_config.userinfo_endpoint))
         except HTTPError as exc:
-            LOGGER.error("Could not get user info from OAuth2 provider.")
             LOGGER.exception(exc)
-            raise credentials_exception from exc
+            error = True
+
+    if error or not response.is_success:
+        LOGGER.error("Could not get user info from OAuth2 provider.")
+        raise credentials_exception
 
     try:
         userinfo = GitLabOpenIDUserInfo(**response.json())
