@@ -1,10 +1,8 @@
 """The `_admin` router and endpoints.
 
-This router is used for both more introspective service endpoints, such as inspecting
-the current and all users, and for endpoints requiring administrative rights, such as
-creating entities.
+This router is used for creating entities.
 
-The endpoints in this router are not documented in the OpenAPI schema.
+Endpoints in this router are not documented in the OpenAPI schema.
 """
 
 from __future__ import annotations
@@ -29,6 +27,7 @@ LOGGER = logging.getLogger(__name__)
 
 ROUTER = APIRouter(
     prefix="/_admin",
+    tags=["Admin"],
     include_in_schema=CONFIG.debug,
     dependencies=[Depends(verify_token)],
 )
