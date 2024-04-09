@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from pytest_httpx import HTTPXMock
 
-    from ..conftest import MockOpenIDConfigCall
+    from ..conftest import MockOpenIDConfigCall, OpenIDConfigMock
 
 
 @pytest.fixture()
@@ -159,7 +159,7 @@ async def test_verify_user_access_token(
     httpx_mock.add_response(
         url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user",
         json=user_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
     httpx_mock.add_response(
         url=(
@@ -167,7 +167,7 @@ async def test_verify_user_access_token(
             f"{quote_plus(CONFIG.roles_group)}/members/{user_info['id']}"
         ),
         json=group_member_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
 
     with caplog.at_level("DEBUG", logger="entities_service"):
@@ -209,7 +209,7 @@ async def test_verify_user_access_token_inactive_user(
     httpx_mock.add_response(
         url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user",
         json=user_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
 
     with caplog.at_level("DEBUG", logger="entities_service"):
@@ -265,7 +265,7 @@ async def test_verify_user_access_token_different_member(
     httpx_mock.add_response(
         url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user",
         json=user_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
     httpx_mock.add_response(
         url=(
@@ -273,7 +273,7 @@ async def test_verify_user_access_token_different_member(
             f"{quote_plus(CONFIG.roles_group)}/members/{user_info['id']}"
         ),
         json=group_member_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
 
     with caplog.at_level("DEBUG", logger="entities_service"):
@@ -317,7 +317,7 @@ async def test_verify_user_access_token_bad_access_level(
     httpx_mock.add_response(
         url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user",
         json=user_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
     httpx_mock.add_response(
         url=(
@@ -325,7 +325,7 @@ async def test_verify_user_access_token_bad_access_level(
             f"{quote_plus(CONFIG.roles_group)}/members/{user_info['id']}"
         ),
         json=group_member_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
 
     with caplog.at_level("DEBUG", logger="entities_service"):
@@ -385,7 +385,7 @@ async def test_verify_user_access_token_source_down_midway(
     httpx_mock.add_response(
         url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user",
         json=user_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
 
     # Mock HTTP Timeout
@@ -433,7 +433,7 @@ async def test_verify_user_access_token_user_is_not_member(
     httpx_mock.add_response(
         url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user",
         json=user_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
     httpx_mock.add_response(
         url=(
@@ -442,6 +442,7 @@ async def test_verify_user_access_token_user_is_not_member(
         ),
         json={"error": "404 Not Found"},
         status_code=404,
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
 
     with caplog.at_level("DEBUG", logger="entities_service"):
@@ -499,7 +500,7 @@ async def test_verify_user_access_token_parse_error_member(
     httpx_mock.add_response(
         url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/api/v4/user",
         json=user_info,
-        headers={"Authorization": f"Bearer {mock_token}"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
     )
 
     # Mock invalid group member info response
@@ -511,3 +512,58 @@ async def test_verify_user_access_token_parse_error_member(
     assert "Could not parse user info from GitLab provider." not in caplog.messages
     assert "Could not parse member role from GitLab provider." in caplog.messages
     assert f"Response:\n{json.dumps({'invalid': 'response'})}" in caplog.messages
+
+
+async def test_verify_user_access_token_is_called(
+    httpx_mock: HTTPXMock,
+    caplog: pytest.LogCaptureFixture,
+    openid_config_mock: OpenIDConfigMock,
+    mock_openid_config_call: MockOpenIDConfigCall,
+) -> None:
+    """Test verify_user_access_token() function is called at an appropriate time from
+    verify_token()."""
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    from entities_service.service.config import CONFIG
+    from entities_service.service.security import verify_token
+
+    mock_token = "mock_token"
+
+    base_url = str(CONFIG.oauth2_provider_base_url).rstrip("/")
+    mock_openid_config_call(base_url=base_url)
+    openid_config = openid_config_mock(base_url=base_url)
+
+    # Mock unauthorized response from OpenID userinfo-endpoint
+    httpx_mock.add_response(
+        url=openid_config["userinfo_endpoint"],
+        status_code=401,  # Unauthorized
+        headers={"WWW-Authenticate": "Bearer"},
+        match_headers={"Authorization": f"Bearer {mock_token}"},
+    )
+
+    # Mock unsuccesful response from GitLab API
+    # This is mainly to save lines in the test - the request will only be made in
+    # `verify_user_access_token()`
+    httpx_mock.add_response(
+        url=f"{base_url}/api/v4/user",
+        json={"message": "401 Unauthorized"},
+        status_code=401,
+        match_headers={"Authorization": f"Bearer {mock_token}"},
+    )
+
+    with (
+        caplog.at_level("DEBUG", logger="entities_service"),
+        pytest.raises(HTTPException),
+    ):
+        await verify_token(
+            credentials=HTTPAuthorizationCredentials(
+                scheme="Bearer", credentials=mock_token
+            )
+        )
+
+    # In verify_token(), just before calling verify_user_access_token()
+    assert "Could not get user info from OAuth2 provider." in caplog.messages
+
+    # In verify_user_access_token(), after failing to get user info from the GitLab API
+    assert "Could not get user info from GitLab provider." in caplog.messages
