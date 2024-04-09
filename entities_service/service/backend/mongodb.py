@@ -377,7 +377,7 @@ class MongoDBBackend(Backend):
         filter = self._single_uri_query(str(entity_identity))
         self._collection.delete_one(filter)
 
-    def search(self, query: Any) -> Iterator[dict[str, Any]]:
+    def search(self, query: Any = None) -> Iterator[dict[str, Any]]:
         """Search for entities."""
         query = query or {}
 

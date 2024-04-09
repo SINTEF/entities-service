@@ -149,7 +149,7 @@ class Backend(ABC):
 
     # Backend methods (search)
     @abstractmethod
-    def search(self, query: Any) -> Iterator[dict[str, Any]]:  # pragma: no cover
+    def search(self, query: Any = None) -> Iterator[dict[str, Any]]:  # pragma: no cover
         """Search for entities."""
         raise NotImplementedError
 
