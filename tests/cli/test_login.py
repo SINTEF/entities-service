@@ -103,7 +103,7 @@ def test_token_persistence(
         "\n\nEXCEPTION:\n"
         f"{''.join(traceback.format_exception(result.exception)) if result.exception else ''}"  # noqa: E501
     )
-    assert "Successfully uploaded 1 entity:" in result.stdout.replace("\n", "")
+    assert "Successfully uploaded 1 entity" in result.stdout.replace("\n", "")
     assert not result.stderr
 
     assert tmp_cache_file.exists()

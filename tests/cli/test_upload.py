@@ -97,7 +97,7 @@ def test_upload_filepath(
     )
 
     assert (
-        "Successfully uploaded 1 entity:" in result.stdout
+        "Successfully uploaded 1 entity" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
@@ -153,7 +153,7 @@ def test_upload_filepath_invalid(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Person.json is not a valid SOFT entity:" in result.stderr
+        "Person.json contains an invalid SOFT entity:" in result.stderr
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert (
         "validation error for DLiteSOFT7Entity" in result.stderr
@@ -161,15 +161,20 @@ def test_upload_filepath_invalid(
     assert (
         "validation errors for DLiteSOFT5Entity" in result.stderr
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stdout
     if fail_fast:
+        assert not result.stdout
         assert (
             "Failed to upload 1 entity, see above for more details:"
             not in result.stderr
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     else:
         assert (
-            "Failed to upload 1 entity, see above for more details:" in result.stderr
+            result.stdout.replace("\n", "")
+            == "There were no valid entities among the supplied sources."
+        )
+        assert (
+            "Failed to validate one or more entities. See above for more details."
+            in result.stderr
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
@@ -285,7 +290,7 @@ def test_upload_directory(
         stdout=result.stdout, stderr=result.stderr
     )
 
-    assert f"Successfully uploaded {len(raw_entities)} entities:" in result.stdout
+    assert f"Successfully uploaded {len(raw_entities)} entities" in result.stdout
 
 
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
@@ -353,7 +358,8 @@ def test_upload_files_with_unchosen_format(
     )
     assert "No entities were uploaded." in result.stdout
     assert all(
-        f"Skipping file: {filepath}" in result.stdout.replace("\n", "")
+        f"Skipping file: ./{filepath.relative_to(static_dir.parent.parent.resolve())}"
+        in result.stdout.replace("\n", "")
         for filepath in directory.glob("*.json")
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert (
@@ -431,31 +437,40 @@ def test_upload_directory_invalid_entities(
     assert (
         re.search(r"validation errors? for DLiteSOFT5Entity", result.stderr) is not None
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
 
     if fail_fast:
+        assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
         errored_entity = set()
         for invalid_entity in directory.glob("*.json"):
-            if f"{invalid_entity.name} is not a valid SOFT entity:" in result.stderr:
+            if (
+                f"{invalid_entity.name} contains an invalid SOFT entity:"
+                in result.stderr
+            ):
                 errored_entity.add(invalid_entity.name)
         assert len(errored_entity) == 1
 
         assert (
             f"Failed to upload {len(list(directory.glob('*.json')))} entities, see "
             "above for more details:" not in result.stderr
-        )
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     else:
+        assert (
+            result.stdout.replace("\n", "")
+            == "There were no valid entities among the supplied sources."
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
         assert all(
-            f"{invalid_entity.name} is not a valid SOFT entity:" in result.stderr
+            f"{invalid_entity.name} contains an invalid SOFT entity:" in result.stderr
             for invalid_entity in directory.glob("*.json")
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
         assert (
-            f"Failed to upload {len(list(directory.glob('*.json')))} entities, see "
-            "above for more details:" in result.stderr
-        )
+            "Failed to validate one or more entities. See above for more details."
+            in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
@@ -491,7 +506,7 @@ def test_existing_entity(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Entity already exists in the database." in result.stdout
+        "Entity already exists externally." in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert (
         "No entities were uploaded." in result.stdout
@@ -576,10 +591,10 @@ def test_existing_entity_different_content(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Entity already exists in the database, but they differ in their content."
+        "Entity already exists externally, but it differs in its content."
         in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert "Skipping file:" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+    assert "Skipping entity:" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
@@ -615,14 +630,14 @@ def test_existing_entity_different_content(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Entity already exists in the database, but they differ in their content."
+        "Entity already exists externally, but it differs in its content."
         in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert "Skipping file:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+    assert "Skipping entity:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Successfully uploaded 1 entity:" in result.stdout
+        "Successfully uploaded 1 entity" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert not result.stderr
 
@@ -655,14 +670,14 @@ def test_existing_entity_different_content(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Entity already exists in the database, but they differ in their content."
+        "Entity already exists externally, but it differs in its content."
         in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert "Skipping file:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+    assert "Skipping entity:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Successfully uploaded 1 entity:" in result.stdout
+        "Successfully uploaded 1 entity" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert not result.stderr
 
@@ -740,14 +755,14 @@ def test_existing_entity_errors(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Entity already exists in the database, but they differ in their content."
+        "Entity already exists externally, but it differs in its content."
         in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert "Skipping file:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+    assert "Skipping entity:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "New version (0.1) is the same as the existing version (0.1)." in result.stderr
+        "New version (0.1) is the same as the existing version." in result.stderr
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
     if fail_fast:
@@ -770,10 +785,10 @@ def test_existing_entity_errors(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Entity already exists in the database, but they differ in their content."
+        "Entity already exists externally, but it differs in its content."
         in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert "Skipping file:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+    assert "Skipping entity:" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
     assert (

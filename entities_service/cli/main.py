@@ -216,6 +216,7 @@ def upload(
         quiet=quiet,
         no_external_calls=False,
         return_full_info=True,
+        verbose=False,
     )
 
     # Sanity check
@@ -269,7 +270,7 @@ def upload(
                 if not quiet:
                     print(
                         "[bold blue]Info[/bold blue]: Skipping entity: "
-                        f"{get_uri(valid_entity.entity)}"
+                        f"{get_uri(valid_entity.entity)}\n"
                     )
                 continue
 
@@ -291,7 +292,7 @@ def upload(
                     if not quiet:
                         print(
                             "[bold blue]Info[/bold blue]: Skipping entity: "
-                            f"{get_uri(valid_entity.entity)}"
+                            f"{get_uri(valid_entity.entity)}\n"
                         )
                     continue
             else:
@@ -303,12 +304,13 @@ def upload(
             if new_version == get_version(valid_entity.entity):
                 error_message = (
                     "[bold red]Error[/bold red]: Could not update entity. "
-                    f"New version ({new_version}) is the same as the existing version."
+                    f"New version ({new_version}) is the same as the existing "
+                    "version.\n"
                 )
             elif re.match(r"^\d+(?:\.\d+){0,2}$", new_version) is None:
                 error_message = (
                     "[bold red]Error[/bold red]: Could not update entity. "
-                    f"New version ({new_version}) is not a valid SOFT version."
+                    f"New version ({new_version}) is not a valid SOFT version.\n"
                 )
 
             if error_message:
@@ -904,11 +906,11 @@ def validate(
                 )
 
                 for uri, pretty_diff in differing_entities:
-                    print("", Rule(title=uri), f"\n{pretty_diff}")
-            else:
+                    print("", Rule(title=uri), f"\n{pretty_diff}\n")
+            elif not quiet:
                 print(
                     "\n[bold blue]Use the option '--verbose' to see the differences "
-                    "between the external and local entities.[/bold blue]"
+                    "between the external and local entities.[/bold blue]\n"
                 )
 
     else:
