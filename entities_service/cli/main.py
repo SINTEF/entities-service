@@ -699,7 +699,7 @@ def validate(
         ):
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: {repr_filepath} can not be read as either"
-                " a single or a list of SOFT entities."
+                " a single or a list of potential SOFT entities."
             )
             if fail_fast:
                 raise typer.Exit(1)
