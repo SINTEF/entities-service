@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Optional
 
@@ -99,16 +100,24 @@ class StrReversor(str):
         return value.obj < self.obj
 
 
-def _get_namespace_name_version(entity: Entity) -> tuple[str, str, str]:
+def _get_namespace_name_version(
+    entity: Entity | dict[str, Any]
+) -> tuple[str, str, str]:
     """Extract the namespace, name, and version from an entity.
 
     The version is reversed to sort it in descending order (utilizing StrReversor).
     """
-    uri = get_uri(entity)
+    if isinstance(entity, dict):
+        uri = (
+            entity.get("uri", None)
+            or f"{entity['namespace']}/{entity['version']}/{entity['name']}"
+        )
+    else:
+        uri = get_uri(entity)
 
     if (matched_uri := URI_REGEX.match(uri)) is None:
         raise ValueError(
-            f"Could not parse URI {uri} with regular expression " f"{URI_REGEX.pattern}"
+            f"Could not parse URI {uri} with regular expression {URI_REGEX.pattern}"
         )
 
     return (
@@ -195,180 +204,57 @@ def upload(
     ),
 ) -> None:
     """Upload (local) entities to a remote location."""
-    unique_filepaths = set(filepaths or [])
-    directories = list(set(directories or []))
-    file_formats = list(set(file_formats or []))
-
-    # Handle YAML/YML file format
-    if EntityFileFormats.YAML in file_formats or EntityFileFormats.YML in file_formats:
-        # Ensure both YAML and YML are in the list
-        if EntityFileFormats.YAML not in file_formats:
-            file_formats.append(EntityFileFormats.YAML)
-        if EntityFileFormats.YML not in file_formats:
-            file_formats.append(EntityFileFormats.YML)
-
     # Ensure the user is logged in
     login(quiet=True)
 
-    if not filepaths and not directories:
+    # Validate the entities before uploading
+    valid_entities = validate(
+        filepaths=filepaths,
+        directories=directories,
+        file_formats=file_formats,
+        fail_fast=fail_fast,
+        quiet=quiet,
+        no_external_calls=False,
+        return_full_info=True,
+    )
+
+    # Sanity check
+    if not all(isinstance(entity, tuple) for entity in valid_entities):
         ERROR_CONSOLE.print(
-            "[bold red]Error[/bold red]: Missing either option '--file' / '-f' or "
-            "'--dir' / '-d'."
+            "[bold red]Error[/bold red]: An unexpected internal error occurred"
         )
         raise typer.Exit(1)
 
-    for directory in directories:
-        for root, _, files in os.walk(directory):
-            unique_filepaths |= {
-                Path(root) / file
-                for file in files
-                if file.lower().endswith(tuple(file_formats))
-            }
-
-    if not unique_filepaths:
-        ERROR_CONSOLE.print(
-            "[bold red]Error[/bold red]: No files found with the given options."
-        )
-        raise typer.Exit(1)
-
-    successes: list[tuple[Path, dict[str, Any]]] = []
-    skipped: list[Path] = []
-    failed: list[Path] = []
-
-    unique_entity_uris: set[str] = set()
-    unique_entities: list[Entity] = []
-
-    informed_file_formats: set[str] = set()
-    for filepath in unique_filepaths:
-        if (file_format := filepath.suffix[1:].lower()) not in file_formats:
-            if not quiet:
-                print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
-
-            # The rest of the code in this block is to ensure we only print extra info
-            # or warning messages the first time a new file format is encountered.
-            if file_format in informed_file_formats:
-                skipped.append(filepath)
-                continue
-
-            if file_format in EntityFileFormats.__members__.values() and not quiet:
-                print(
-                    "[bold blue]Info[/bold blue]: Entities using the file format "
-                    f"{file_format!r} can be uploaded by adding the option: "
-                    f"--format={file_format}"
-                )
-            else:
-                ERROR_CONSOLE.print(
-                    f"[bold yellow]Warning[/bold yellow]: File format {file_format!r} "
-                    "is not supported."
-                )
-
-            informed_file_formats.add(file_format)
-            skipped.append(filepath)
-            continue
-
-        entities: list[dict[str, Any]] | dict[str, Any] = (
-            json.loads(filepath.read_bytes())
-            if file_format == "json"
-            else yaml.safe_load(filepath.read_bytes())
-        )
-
-        if isinstance(entities, dict):
-            entities = [entities]
-
-        if not isinstance(entities, list) or not all(
-            isinstance(entity, dict) for entity in entities
-        ):
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: {filepath} can not be read as either a "
-                "single or a list of SOFT entities."
-            )
-            if fail_fast:
-                raise typer.Exit(1)
-            failed.append(filepath)
-            continue
-
-        for entity in entities:
-            # Validate entity
-            entity_model_or_errors = soft_entity(return_errors=True, **entity)
-            if isinstance(entity_model_or_errors, list):
-                # Error(s) occurred !
-                error_list = "\n\n".join(str(error) for error in entity_model_or_errors)
-                ERROR_CONSOLE.print(
-                    f"[bold red]Error[/bold red]: {filepath} is not a valid SOFT "
-                    f"entity:\n\n{error_list}\n"
-                )
-                if fail_fast:
-                    raise typer.Exit(1)
-                failed.append(filepath)
-                continue
-
-            # Check for duplicate URIs
-            if (uri := get_uri(entity_model_or_errors)) in unique_entity_uris:
-                ERROR_CONSOLE.print(
-                    f"[bold red]Error[/bold red]: Duplicate URI found: {uri}"
-                )
-                if fail_fast:
-                    raise typer.Exit(1)
-                failed.append(filepath)
-                continue
-
-            unique_entity_uris.add(uri)
-            unique_entities.append(entity_model_or_errors)
+    failed: list[str] = []  # Entity URIs
+    successes: list[dict[str, Any]] = []  # Dumped and cleaned entities
 
     # Evaluate each unique entity
-    for entity_model in unique_entities:
-        # Check if entity already exists
-        with httpx.Client(follow_redirects=True) as client:
-            try:
-                response = client.get(get_uri(entity_model))
-            except httpx.HTTPError as exc:
-                ERROR_CONSOLE.print(
-                    "[bold red]Error[/bold red]: Could not check if entity already "
-                    f"exists. HTTP exception: {exc}"
-                )
-                raise typer.Exit(1) from exc
+    for valid_entity in valid_entities:
 
-        existing_entity: dict[str, Any] | None = None
-        if response.is_success:
-            try:
-                existing_entity = response.json()
-            except json.JSONDecodeError as exc:
-                ERROR_CONSOLE.print(
-                    "[bold red]Error[/bold red]: Could not check if entity already "
-                    f"exists. JSON decode error: {exc}"
-                )
-                raise typer.Exit(1) from exc
-
-        if existing_entity is not None:
-            # Compare existing model with new model
-
-            # Prepare entities: Dump new entity from model
-            dumped_entity = entity_model.model_dump(
-                by_alias=True, mode="json", exclude_unset=True
-            )
-
-            if existing_entity == dumped_entity:
+        ## Possibly update new entity according to a comparison with the external,
+        ## existing entity
+        if valid_entity.exists_remotely:
+            if valid_entity.equal_to_remote:
                 if not quiet:
                     print(
-                        "[bold blue]Info[/bold blue]: Entity already exists in the "
-                        f"database. Skipping file: {filepath}"
+                        "[bold blue]Info[/bold blue]: Entity already exists externally."
+                        f" Skipping entity: {get_uri(valid_entity.entity)}"
                     )
-                skipped.append(filepath)
                 continue
 
             if not quiet:
                 print(
-                    "[bold blue]Info[/bold blue]: Entity already exists in the "
-                    "database, but they differ in their content.\nDifference between "
-                    f"existing entity (first) and incoming entity (second) {filepath}:"
-                    f"\n\n{pretty_compare_dicts(existing_entity, dumped_entity)}\n"
+                    "[bold blue]Info[/bold blue]: Entity already exists externally, "
+                    "but it differs in its content.\nDifference between "
+                    "external (existing) entity (first) and incoming (new) entity "
+                    f"(second) {get_uri(valid_entity.entity)}:"
+                    f"\n\n{valid_entity.pretty_diff}\n"
                 )
 
-            if not quiet:
                 try:
                     update_version = typer.confirm(
-                        "You cannot overwrite existing entities. Do you wish to upload "
-                        "the new entity with an updated version number?",
+                        "You cannot overwrite external existing entities. Do you wish "
+                        "to upload the new entity with an updated version number?",
                         default=True,
                     )
                 except typer.Abort:  # pragma: no cover
@@ -381,8 +267,10 @@ def upload(
 
             if not update_version:
                 if not quiet:
-                    print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
-                skipped.append(filepath)
+                    print(
+                        "[bold blue]Info[/bold blue]: Skipping entity: "
+                        f"{get_uri(valid_entity.entity)}"
+                    )
                 continue
 
             if not quiet:
@@ -391,30 +279,31 @@ def upload(
                 # function only accepts models.
                 try:
                     new_version: str = typer.prompt(
-                        "The existing entity's version is "
-                        f"{get_version(entity_model)!r}. Please enter the new "
+                        "The external existing entity's version is "
+                        f"{get_version(valid_entity.entity)!r}. Please enter the new "
                         "version",
-                        default=get_updated_version(entity_model),
+                        default=get_updated_version(valid_entity.entity),
                         type=str,
                     )
                 except typer.Abort:  # pragma: no cover
                     # Can only happen if the user presses Ctrl-C, which can not be
                     # tested currently
                     if not quiet:
-                        print(f"[bold blue]Info[/bold blue]: Skipping file: {filepath}")
-                    skipped.append(filepath)
+                        print(
+                            "[bold blue]Info[/bold blue]: Skipping entity: "
+                            f"{get_uri(valid_entity.entity)}"
+                        )
                     continue
             else:
                 # Use default
-                new_version = get_updated_version(entity_model)
+                new_version = get_updated_version(valid_entity.entity)
 
             # Validate new version
             error_message = ""
-            if new_version == get_version(entity_model):
+            if new_version == get_version(valid_entity.entity):
                 error_message = (
                     "[bold red]Error[/bold red]: Could not update entity. "
-                    f"New version ({new_version}) is the same as the existing version "
-                    f"({get_version(entity_model)})."
+                    f"New version ({new_version}) is the same as the existing version."
                 )
             elif re.match(r"^\d+(?:\.\d+){0,2}$", new_version) is None:
                 error_message = (
@@ -426,31 +315,31 @@ def upload(
                 ERROR_CONSOLE.print(error_message)
                 if fail_fast:
                     raise typer.Exit(1)
-                failed.append(filepath)
+                failed.append(get_uri(valid_entity.entity))
                 continue
 
             # Update version and URI
-            if entity_model.version is not None:
-                entity_model.version = new_version
-                entity_model.uri = AnyHttpUrl(
-                    f"{entity_model.namespace}/{new_version}" f"/{entity_model.name}"
+            if valid_entity.entity.version is not None:
+                valid_entity.entity.version = new_version
+                valid_entity.entity.uri = AnyHttpUrl(
+                    f"{valid_entity.entity.namespace}/{new_version}/{valid_entity.entity.name}"
                 )
 
-            if entity_model.uri is not None:
-                match = URI_REGEX.match(str(entity_model.uri))
+            if valid_entity.entity.uri is not None:
+                match = URI_REGEX.match(str(valid_entity.entity.uri))
 
                 # match will always be a match object, since the URI has already been
                 # validated by the model
                 if TYPE_CHECKING:  # pragma: no cover
                     assert match is not None  # nosec
 
-                entity_model.uri = AnyHttpUrl(
+                valid_entity.entity.uri = AnyHttpUrl(
                     f"{match.group('namespace')}/{new_version}/{match.group('name')}"
                 )
 
         # Prepare entity for upload
         # Specifically, rename '$ref' keys to 'ref'
-        dumped_entity = entity_model.model_dump(
+        dumped_entity = valid_entity.entity.model_dump(
             by_alias=True, mode="json", exclude_unset=True
         )
 
@@ -471,15 +360,14 @@ def upload(
                     for key, value in property_value.items()
                 }
 
-        successes.append((filepath, dumped_entity))
+        successes.append(dumped_entity)
 
     # Exit if errors occurred
     if failed:
         ERROR_CONSOLE.print(
             f"[bold red]Failed to upload {len(failed)} "
             f"entit{'y' if len(failed) == 1 else 'ies'}, see above for more "
-            "details:[/bold red]\n"
-            + "\n".join([str(entity_filepath) for entity_filepath in failed])
+            "details:[/bold red]\n  " + "\n  ".join(failed)
         )
         raise typer.Exit(1)
 
@@ -487,39 +375,42 @@ def upload(
         if not quiet:
             # Have the user confirm the list of entities to upload
             table = Table(
-                title="Entities to upload:",
-                title_style="bold",
-                title_justify="left",
-                box=box.SIMPLE_HEAD,
+                expand=True,
+                box=box.HORIZONTALS,
+                show_edge=False,
                 highlight=True,
             )
 
             table.add_column("Namespace", no_wrap=True)
             table.add_column("Entity", no_wrap=True)
 
-            for _, entity in successes:
-                if all(key in entity for key in ("namespace", "version", "name")):
-                    namespace = (
-                        entity["namespace"][len(str(CONFIG.base_url).rstrip("/")) :]
-                        or "/"
-                    )
-                    version = entity["version"]
-                    name = entity["name"]
-                else:
-                    # Use the uri/identity
-                    matched_uri = URI_REGEX.match(entity["uri"])
-                    if matched_uri is None:
-                        raise ValueError(
-                            f"Could not parse URI {entity['uri']} with regular "
-                            f"expression {URI_REGEX.pattern}"
-                        )
-                    namespace = matched_uri.group("specific_namespace") or "/"
-                    version = matched_uri.group("version")
-                    name = matched_uri.group("name")
+            # Sort the entities in the following order:
+            # 1. Namespace
+            # 2. Name
+            # 3. Version (reversed)
 
-                table.add_row(namespace, f"{name} (ver. {version})")
+            successes.sort(key=lambda entity: _get_namespace_name_version(entity))
 
-            print("", table)
+            last_namespace = ""
+            for entity in successes:
+                namespace, name, version = _get_namespace_name_version(entity)
+
+                if namespace != last_namespace:
+                    # Add line in table
+                    table.add_section()
+
+                table.add_row(
+                    namespace if namespace != last_namespace else "",
+                    f"{name} (v{version})",
+                )
+
+            print(
+                "",
+                Rule(title="[bold green]Entities to upload[/bold green]"),
+                "",
+                table,
+                "",
+            )
 
             try:
                 upload_entities = typer.confirm(
@@ -540,9 +431,7 @@ def upload(
         # Upload entities
         with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:
             try:
-                response = client.post(
-                    "/_admin/create", json=[entity for _, entity in successes]
-                )
+                response = client.post("/_admin/create", json=successes)
             except httpx.HTTPError as exc:
                 ERROR_CONSOLE.print(
                     "[bold red]Error[/bold red]: Could not upload "
@@ -573,18 +462,11 @@ def upload(
         if not quiet:
             print(
                 f"[bold green]Successfully uploaded {len(successes)} "
-                f"entit{'y' if len(successes) == 1 else 'ies'}:[/bold green]\n"
-                + "\n".join([str(entity_filepath) for entity_filepath, _ in successes])
+                f"entit{'y' if len(successes) == 1 else 'ies'}"
             )
+
     elif not quiet:
         print("[bold blue]No entities were uploaded.[/bold blue]")
-
-    if skipped and not quiet:
-        print(
-            f"\n[bold yellow]Skipped {len(skipped)} "
-            f"entit{'y' if len(skipped) == 1 else 'ies'}:[/bold yellow]\n"
-            + "\n".join([str(entity_filepath) for entity_filepath in skipped])
-        )
 
 
 @APP.command()
@@ -712,7 +594,16 @@ def validate(
         help="Print the differences between the external and local entities (if any).",
         show_default=True,
     ),
-) -> list[Entity]:
+    # Hidden options - used only when calling the function directly
+    return_full_info: bool = typer.Option(
+        False,
+        hidden=True,
+        help=(
+            "Return the full information of the validated entities, i.e., "
+            "the `ValidEntity` tuple."
+        ),
+    ),
+) -> Sequence[Entity] | Sequence[ValidEntity]:
     """Validate (local) entities."""
     unique_filepaths = set(filepaths or [])
     directories = list(set(directories or []))
@@ -937,7 +828,11 @@ def validate(
     if quiet:
         # No need to go further here, just return (or raise if errors) already
         if not (failed_filepaths or failed_entities):
-            return [valid_entity.entity for valid_entity in successes]
+            return (
+                successes
+                if return_full_info
+                else [valid_entity.entity for valid_entity in successes]  # type: ignore[misc]
+            )
 
         raise typer.Exit(1)
 
@@ -1023,6 +918,10 @@ def validate(
         )
 
     if not (failed_filepaths or failed_entities):
-        return [valid_entity.entity for valid_entity in successes]
+        return (
+            successes
+            if return_full_info
+            else [valid_entity.entity for valid_entity in successes]  # type: ignore[misc]
+        )
 
     raise typer.Exit(1)
