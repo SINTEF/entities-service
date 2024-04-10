@@ -907,7 +907,7 @@ def validate(
 
                 for uri, pretty_diff in differing_entities:
                     print("", Rule(title=uri), f"\n{pretty_diff}\n")
-            elif not quiet:
+            elif not quiet and not return_full_info:
                 print(
                     "\n[bold blue]Use the option '--verbose' to see the differences "
                     "between the external and local entities.[/bold blue]\n"
