@@ -51,14 +51,13 @@ class StrReversor(str):
 
     def __eq__(self, value: object, /) -> bool:
         if not isinstance(value, StrReversor):
-            return NotImplemented
-
+            return super().__eq__(value)
         return value.obj == self.obj
 
     def __lt__(self, value: object, /) -> bool:
+        """Reversed comparison."""
         if not isinstance(value, StrReversor):
-            return NotImplemented
-
+            return super().__gt__(str(value))
         return value.obj < self.obj
 
 
