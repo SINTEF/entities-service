@@ -190,7 +190,7 @@ def validate(
             if file_format in EntityFileFormats.__members__.values() and not quiet:
                 print(
                     "[bold blue]Info[/bold blue]: Entities using the file format "
-                    f"{file_format!r} can be uploaded by adding the option: "
+                    f"{file_format!r} can be handled by adding the option: "
                     f"--format={file_format}"
                 )
             else:
