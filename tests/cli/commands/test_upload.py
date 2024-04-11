@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
 
-    from ..conftest import ParameterizeGetEntities
+    from .conftest import ParameterizeGetEntities
 
 pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
 

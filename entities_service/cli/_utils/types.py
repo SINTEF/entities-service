@@ -63,7 +63,9 @@ class StrReversor(str):
 
 
 # Type Aliases
+OptionalBool = Optional[bool]
 OptionalListEntityFileFormats = Optional[list[EntityFileFormats]]
-OptionalListStr = Optional[list[str]]
 OptionalListPath = Optional[list[Path]]
+OptionalListStr = Optional[list[str]]
+OptionalPath = Optional[Path]
 OptionalStr = Optional[str]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 try:
     import typer
@@ -15,6 +15,7 @@ except ImportError as exc:  # pragma: no cover
 
 from entities_service import __version__
 from entities_service.cli._utils.generics import CACHE_DIRECTORY, ERROR_CONSOLE, print
+from entities_service.cli._utils.types import OptionalBool, OptionalPath
 from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -27,14 +28,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 CONTEXT: ContextDict = {
-    "dotenv_path": (Path().cwd() / str(CONFIG.model_config["env_file"])).resolve(),
+    "dotenv_path": (Path.cwd() / str(CONFIG.model_config["env_file"])).resolve(),
 }
 """Global context for the CLI used to communicate global options."""
-
-# Type Aliases
-OptionalBool = Optional[bool]
-OptionalPath = Optional[Path]
-OptionalStr = Optional[str]
 
 
 def print_version(value: bool) -> None:
