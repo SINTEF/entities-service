@@ -22,7 +22,8 @@ CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
 def test_upload_no_args(cli: CliRunner) -> None:
     """Test `entities-service upload` CLI command."""
-    from entities_service.cli.main import APP, upload
+    from entities_service.cli.commands.upload import upload
+    from entities_service.cli.main import APP
 
     result = cli.invoke(APP, "upload")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
