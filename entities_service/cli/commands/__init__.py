@@ -28,7 +28,10 @@ def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
 
         module = import_module(f".{path.stem}", __package__)
 
-        if not hasattr(module, path.stem):
+        if not hasattr(module, path.stem):  # pragma: no cover
+            # This block is not covered in the code coverage, since it is only here to
+            # keep developers from making a mistake during development. This will never
+            # be an issue at actual runtime (assuming tests are run before deployment).
             raise RuntimeError(
                 f"Module {module.__name__} must have a command function with the same "
                 "name."
@@ -52,7 +55,10 @@ def get_subtyper_apps() -> Generator[tuple[Typer, dict[str, Any]], None, None]:
 
         module = import_module(f".{path.stem}", __package__)
 
-        if not hasattr(module, "APP"):
+        if not hasattr(module, "APP"):  # pragma: no cover
+            # This block is not covered in the code coverage, since it is only here to
+            # keep developers from making a mistake during development. This will never
+            # be an issue at actual runtime (assuming tests are run before deployment).
             raise RuntimeError(
                 f"Module {module.__name__} must have an 'APP' Typer variable "
                 "application."

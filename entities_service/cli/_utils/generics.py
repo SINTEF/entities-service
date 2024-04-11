@@ -119,9 +119,9 @@ def get_namespace_name_version(entity: Entity | dict[str, Any]) -> tuple[str, st
     The version is reversed to sort it in descending order (utilizing StrReversor).
     """
     if isinstance(entity, dict):
-        uri = (
-            entity.get("uri", None)
-            or f"{entity['namespace']}/{entity['version']}/{entity['name']}"
+        uri = entity.get("uri", None) or (
+            f"{entity.get('namespace', '')}/{entity.get('version', '')}"
+            f"/{entity.get('name', '')}"
         )
     else:
         uri = get_uri(entity)
