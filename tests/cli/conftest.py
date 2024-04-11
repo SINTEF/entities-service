@@ -28,7 +28,7 @@ def cli() -> CliRunner:
 def config_app() -> Typer:
     """Return the config APP."""
     from entities_service.cli._utils.global_settings import global_options
-    from entities_service.cli.config import APP
+    from entities_service.cli.commands.config import APP
 
     # Add global options to the APP
     # This is done by the "main" APP, and should hence be done here manually to ensure

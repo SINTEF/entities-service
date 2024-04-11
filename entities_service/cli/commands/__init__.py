@@ -6,9 +6,16 @@ from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from entities_service.cli._utils.global_settings import global_options
+
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Generator
     from typing import Any
+
+    from typer import Typer
+
+
+SUB_TYPER_APPS = ("config",)
 
 
 def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
@@ -16,7 +23,7 @@ def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
     this_dir = Path(__file__).parent.resolve()
 
     for path in this_dir.glob("*.py"):
-        if path.stem == "__init__":
+        if path.stem in ("__init__", *SUB_TYPER_APPS):
             continue
 
         module = import_module(f".{path.stem}", __package__)
@@ -32,3 +39,27 @@ def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
             command_kwargs["no_args_is_help"] = True
 
         yield getattr(module, path.stem), command_kwargs
+
+
+def get_subtyper_apps() -> Generator[tuple[Typer, dict[str, Any]], None, None]:
+    """Return all CLI Typer apps, which are a group of sub-command groups, along with
+    typer.add_typer() kwargs."""
+    this_dir = Path(__file__).parent.resolve()
+
+    for path in this_dir.glob("*.py"):
+        if path.stem not in SUB_TYPER_APPS:
+            continue
+
+        module = import_module(f".{path.stem}", __package__)
+
+        if not hasattr(module, "APP"):
+            raise RuntimeError(
+                f"Module {module.__name__} must have an 'APP' Typer variable "
+                "application."
+            )
+
+        app_kwargs = {}
+        if path.stem in ("config",):
+            app_kwargs["callback"] = global_options
+
+        yield module.APP, app_kwargs

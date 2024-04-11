@@ -987,7 +987,7 @@ def test_non_unique_uris(
     """Test that non-unique URIs result in an error."""
     import json
 
-    from entities_service.cli.config import CONFIG
+    from entities_service.cli.commands.config import CONFIG
     from entities_service.cli.main import APP
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"

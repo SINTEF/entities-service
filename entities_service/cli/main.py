@@ -10,8 +10,7 @@ except ImportError as exc:  # pragma: no cover
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
 from entities_service.cli._utils.global_settings import global_options
-from entities_service.cli.commands import get_commands
-from entities_service.cli.config import APP as config_APP
+from entities_service.cli.commands import get_commands, get_subtyper_apps
 
 APP = typer.Typer(
     name="entities-service",
@@ -20,8 +19,11 @@ APP = typer.Typer(
     pretty_exceptions_show_locals=False,
     callback=global_options,
 )
-APP.add_typer(config_APP, callback=global_options)
 
-# Add all commands
+# Add sub-Typer apps (sub-command groups)
+for typer_app, typer_app_kwargs in get_subtyper_apps():
+    APP.add_typer(typer_app, **typer_app_kwargs)
+
+# Add all "leaf"-commands
 for command, commands_kwargs in get_commands():
     APP.command(**commands_kwargs)(command)

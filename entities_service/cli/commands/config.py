@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Generator
 from functools import cache
-from typing import Optional, get_args
+from typing import get_args
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -28,6 +28,7 @@ from pydantic import SecretBytes, SecretStr
 
 from entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from entities_service.cli._utils.global_settings import CONTEXT
+from entities_service.cli._utils.types import OptionalStr
 from entities_service.service.config import CONFIG
 
 APP = typer.Typer(
@@ -36,9 +37,6 @@ APP = typer.Typer(
     no_args_is_help=True,
     invoke_without_command=True,
 )
-
-# Type Aliases
-OptionalStr = Optional[str]
 
 
 class ConfigFields(StrEnum):
