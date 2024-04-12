@@ -34,12 +34,14 @@ def test_validate_no_args(cli: CliRunner) -> None:
     assert result.stdout == cli.invoke(APP, "validate --help").stdout
 
 
+@pytest.mark.parametrize("quiet", [True, False])
 def test_validate_filepath(
     cli: CliRunner,
     static_dir: Path,
     httpx_mock: HTTPXMock,
     namespace: str | None,
     tmp_path: Path,
+    quiet: bool,
 ) -> None:
     """Test validate with a filepath."""
     import json
@@ -72,17 +74,25 @@ def test_validate_filepath(
         status_code=404,  # not found
     )
 
-    result = cli.invoke(APP, f"validate --file {entity_filepath}")
+    result = cli.invoke(
+        APP, f"validate {'--quiet ' if quiet else ''}--file {entity_filepath}"
+    )
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
 
-    assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
+    if quiet:
+        assert "Valid Entities" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+    else:
+        assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
 
 
+@pytest.mark.parametrize("quiet", [True, False])
 @pytest.mark.parametrize("fail_fast", [True, False])
 def test_validate_filepath_invalid(
     cli: CliRunner,
@@ -90,6 +100,7 @@ def test_validate_filepath_invalid(
     fail_fast: bool,
     namespace: str | None,
     tmp_path: Path,
+    quiet: bool,
 ) -> None:
     """Test validate with an invalid filepath."""
     import json
@@ -119,7 +130,7 @@ def test_validate_filepath_invalid(
 
     result = cli.invoke(
         APP,
-        f"validate {'--fail-fast ' if fail_fast else ''}"
+        f"validate {'--quiet ' if quiet else ''}{'--fail-fast ' if fail_fast else ''}"
         f"--file {invalid_entity_filepath}",
     )
 
@@ -148,13 +159,21 @@ def test_validate_filepath_invalid(
             failure_summary_text not in result.stderr
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     else:
-        assert (
-            result.stdout.replace("\n", "")
-            == "There were no valid entities among the supplied sources."
-        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
         assert failure_summary_text in result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
             stdout=result.stdout, stderr=result.stderr
         )
+
+        if quiet:
+            assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
+        else:
+            assert (
+                result.stdout.replace("\n", "")
+                == "There were no valid entities among the supplied sources."
+            ), CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
 
 
 def test_validate_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> None:
@@ -476,6 +495,7 @@ def test_existing_entity(
     assert not stderr, CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
 
 
+@pytest.mark.parametrize("verbose", [True, False])
 @pytest.mark.parametrize("call_type", ["func", "cli"])
 def test_existing_entity_different_content(
     cli: CliRunner,
@@ -485,6 +505,7 @@ def test_existing_entity_different_content(
     namespace: str | None,
     call_type: Literal["func", "cli"],
     capsys: pytest.CaptureFixture,
+    verbose: bool,
 ) -> None:
     """Test that the correct conclusion is drawn; that an external entity already exists
     and differs in content.
@@ -549,7 +570,7 @@ def test_existing_entity_different_content(
 
     if call_type == "func":
         valid_entity = validate(
-            filepaths=[tmp_path / "Person.json"], return_full_info=True
+            filepaths=[tmp_path / "Person.json"], return_full_info=True, verbose=verbose
         )
 
         assert isinstance(valid_entity, list)
@@ -572,7 +593,8 @@ def test_existing_entity_different_content(
     else:
         result = cli.invoke(
             APP,
-            f"validate --file {tmp_path / 'Person.json'}",
+            f"validate {'--verbose ' if verbose else ''}"
+            f"--file {tmp_path / 'Person.json'}",
         )
 
         assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -593,6 +615,29 @@ def test_existing_entity_different_content(
         "There were no valid entities among the supplied sources." not in stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
     assert not stderr, CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
+
+    detailed_diff_summary = "Detailed differences in validated entities:"
+    verbose_info = "Use the option '--verbose' to see the differences"
+    if verbose:
+        assert detailed_diff_summary in stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=stdout, stderr=stderr
+        )
+        assert verbose_info not in stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=stdout, stderr=stderr
+        )
+    else:
+        assert detailed_diff_summary not in stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=stdout, stderr=stderr
+        )
+
+        if call_type == "cli":
+            assert verbose_info in stdout, CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=stdout, stderr=stderr
+            )
+        else:
+            assert verbose_info not in stdout, CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=stdout, stderr=stderr
+            )
 
 
 def test_http_errors(
