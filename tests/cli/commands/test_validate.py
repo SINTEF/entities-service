@@ -32,7 +32,6 @@ def test_validate_no_args(cli: CliRunner) -> None:
     assert result.stdout == cli.invoke(APP, "validate --help").stdout
 
 
-@pytest.mark.usefixtures("_empty_backend_collection")
 def test_validate_filepath(
     cli: CliRunner,
     static_dir: Path,
@@ -187,7 +186,6 @@ def test_validate_no_file_or_dir(cli: CliRunner) -> None:
     assert not result.stdout
 
 
-@pytest.mark.usefixtures("_empty_backend_collection")
 def test_validate_directory(
     cli: CliRunner,
     static_dir: Path,
