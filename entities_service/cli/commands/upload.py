@@ -105,12 +105,24 @@ def upload(
             "--silent",
             "-q",
             "-s",
-            "-y",
             help=(
                 "Do not print anything on success and do not ask for confirmation. "
                 "IMPORTANT, for content conflicts the defaults will be chosen."
             ),
             show_default=True,
+        ),
+    ] = False,
+    auto_confirm: Annotated[
+        bool,
+        typer.Option(
+            "--auto-confirm",
+            "-y",
+            help=(
+                "Automatically agree to any confirmations and use defaults for "
+                "content conflicts. This differs from --quiet in that "
+                "it will still print information."
+            ),
+            show_default=False,
         ),
     ] = False,
 ) -> None:
@@ -163,18 +175,20 @@ def upload(
                     f"\n\n{valid_entity.pretty_diff}\n"
                 )
 
-                try:
-                    update_version = typer.confirm(
-                        "You cannot overwrite external existing entities. Do you wish "
-                        "to upload the new entity with an updated version number?",
-                        default=True,
-                    )
-                except typer.Abort:  # pragma: no cover
-                    # Can only happen if the user presses Ctrl-C, which can not be
-                    # tested currently
-                    update_version = False
-            else:
-                # Use default
+                if not auto_confirm:
+                    try:
+                        update_version = typer.confirm(
+                            "You cannot overwrite external existing entities. Do you "
+                            "wish to upload the new entity with an updated version "
+                            "number?",
+                            default=True,
+                        )
+                    except typer.Abort:  # pragma: no cover
+                        # Can only happen if the user presses Ctrl-C, which can not be
+                        # tested currently
+                        update_version = False
+            elif quiet or auto_confirm:
+                # Use default / auto confirm
                 update_version = True
 
             if not update_version:
@@ -185,7 +199,7 @@ def upload(
                     )
                 continue
 
-            if not quiet:
+            if not quiet or not auto_confirm:
                 # Passing incoming entity-as-model here, since the URIs (and thereby the
                 # versions) have already been determined to be the same, and the
                 # function only accepts models.
@@ -207,8 +221,14 @@ def upload(
                         )
                     continue
             else:
-                # Use default
+                # Use default / auto confirm
                 new_version = get_updated_version(valid_entity.entity)
+
+                if not quiet:
+                    print(
+                        "[bold blue]Info[/bold blue]: Updating the to-be-uploaded "
+                        f"entity to version: {new_version}."
+                    )
 
             # Validate new version
             error_message = ""
@@ -325,17 +345,21 @@ def upload(
                 "",
             )
 
-            try:
-                upload_entities = typer.confirm(
-                    "These entities will be uploaded. Do you want to continue?",
-                    default=True,
-                )
-            except typer.Abort as exc:  # pragma: no cover
-                # Can only happen if the user presses Ctrl-C, which can not be tested
-                # currently
-                # Take an Abort as a "no"
-                print("[bold blue]Aborted: No entities were uploaded.[/bold blue]")
-                raise typer.Exit() from exc
+            if not auto_confirm:
+                try:
+                    upload_entities = typer.confirm(
+                        "These entities will be uploaded. Do you want to continue?",
+                        default=True,
+                    )
+                except typer.Abort as exc:  # pragma: no cover
+                    # Can only happen if the user presses Ctrl-C, which can not be
+                    # tested currently
+                    # Take an Abort as a "no"
+                    print("[bold blue]Aborted: No entities were uploaded.[/bold blue]")
+                    raise typer.Exit() from exc
+            else:
+                # Auto confirm
+                upload_entities = True
 
             if not upload_entities:
                 print("[bold blue]No entities were uploaded.[/bold blue]")
