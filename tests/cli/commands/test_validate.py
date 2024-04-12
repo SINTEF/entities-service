@@ -8,10 +8,12 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any
+    from typing import Any, Literal
 
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
+
+    from ...conftest import ParameterizeGetEntities
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
@@ -399,13 +401,27 @@ def test_validate_directory_invalid_entities(
         )
 
 
+@pytest.mark.parametrize("call_type", ["func", "cli"])
 def test_existing_entity(
-    cli: CliRunner, static_dir: Path, httpx_mock: HTTPXMock
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    capsys: pytest.CaptureFixture,
+    call_type: Literal["func", "cli"],
 ) -> None:
-    """Test that an existing entity is not overwritten."""
+    """Test that the correct conclusion is drawn; that an external entity already exists
+
+    When called as a function, ensure this result is returned as expected (when using
+    `return_full_info=True`).
+    When called as a CLI command, ensure the same result is presented in the output.
+    """
     import json
 
-    from entities_service.cli.main import APP
+    if call_type == "func":
+        from entities_service.cli._utils.types import ValidEntity
+        from entities_service.cli.commands.validate import validate
+    else:
+        from entities_service.cli.main import APP
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
@@ -418,19 +434,354 @@ def test_existing_entity(
         json=raw_entity,
     )
 
-    result = cli.invoke(APP, f"validate --file {entity_filepath}")
-    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
+    if call_type == "func":
+        valid_entity = validate(filepaths=[entity_filepath], return_full_info=True)
+
+        assert isinstance(valid_entity, list)
+        assert all(isinstance(entity, ValidEntity) for entity in valid_entity)
+
+        assert len(valid_entity) == 1
+        assert (
+            valid_entity[0].entity.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            )
+            == raw_entity
+        )
+        assert valid_entity[0].exists_remotely is True
+        assert valid_entity[0].equal_to_remote is True
+        assert valid_entity[0].pretty_diff is None
+
+        captured = capsys.readouterr()
+
+        stdout, stderr = captured.out, captured.err
+    else:
+        result = cli.invoke(APP, f"validate --file {entity_filepath}")
+
+        assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
+        # The first 'Yes' explains that the entity already exists externally.
+        # The second 'Yes' explains that the entity is equal to the remote entity.
+        assert "/Person0.1YesYes" in result.stdout.replace(
+            " ", ""
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+        stdout, stderr = result.stdout, result.stderr
+
+    # Common assertions
+    assert (
+        "There were no valid entities among the supplied sources." not in stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
+    assert not stderr, CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
+
+
+@pytest.mark.parametrize("call_type", ["func", "cli"])
+def test_existing_entity_different_content(
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    tmp_path: Path,
+    namespace: str | None,
+    call_type: Literal["func", "cli"],
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """Test that the correct conclusion is drawn; that an external entity already exists
+    and differs in content.
+
+    When called as a function, ensure this result is returned as expected (when using
+    `return_full_info=True`).
+    When called as a CLI command, ensure the same result is presented in the output.
+    """
+    import json
+    from copy import deepcopy
+
+    if call_type == "func":
+        from entities_service.cli._utils.types import ValidEntity
+        from entities_service.cli.commands.validate import validate
+    else:
+        from entities_service.cli.main import APP
+
+    from entities_service.models import URI_REGEX
+    from entities_service.service.config import CONFIG
+
+    entity_filepath = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+    current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
+
+    if namespace:
+        # Update the entity's namespace to the current namespace
+        if "namespace" in raw_entity:
+            raw_entity["namespace"] = current_namespace
+        if "uri" in raw_entity:
+            raw_entity["uri"] = raw_entity["uri"].replace(
+                f"{core_namespace}/", f"{current_namespace}/"
+            )
+
+        # Write the updated entity to file
+        directory = tmp_path / "valid_entities"
+        directory.mkdir(parents=True, exist_ok=True)
+        entity_filepath = directory / "Person.json"
+        entity_filepath.write_text(json.dumps(raw_entity))
+
+    # Mock response for "Check if entity already exists"
+    assert "uri" in raw_entity
+    httpx_mock.add_response(
+        url=raw_entity["uri"],
+        status_code=200,  # ok
+        json=raw_entity,
     )
 
-    # The last 'Yes' explains that the entity already exists
-    assert "/Person0.1YesYes" in result.stdout.replace(
-        " ", ""
-    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    original_uri_match = URI_REGEX.match(raw_entity["uri"])
+    assert original_uri_match is not None
+    original_uri_match_dict = original_uri_match.groupdict()
+
+    # Create a new file with a change in the content
+    new_entity = deepcopy(raw_entity)
+    new_entity["dimensions"]["n_skills"] = "Skill number."
+    new_entity["namespace"] = original_uri_match_dict["namespace"]
+    new_entity["version"] = original_uri_match_dict["version"]
+    new_entity["name"] = original_uri_match_dict["name"]
+    assert new_entity != raw_entity
+    (tmp_path / "Person.json").write_text(json.dumps(new_entity))
+
+    if call_type == "func":
+        valid_entity = validate(
+            filepaths=[tmp_path / "Person.json"], return_full_info=True
+        )
+
+        assert isinstance(valid_entity, list)
+        assert all(isinstance(entity, ValidEntity) for entity in valid_entity)
+
+        assert len(valid_entity) == 1
+        assert (
+            valid_entity[0].entity.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            )
+            == new_entity
+        )
+        assert valid_entity[0].exists_remotely is True
+        assert valid_entity[0].equal_to_remote is False
+        assert valid_entity[0].pretty_diff is not None
+
+        captured = capsys.readouterr()
+
+        stdout, stderr = captured.out, captured.err
+    else:
+        result = cli.invoke(
+            APP,
+            f"validate --file {tmp_path / 'Person.json'}",
+        )
+
+        assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
+        # The 'Yes' explains that the entity already exists externally.
+        # The 'No' explains that the entity differs from the remote entity.
+        assert (
+            f"{namespace if namespace else '/'}{new_entity['name']}"
+            f"{new_entity['version']}YesNo" in result.stdout.replace(" ", "")
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+        stdout, stderr = result.stdout, result.stderr
+
+    # Common assertions
+    assert (
+        "There were no valid entities among the supplied sources." not in stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
+    assert not stderr, CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
+
+
+def test_http_errors(
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    parameterized_entity: ParameterizeGetEntities,
+) -> None:
+    """Ensure proper error messages are given if an HTTP error occurs."""
+    from httpx import HTTPError
+
+    from entities_service.cli.main import APP
+
+    error_message = "Generic HTTP Error"
+    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
+        ".json"
+    )
+
+    # Mock response for "Check if entity already exists"
+    httpx_mock.add_exception(HTTPError(error_message), url=parameterized_entity.uri)
+
+    result = cli.invoke(APP, f"validate --quiet --file {test_file}")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
 
     assert (
-        "There were no valid entities among the supplied sources." not in result.stdout
+        "Error: Could not check if entity already exists. HTTP exception: "
+        f"{error_message}" in result.stderr
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
+
+
+def test_json_decode_errors(
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    parameterized_entity: ParameterizeGetEntities,
+) -> None:
+    """Ensure proper error messages are given if a JSONDecodeError occurs."""
+    from entities_service.cli.main import APP
+
+    test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
+        ".json"
+    )
+
+    # Mock response for "Check if entity already exists"
+    httpx_mock.add_response(
+        url=parameterized_entity.uri, status_code=200, content=b"not json"
+    )
+
+    result = cli.invoke(APP, f"validate --quiet --file {test_file}")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Error: Could not check if entity already exists. JSON decode error: "
+        in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.parametrize("fail_fast", [True, False])
+def test_non_unique_uris(
+    cli: CliRunner,
+    static_dir: Path,
+    fail_fast: bool,
+    namespace: str | None,
+    tmp_path: Path,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Test that non-unique URIs result in an error."""
+    import json
+
+    from entities_service.cli.commands.config import CONFIG
+    from entities_service.cli.main import APP
+
+    entity_filepath = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
+
+    target_directory = tmp_path / "duplicate_uri_entities"
+    target_directory.mkdir(parents=True, exist_ok=False)
+
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+    current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
+
+    assert "uri" in raw_entity
+
+    if namespace:
+        # Update entity to the current namespace
+        # This is to ensure the same error is given when hitting the specific
+        # namespace endpoint
+        if "namespace" in raw_entity:
+            raw_entity["namespace"] = current_namespace
+
+        raw_entity["uri"] = raw_entity["uri"].replace(
+            f"{core_namespace}/", f"{current_namespace}/"
+        )
+
+    # Write the entity to file in the target directory
+    (target_directory / "Person.json").write_text(json.dumps(raw_entity))
+
+    # Write the same entity to file in the target directory, but with a different
+    # file name
+    (target_directory / "duplicate.json").write_text(json.dumps(raw_entity))
+
+    if not fail_fast:
+        # Mock response for "Check if entity already exists"
+        httpx_mock.add_response(
+            url=raw_entity["uri"],
+            status_code=404,  # not found
+        )
+
+    result = cli.invoke(
+        APP, f"validate {'--fail-fast ' if fail_fast else ''}--dir {target_directory}"
+    )
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        f"Error: Duplicate URI found: {raw_entity['uri']}" in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+    failure_summary = (
+        "Failed to validate one or more entities. See above for more details."
+    )
+
+    if fail_fast:
+        assert failure_summary not in result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+    else:
+        ## Failures
+        assert failure_summary in result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
+        # Files overview
+        assert "Files:" in result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+        # Only one of the files will be listed here
+        # (the second one, whichever it may be)
+        assert (
+            f'  {target_directory / "Person.json"}' in result.stderr
+            or f'  {target_directory / "duplicate.json"}' in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        if f'  {target_directory / "duplicate.json"}' in result.stderr:
+            assert (
+                f'  {target_directory / "Person.json"}' not in result.stderr
+            ), CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
+        elif f'  {target_directory / "Person.json"}' in result.stderr:
+            assert (
+                f'  {target_directory / "duplicate.json"}' not in result.stderr
+            ), CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
+
+        # Entities overview
+        assert "Entities:" in result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+        assert (
+            f"  {raw_entity['uri']}" in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+        ## Successes
+
+        # The first entity to be validated will be... valid
+        # The 'No' explains that the entity does not exist externally.
+        assert (
+            f"{namespace if namespace else '/'}Person0.1No-"
+            in result.stdout.replace(" ", "")
+        ), CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
+        assert (
+            "There were no valid entities among the supplied sources."
+            not in result.stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)

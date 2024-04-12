@@ -117,6 +117,10 @@ isort.required-imports = ["from __future__ import annotations"]
     "BLE",  # flake8-blind-except
     "T20",  # flake8-print
 ]
+"entities_service/cli/commands/**" = [
+    # We must be able to set command input defaults
+    "B006",  # Do not use mutable data structures for argument defaults
+]
 
 [tool.pytest.ini_options]
 minversion = "7.4"

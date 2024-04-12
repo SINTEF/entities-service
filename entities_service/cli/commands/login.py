@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Annotated
 
 try:
     import httpx
@@ -22,16 +23,18 @@ from entities_service.service.config import CONFIG
 
 
 def login(
-    quiet: bool = typer.Option(
-        False,
-        "--quiet",
-        "--silent",
-        "-q",
-        "-s",
-        "-y",
-        help="Do not print anything on success and do not ask for confirmation.",
-        show_default=True,
-    ),
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "--silent",
+            "-q",
+            "-s",
+            "-y",
+            help="Do not print anything on success and do not ask for confirmation.",
+            show_default=True,
+        ),
+    ] = False,
 ) -> None:
     """Login to the entities service."""
     with httpx.Client(base_url=str(CONFIG.base_url)) as client:

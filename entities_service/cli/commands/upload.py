@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 try:
     import httpx
@@ -47,62 +47,72 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def upload(
-    filepaths: OptionalListPath = typer.Option(
-        None,
-        "--file",
-        "-f",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        help="Path to file with one or more entities.",
-        show_default=False,
-    ),
-    directories: OptionalListPath = typer.Option(
-        None,
-        "--dir",
-        "-d",
-        exists=True,
-        file_okay=False,
-        dir_okay=True,
-        readable=True,
-        resolve_path=True,
-        help=(
-            "Path to directory with files that include one or more entities. "
-            "All files matching the given format(s) in the directory will be uploaded. "
-            "Subdirectories will be ignored. This option can be provided multiple "
-            "times, e.g., to include multiple subdirectories."
+    filepaths: Annotated[
+        OptionalListPath,
+        typer.Option(
+            "--file",
+            "-f",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to file with one or more entities.",
+            show_default=False,
         ),
-        show_default=False,
-    ),
-    file_formats: OptionalListEntityFileFormats = typer.Option(
-        [EntityFileFormats.JSON.value],
-        "--format",
-        help="Format of entity file(s).",
-        show_choices=True,
-        show_default=True,
-        case_sensitive=False,
-    ),
-    fail_fast: bool = typer.Option(
-        False,
-        "--fail-fast",
-        help="Stop uploading entities on the first error during file validation.",
-        show_default=True,
-    ),
-    quiet: bool = typer.Option(
-        False,
-        "--quiet",
-        "--silent",
-        "-q",
-        "-s",
-        "-y",
-        help=(
-            "Do not print anything on success and do not ask for confirmation. "
-            "IMPORTANT, for content conflicts the defaults will be chosen."
+    ] = None,
+    directories: Annotated[
+        OptionalListPath,
+        typer.Option(
+            "--dir",
+            "-d",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help=(
+                "Path to directory with files that include one or more entities. "
+                "All files matching the given format(s) in the directory will be "
+                "uploaded. Subdirectories will be ignored. This option can be provided "
+                "multiple times, e.g., to include multiple subdirectories."
+            ),
+            show_default=False,
         ),
-        show_default=True,
-    ),
+    ] = None,
+    file_formats: Annotated[
+        OptionalListEntityFileFormats,
+        typer.Option(
+            "--format",
+            help="Format of entity file(s).",
+            show_choices=True,
+            show_default=True,
+            case_sensitive=False,
+        ),
+    ] = [EntityFileFormats.JSON],
+    fail_fast: Annotated[
+        bool,
+        typer.Option(
+            "--fail-fast",
+            help="Stop uploading entities on the first error during file validation.",
+            show_default=True,
+        ),
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "--silent",
+            "-q",
+            "-s",
+            "-y",
+            help=(
+                "Do not print anything on success and do not ask for confirmation. "
+                "IMPORTANT, for content conflicts the defaults will be chosen."
+            ),
+            show_default=True,
+        ),
+    ] = False,
 ) -> None:
     """Upload (local) entities to a remote location."""
     # Ensure the user is logged in

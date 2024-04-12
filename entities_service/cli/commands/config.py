@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from functools import cache
-from typing import get_args
+from typing import Annotated, get_args
 
 try:
     import typer
@@ -88,21 +88,27 @@ class ConfigFields(StrEnum):
 
 @APP.command(name="set")
 def set_config(
-    key: ConfigFields = typer.Argument(
-        help=(
-            "Configuration option to set. These can also be set as an environment "
-            f"variable by prefixing with {CONFIG.model_config['env_prefix'].upper()!r}."
+    key: Annotated[
+        ConfigFields,
+        typer.Argument(
+            help=(
+                "Configuration option to set. These can also be set as an environment "
+                "variable by prefixing with "
+                f"{CONFIG.model_config['env_prefix'].upper()!r}."
+            ),
+            show_choices=True,
+            shell_complete=ConfigFields.autocomplete,
+            case_sensitive=False,
+            show_default=False,
         ),
-        show_choices=True,
-        shell_complete=ConfigFields.autocomplete,
-        case_sensitive=False,
-        show_default=False,
-    ),
-    value: OptionalStr = typer.Argument(
-        None,
-        help="Value to set. This will be prompted for if not provided.",
-        show_default=False,
-    ),
+    ],
+    value: Annotated[
+        OptionalStr,
+        typer.Argument(
+            help="Value to set. This will be prompted for if not provided.",
+            show_default=False,
+        ),
+    ] = None,
 ) -> None:
     """Set a configuration option."""
     if not value:
@@ -137,13 +143,16 @@ def set_config(
 
 @APP.command()
 def unset(
-    key: ConfigFields = typer.Argument(
-        help="Configuration option to unset.",
-        show_choices=True,
-        shell_complete=ConfigFields.autocomplete,
-        case_sensitive=False,
-        show_default=False,
-    ),
+    key: Annotated[
+        ConfigFields,
+        typer.Argument(
+            help="Configuration option to unset.",
+            show_choices=True,
+            shell_complete=ConfigFields.autocomplete,
+            case_sensitive=False,
+            show_default=False,
+        ),
+    ],
 ) -> None:
     """Unset a single configuration option."""
     dotenv_file = CONTEXT["dotenv_path"]
@@ -175,13 +184,15 @@ def unset_all() -> None:
 
 @APP.command()
 def show(
-    reveal_sensitive: bool = typer.Option(
-        False,
-        "--reveal-sensitive",
-        help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
-        is_flag=True,
-        show_default=False,
-    ),
+    reveal_sensitive: Annotated[
+        bool,
+        typer.Option(
+            "--reveal-sensitive",
+            help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
+            is_flag=True,
+            show_default=False,
+        ),
+    ] = False,
 ) -> None:
     """Show the current configuration."""
     dotenv_file = CONTEXT["dotenv_path"]

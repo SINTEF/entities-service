@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 try:
     import typer
@@ -41,29 +41,33 @@ def print_version(value: bool) -> None:
 
 
 def global_options(
-    _: OptionalBool = typer.Option(
-        None,
-        "--version",
-        help="Show version and exit.",
-        is_eager=True,
-        callback=print_version,
-    ),
-    dotenv_path: OptionalPath = typer.Option(
-        CONTEXT["dotenv_path"],
-        "--dotenv-config",
-        exists=False,
-        dir_okay=False,
-        file_okay=True,
-        readable=True,
-        writable=True,
-        resolve_path=True,
-        help=(
-            "Use the .env file at the given location for the current command. "
-            "By default it will point to the .env file in the current directory."
+    _: Annotated[
+        OptionalBool,
+        typer.Option(
+            "--version",
+            help="Show version and exit.",
+            is_eager=True,
+            callback=print_version,
         ),
-        show_default=True,
-        rich_help_panel="Global options",
-    ),
+    ] = None,
+    dotenv_path: Annotated[
+        OptionalPath,
+        typer.Option(
+            "--dotenv-config",
+            exists=False,
+            dir_okay=False,
+            file_okay=True,
+            readable=True,
+            writable=True,
+            resolve_path=True,
+            help=(
+                "Use the .env file at the given location for the current command. "
+                "By default it will point to the .env file in the current directory."
+            ),
+            show_default=True,
+            rich_help_panel="Global options",
+        ),
+    ] = CONTEXT["dotenv_path"],
 ) -> None:
     """Global options for the CLI.
 

@@ -6,7 +6,7 @@ import json
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 try:
     import httpx
@@ -44,84 +44,104 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def validate(
-    filepaths: OptionalListPath = typer.Option(
-        None,
-        "--file",
-        "-f",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        help="Path to file with one or more entities.",
-        show_default=False,
-    ),
-    directories: OptionalListPath = typer.Option(
-        None,
-        "--dir",
-        "-d",
-        exists=True,
-        file_okay=False,
-        dir_okay=True,
-        readable=True,
-        resolve_path=True,
-        help=(
-            "Path to directory with files that include one or more entities. "
-            "All files matching the given format(s) in the directory will be validated."
-            " Subdirectories will be ignored. This option can be provided multiple "
-            "times, e.g., to include multiple subdirectories."
+    filepaths: Annotated[
+        OptionalListPath,
+        typer.Option(
+            "--file",
+            "-f",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to file with one or more entities.",
+            show_default=False,
         ),
-        show_default=False,
-    ),
-    file_formats: OptionalListEntityFileFormats = typer.Option(
-        [EntityFileFormats.JSON.value],
-        "--format",
-        help="Format of entity file(s).",
-        show_choices=True,
-        show_default=True,
-        case_sensitive=False,
-    ),
-    fail_fast: bool = typer.Option(
-        False,
-        "--fail-fast",
-        help="Stop validating entities on the first discovered error.",
-        show_default=True,
-    ),
-    quiet: bool = typer.Option(
-        False,
-        "--quiet",
-        "--silent",
-        "-q",
-        "-s",
-        "-y",
-        help="Do not print anything on success.",
-        show_default=True,
-    ),
-    no_external_calls: bool = typer.Option(
-        False,
-        "--no-external-calls",
-        help=(
-            "Do not make any external calls to validate the entity/-ies. "
-            "This includes comparing the local entity with the remote entity."
+    ] = None,
+    directories: Annotated[
+        OptionalListPath,
+        typer.Option(
+            "--dir",
+            "-d",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help=(
+                "Path to directory with files that include one or more entities. "
+                "All files matching the given format(s) in the directory will be "
+                "validated. Subdirectories will be ignored. This option can be "
+                "provided multiple times, e.g., to include multiple subdirectories."
+            ),
+            show_default=False,
         ),
-        show_default=True,
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Print the differences between the external and local entities (if any).",
-        show_default=True,
-    ),
+    ] = None,
+    file_formats: Annotated[
+        OptionalListEntityFileFormats,
+        typer.Option(
+            "--format",
+            help="Format of entity file(s).",
+            show_choices=True,
+            show_default=True,
+            case_sensitive=False,
+        ),
+    ] = [EntityFileFormats.JSON],
+    fail_fast: Annotated[
+        bool,
+        typer.Option(
+            "--fail-fast",
+            help="Stop validating entities on the first discovered error.",
+            show_default=True,
+        ),
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "--silent",
+            "-q",
+            "-s",
+            "-y",
+            help="Do not print anything on success.",
+            show_default=True,
+        ),
+    ] = False,
+    no_external_calls: Annotated[
+        bool,
+        typer.Option(
+            "--no-external-calls",
+            help=(
+                "Do not make any external calls to validate the entities. This "
+                "includes mainly comparing local entities with their remote "
+                "counterparts."
+            ),
+            show_default=True,
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            "-v",
+            help=(
+                "Print the differences between the external and local entities "
+                "(if any)."
+            ),
+            show_default=True,
+        ),
+    ] = False,
     # Hidden options - used only when calling the function directly
-    return_full_info: bool = typer.Option(
-        False,
-        hidden=True,
-        help=(
-            "Return the full information of the validated entities, i.e., "
-            "the `ValidEntity` tuple."
+    return_full_info: Annotated[
+        bool,
+        typer.Option(
+            hidden=True,
+            help=(
+                "Return the full information of the validated entities, i.e., "
+                "the `ValidEntity` tuple."
+            ),
         ),
-    ),
+    ] = False,
 ) -> Sequence[Entity] | Sequence[ValidEntity]:
     """Validate (local) entities."""
     unique_filepaths = set(filepaths or [])

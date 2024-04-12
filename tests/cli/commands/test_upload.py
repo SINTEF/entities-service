@@ -369,7 +369,9 @@ def test_existing_entity_different_content(
     assert (
         "No entities were uploaded." in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stderr
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
 
     # Now, let's check we update the version if wanting to.
     # Use default generated version. An existing version of '0.1' should generate
@@ -408,7 +410,9 @@ def test_existing_entity_different_content(
     assert (
         "Successfully uploaded 1 entity" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stderr
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
 
     # Now, let's check we update the version if wanting to.
     # Use custom version.
@@ -448,7 +452,9 @@ def test_existing_entity_different_content(
     assert (
         "Successfully uploaded 1 entity" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stderr
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
 
 
 @pytest.mark.parametrize("fail_fast", [True, False])
@@ -740,73 +746,3 @@ def test_unable_to_upload(
         f"{dumped_error_message}" in result.stderr.replace("\n", "").replace("  ", "")
     )
     assert not result.stdout
-
-
-@pytest.mark.parametrize("fail_fast", [True, False])
-@pytest.mark.usefixtures("_mock_successful_oauth_response")
-def test_non_unique_uris(
-    cli: CliRunner,
-    static_dir: Path,
-    fail_fast: bool,
-    httpx_mock: HTTPXMock,
-    namespace: str | None,
-    tmp_path: Path,
-) -> None:
-    """Test that non-unique URIs result in an error."""
-    import json
-
-    from entities_service.cli.commands.config import CONFIG
-    from entities_service.cli.main import APP
-
-    entity_filepath = static_dir / "valid_entities" / "Person.json"
-    raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
-
-    target_directory = tmp_path / "duplicate_uri_entities"
-    target_directory.mkdir(parents=True, exist_ok=False)
-
-    core_namespace = str(CONFIG.base_url).rstrip("/")
-    current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
-
-    if namespace:
-        # Update entity to the current namespace
-        # This is to ensure the same error is given when hitting the specific
-        # namespace endpoint
-        if "namespace" in raw_entity:
-            raw_entity["namespace"] = current_namespace
-        if "uri" in raw_entity:
-            raw_entity["uri"] = raw_entity["uri"].replace(
-                f"{core_namespace}/", f"{current_namespace}/"
-            )
-
-    # Write the entity to file in the target directory
-    (target_directory / "Person.json").write_text(json.dumps(raw_entity))
-
-    # Write the same entity to file in the target directory, but with a different
-    # file name
-    (target_directory / "duplicate.json").write_text(json.dumps(raw_entity))
-
-    # Mock a good login check
-    httpx_mock.add_response(
-        url=f"{core_namespace}/_admin/create",
-        status_code=204,
-        match_json=[],
-    )
-
-    result = cli.invoke(
-        APP, f"upload {'--fail-fast ' if fail_fast else ''}--dir {target_directory}"
-    )
-
-    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
-
-    uri = raw_entity.get("uri") or (
-        f"{raw_entity.get('namespace', '')}"
-        f"/{raw_entity.get('version', ')')}/{raw_entity.get('name', '')}"
-    )
-    assert (
-        f"Error: Duplicate URI found: {uri}" in result.stderr
-    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
-    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
-    )
