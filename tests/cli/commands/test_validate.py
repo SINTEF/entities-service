@@ -420,6 +420,7 @@ def test_validate_directory_invalid_entities(
         )
 
 
+@pytest.mark.parametrize("no_external_calls", [True, False])
 @pytest.mark.parametrize("call_type", ["func", "cli"])
 def test_existing_entity(
     cli: CliRunner,
@@ -427,6 +428,7 @@ def test_existing_entity(
     httpx_mock: HTTPXMock,
     capsys: pytest.CaptureFixture,
     call_type: Literal["func", "cli"],
+    no_external_calls: bool,
 ) -> None:
     """Test that the correct conclusion is drawn; that an external entity already exists
 
@@ -445,16 +447,21 @@ def test_existing_entity(
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
 
-    # Mock response for "Check if entity already exists"
-    assert "uri" in raw_entity
-    httpx_mock.add_response(
-        url=raw_entity["uri"],
-        status_code=200,  # ok
-        json=raw_entity,
-    )
+    if not no_external_calls:
+        # Mock response for "Check if entity already exists"
+        assert "uri" in raw_entity
+        httpx_mock.add_response(
+            url=raw_entity["uri"],
+            status_code=200,  # ok
+            json=raw_entity,
+        )
 
     if call_type == "func":
-        valid_entity = validate(filepaths=[entity_filepath], return_full_info=True)
+        valid_entity = validate(
+            filepaths=[entity_filepath],
+            return_full_info=True,
+            no_external_calls=no_external_calls,
+        )
 
         assert isinstance(valid_entity, list)
         assert all(isinstance(entity, ValidEntity) for entity in valid_entity)
@@ -466,25 +473,48 @@ def test_existing_entity(
             )
             == raw_entity
         )
-        assert valid_entity[0].exists_remotely is True
-        assert valid_entity[0].equal_to_remote is True
-        assert valid_entity[0].pretty_diff is None
+
+        if no_external_calls:
+            assert valid_entity[0].exists_remotely is None
+            assert valid_entity[0].equal_to_remote is None
+            assert valid_entity[0].pretty_diff is None
+        else:
+            assert valid_entity[0].exists_remotely is True
+            assert valid_entity[0].equal_to_remote is True
+            assert valid_entity[0].pretty_diff is None
 
         captured = capsys.readouterr()
 
         stdout, stderr = captured.out, captured.err
     else:
-        result = cli.invoke(APP, f"validate --file {entity_filepath}")
+        result = cli.invoke(
+            APP,
+            f"validate {'--no-external-calls ' if no_external_calls else ''}"
+            f"--file {entity_filepath}",
+        )
 
         assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
             stdout=result.stdout, stderr=result.stderr
         )
 
-        # The first 'Yes' explains that the entity already exists externally.
-        # The second 'Yes' explains that the entity is equal to the remote entity.
-        assert "/Person0.1YesYes" in result.stdout.replace(
-            " ", ""
-        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        if no_external_calls:
+            # The first 'Unknown' explains that it is unknown whether the entity exists
+            # externally.
+            # The second 'Unknown' explains that it is unknown whether a possible
+            # external entity is equal to the local entity.
+            assert "/Person0.1UnknownUnknown" in result.stdout.replace(
+                " ", ""
+            ), CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
+        else:
+            # The first 'Yes' explains that the entity already exists externally.
+            # The second 'Yes' explains that the entity is equal to the remote entity.
+            assert "/Person0.1YesYes" in result.stdout.replace(
+                " ", ""
+            ), CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
 
         stdout, stderr = result.stdout, result.stderr
 
@@ -494,7 +524,17 @@ def test_existing_entity(
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
     assert not stderr, CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
 
+    if no_external_calls:
+        assert (
+            "No external calls will be made" in stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
+    else:
+        assert (
+            "No external calls will be made" not in stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
 
+
+@pytest.mark.parametrize("no_external_calls", [True, False])
 @pytest.mark.parametrize("verbose", [True, False])
 @pytest.mark.parametrize("call_type", ["func", "cli"])
 def test_existing_entity_different_content(
@@ -506,6 +546,7 @@ def test_existing_entity_different_content(
     call_type: Literal["func", "cli"],
     capsys: pytest.CaptureFixture,
     verbose: bool,
+    no_external_calls: bool,
 ) -> None:
     """Test that the correct conclusion is drawn; that an external entity already exists
     and differs in content.
@@ -532,14 +573,15 @@ def test_existing_entity_different_content(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
 
+    assert "uri" in raw_entity
+
     if namespace:
         # Update the entity's namespace to the current namespace
         if "namespace" in raw_entity:
             raw_entity["namespace"] = current_namespace
-        if "uri" in raw_entity:
-            raw_entity["uri"] = raw_entity["uri"].replace(
-                f"{core_namespace}/", f"{current_namespace}/"
-            )
+        raw_entity["uri"] = raw_entity["uri"].replace(
+            f"{core_namespace}/", f"{current_namespace}/"
+        )
 
         # Write the updated entity to file
         directory = tmp_path / "valid_entities"
@@ -547,13 +589,13 @@ def test_existing_entity_different_content(
         entity_filepath = directory / "Person.json"
         entity_filepath.write_text(json.dumps(raw_entity))
 
-    # Mock response for "Check if entity already exists"
-    assert "uri" in raw_entity
-    httpx_mock.add_response(
-        url=raw_entity["uri"],
-        status_code=200,  # ok
-        json=raw_entity,
-    )
+    if not no_external_calls:
+        # Mock response for "Check if entity already exists"
+        httpx_mock.add_response(
+            url=raw_entity["uri"],
+            status_code=200,  # ok
+            json=raw_entity,
+        )
 
     original_uri_match = URI_REGEX.match(raw_entity["uri"])
     assert original_uri_match is not None
@@ -570,7 +612,10 @@ def test_existing_entity_different_content(
 
     if call_type == "func":
         valid_entity = validate(
-            filepaths=[tmp_path / "Person.json"], return_full_info=True, verbose=verbose
+            filepaths=[tmp_path / "Person.json"],
+            return_full_info=True,
+            verbose=verbose,
+            no_external_calls=no_external_calls,
         )
 
         assert isinstance(valid_entity, list)
@@ -583,9 +628,15 @@ def test_existing_entity_different_content(
             )
             == new_entity
         )
-        assert valid_entity[0].exists_remotely is True
-        assert valid_entity[0].equal_to_remote is False
-        assert valid_entity[0].pretty_diff is not None
+
+        if no_external_calls:
+            assert valid_entity[0].exists_remotely is None
+            assert valid_entity[0].equal_to_remote is None
+            assert valid_entity[0].pretty_diff is None
+        else:
+            assert valid_entity[0].exists_remotely is True
+            assert valid_entity[0].equal_to_remote is False
+            assert valid_entity[0].pretty_diff is not None
 
         captured = capsys.readouterr()
 
@@ -594,6 +645,7 @@ def test_existing_entity_different_content(
         result = cli.invoke(
             APP,
             f"validate {'--verbose ' if verbose else ''}"
+            f"{'--no-external-calls ' if no_external_calls else ''}"
             f"--file {tmp_path / 'Person.json'}",
         )
 
@@ -601,12 +653,27 @@ def test_existing_entity_different_content(
             stdout=result.stdout, stderr=result.stderr
         )
 
-        # The 'Yes' explains that the entity already exists externally.
-        # The 'No' explains that the entity differs from the remote entity.
-        assert (
-            f"{namespace if namespace else '/'}{new_entity['name']}"
-            f"{new_entity['version']}YesNo" in result.stdout.replace(" ", "")
-        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        if no_external_calls:
+            # THe first 'Unknown' explains that it is unknown whether the entity exists
+            # externally.
+            # The second 'Unknown' explains that it is unknown whether a possible
+            # external entity is equal to the local entity.
+            assert (
+                f"{namespace if namespace else '/'}{new_entity['name']}"
+                f"{new_entity['version']}UnknownUnknown"
+                in result.stdout.replace(" ", "")
+            ), CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
+        else:
+            # The 'Yes' explains that the entity already exists externally.
+            # The 'No' explains that the entity differs from the remote entity.
+            assert (
+                f"{namespace if namespace else '/'}{new_entity['name']}"
+                f"{new_entity['version']}YesNo" in result.stdout.replace(" ", "")
+            ), CLI_RESULT_FAIL_MESSAGE.format(
+                stdout=result.stdout, stderr=result.stderr
+            )
 
         stdout, stderr = result.stdout, result.stderr
 
@@ -618,18 +685,25 @@ def test_existing_entity_different_content(
 
     detailed_diff_summary = "Detailed differences in validated entities:"
     verbose_info = "Use the option '--verbose' to see the differences"
-    if verbose:
+    if verbose and not no_external_calls:
         assert detailed_diff_summary in stdout, CLI_RESULT_FAIL_MESSAGE.format(
             stdout=stdout, stderr=stderr
         )
         assert verbose_info not in stdout, CLI_RESULT_FAIL_MESSAGE.format(
             stdout=stdout, stderr=stderr
         )
-    else:
+
+    if not verbose or no_external_calls:
         assert detailed_diff_summary not in stdout, CLI_RESULT_FAIL_MESSAGE.format(
             stdout=stdout, stderr=stderr
         )
 
+    if verbose and no_external_calls:
+        assert verbose_info not in stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=stdout, stderr=stderr
+        )
+
+    if not verbose and not no_external_calls:
         if call_type == "cli":
             assert verbose_info in stdout, CLI_RESULT_FAIL_MESSAGE.format(
                 stdout=stdout, stderr=stderr
@@ -638,6 +712,15 @@ def test_existing_entity_different_content(
             assert verbose_info not in stdout, CLI_RESULT_FAIL_MESSAGE.format(
                 stdout=stdout, stderr=stderr
             )
+
+    if no_external_calls:
+        assert (
+            "No external calls will be made" in stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
+    else:
+        assert (
+            "No external calls will be made" not in stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=stdout, stderr=stderr)
 
 
 def test_http_errors(
@@ -829,4 +912,105 @@ def test_non_unique_uris(
         assert (
             "There were no valid entities among the supplied sources."
             not in result.stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+
+@pytest.mark.parametrize("yaml_format", ["yaml", "yml"])
+def test_list_of_entities_in_single_file(
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    yaml_format: Literal["yaml", "yml"],
+) -> None:
+    """Test validate with a filepath."""
+    import yaml
+
+    from entities_service.cli.main import APP
+
+    entities_filepath = static_dir / "valid_entities.yaml"
+    raw_entities: list[dict[str, Any]] = yaml.safe_load(entities_filepath.read_text())
+
+    # Mock response for "Check if entity already exists"
+    for raw_entity in raw_entities:
+        assert "uri" in raw_entity
+        httpx_mock.add_response(
+            url=raw_entity["uri"],
+            status_code=404,  # not found
+        )
+
+    result = cli.invoke(
+        APP, f"validate --format {yaml_format} --file {entities_filepath}"
+    )
+
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.parametrize("fail_fast", [True, False])
+def test_bad_list_of_entities_in_single_file(
+    cli: CliRunner, static_dir: Path, fail_fast: bool, tmp_path: Path
+) -> None:
+    """Test validate with a filepath."""
+    import yaml
+
+    from entities_service.cli.main import APP
+
+    entities_filepath = static_dir / "valid_entities.yaml"
+    raw_entities: list[dict[str, Any]] = yaml.safe_load(entities_filepath.read_text())
+
+    # Add a non-dict to the list
+    raw_entities.append("not a dict")
+
+    # Write the updated list of entities to file
+    bad_list_of_entities_filepath = tmp_path / "bad_list_of_entities.yaml"
+    bad_list_of_entities_filepath.write_text(
+        yaml.safe_dump(raw_entities, allow_unicode=True)
+    )
+
+    result = cli.invoke(
+        APP,
+        f"validate {'--fail-fast ' if fail_fast else ''}"
+        f"--format=yaml --file {bad_list_of_entities_filepath}",
+    )
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        f"Error: {bad_list_of_entities_filepath}" in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert (
+        "can not be read as either a single or a list of potential SOFT entities."
+        in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+    assert "Valid Entities" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    failure_summary_text = (
+        "Failed to validate one or more entities. See above for more details."
+    )
+    if fail_fast:
+        assert (
+            failure_summary_text not in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+        assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+    else:
+        assert failure_summary_text in result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
+        assert (
+            result.stdout.replace("\n", "")
+            == "There were no valid entities among the supplied sources."
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
