@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
 
-    from .conftest import ParameterizeGetEntities
+    from ...conftest import ParameterizeGetEntities
 
 pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
 
@@ -45,7 +45,10 @@ def test_upload_filepath(
     namespace: str | None,
     tmp_path: Path,
 ) -> None:
-    """Test upload with a filepath."""
+    """Test upload with a filepath.
+
+    Additionally test nothing is uploaded if the user decides to now upload.
+    """
     import json
 
     from entities_service.cli import main
@@ -57,14 +60,15 @@ def test_upload_filepath(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
 
+    assert "uri" in raw_entity
+
     if namespace:
         # Update the entity's namespace to the current namespace
         if "namespace" in raw_entity:
             raw_entity["namespace"] = current_namespace
-        if "uri" in raw_entity:
-            raw_entity["uri"] = raw_entity["uri"].replace(
-                f"{core_namespace}/", f"{current_namespace}/"
-            )
+        raw_entity["uri"] = raw_entity["uri"].replace(
+            f"{core_namespace}/", f"{current_namespace}/"
+        )
         # Write the updated entity to file
         entity_filepath = tmp_path / "Person.json"
         entity_filepath.write_text(json.dumps(raw_entity))
@@ -77,7 +81,6 @@ def test_upload_filepath(
     )
 
     # Mock response for "Check if entity already exists"
-    assert "uri" in raw_entity
     httpx_mock.add_response(
         url=raw_entity["uri"],
         status_code=404,  # not found
@@ -93,12 +96,26 @@ def test_upload_filepath(
     )
 
     result = cli.invoke(main.APP, f"upload --file {entity_filepath}")
+
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
 
     assert (
         "Successfully uploaded 1 entity" in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+    ## Additionally test nothing is uploaded if user decides to not upload.
+    result = cli.invoke(main.APP, f"upload --file {entity_filepath}", input="n\n")
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert "Succesfully uploaded" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert (
+        "No entities were uploaded." in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
@@ -414,6 +431,22 @@ def test_existing_entity_different_content(
         stdout=result.stdout, stderr=result.stderr
     )
 
+    # Now let's check we get the same result if setting `quiet=True` and not providing
+    # input, since the previous input equals the general defaults.
+    result = cli.invoke(
+        APP,
+        f"upload --file {tmp_path / 'Person.json'} --quiet",
+    )
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
     # Now, let's check we update the version if wanting to.
     # Use custom version.
 
@@ -724,25 +757,52 @@ def test_unable_to_upload(
     from entities_service.cli.main import APP
     from entities_service.service.config import CONFIG
 
-    error_message = {"detail": "Could not validate credentials. Please log in."}
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
+
+    # Mock response for "Check if entity already exists"
+    httpx_mock.add_response(
+        url=parameterized_entity.uri,
+        status_code=404,  # not found, i.e., entity does not already exist
+    )
+
+    error_status_code = 400
+    error_message = {"error": "Could not upload entity."}
     test_file = (static_dir / "valid_entities" / parameterized_entity.name).with_suffix(
         ".json"
     )
 
     httpx_mock.add_response(
         url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-        status_code=401,
+        status_code=error_status_code,
         json=error_message,
+        match_json=[parameterized_entity.backend_entity],
     )
 
     result = cli.invoke(APP, f"upload --file {test_file}")
+
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
 
+    # Everything up until the very last check should be successful
+    assert (
+        f"/{parameterized_entity.name}{parameterized_entity.version}No-"
+        in result.stdout.replace(" ", "")
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert (
+        f"/{parameterized_entity.name}(v{parameterized_entity.version})"
+        in result.stdout.replace(" ", "")
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
     dumped_error_message = json.dumps(error_message)
     assert (
-        "Error: Could not login. HTTP status code: 401. Error response: "
-        f"{dumped_error_message}" in result.stderr.replace("\n", "").replace("  ", "")
-    )
-    assert not result.stdout
+        f"Error: Could not upload entity. HTTP status code: {error_status_code}. "
+        f"Error message: "
+        f"{dumped_error_message}"
+        in result.stderr.replace("\n", "").replace("  ", "").replace("'", '"')
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
