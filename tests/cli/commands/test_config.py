@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from typer import Typer
     from typer.testing import CliRunner
 
+pytestmark = pytest.mark.usefixtures("_mock_config_base_url")
+
 
 @pytest.fixture()
 def _prefill_dotenv_config(dotenv_file: Path) -> None:

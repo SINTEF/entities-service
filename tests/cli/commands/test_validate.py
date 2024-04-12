@@ -32,6 +32,7 @@ def test_validate_no_args(cli: CliRunner) -> None:
     assert result.stdout == cli.invoke(APP, "validate --help").stdout
 
 
+@pytest.mark.usefixtures("_empty_backend_collection")
 def test_validate_filepath(
     cli: CliRunner,
     static_dir: Path,
@@ -42,7 +43,7 @@ def test_validate_filepath(
     """Test validate with a filepath."""
     import json
 
-    from entities_service.cli import main
+    from entities_service.cli.main import APP
     from entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
@@ -70,7 +71,8 @@ def test_validate_filepath(
         status_code=404,  # not found
     )
 
-    result = cli.invoke(main.APP, f"validate --file {entity_filepath}")
+    result = cli.invoke(APP, f"validate --file {entity_filepath}")
+
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -185,6 +187,7 @@ def test_validate_no_file_or_dir(cli: CliRunner) -> None:
     assert not result.stdout
 
 
+@pytest.mark.usefixtures("_empty_backend_collection")
 def test_validate_directory(
     cli: CliRunner,
     static_dir: Path,

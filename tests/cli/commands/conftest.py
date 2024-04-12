@@ -39,7 +39,7 @@ def dotenv_file(tmp_path: Path) -> Path:
     return tmp_path / env_file
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -> None:
     """Mock the base url if using a live backend."""
     if not live_backend:
@@ -80,7 +80,11 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
     localhost = host + (f":{port}" if port else "")
     hosts = [localhost, host]
 
-    if CONFIG.base_url.host and CONFIG.base_url.host not in hosts:
+    if (
+        CONFIG.base_url.host
+        and CONFIG.base_url.host not in hosts
+        and CONFIG.base_url.host not in ("onto-ns.com", "www.onto-ns.com")
+    ):
         hosts.append(CONFIG.base_url.host)
 
     return hosts
