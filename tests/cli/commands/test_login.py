@@ -182,7 +182,29 @@ def test_json_decode_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
-    assert "Error: Could not login. JSON decode error: " in result.stderr.replace(
-        "\n", ""
+    assert (
+        "Error: Could not login. JSON decode error: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
     )
-    assert not result.stdout
+
+    ## Re-mock the response for "Get token" to be bad JSON
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/token",
+        method="POST",
+        text="access_token",
+    )
+
+    # Run the login CLI command
+    result = cli.invoke(APP, "login")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert (
+        "Error: Could not login. JSON decode error: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
