@@ -175,21 +175,21 @@ def upload(
                     f"\n\n{valid_entity.pretty_diff}\n"
                 )
 
-                if not auto_confirm:
-                    try:
-                        update_version = typer.confirm(
-                            "You cannot overwrite external existing entities. Do you "
-                            "wish to upload the new entity with an updated version "
-                            "number?",
-                            default=True,
-                        )
-                    except typer.Abort:  # pragma: no cover
-                        # Can only happen if the user presses Ctrl-C, which can not be
-                        # tested currently
-                        update_version = False
-            elif quiet or auto_confirm:
+            if quiet or auto_confirm:
                 # Use default / auto confirm
                 update_version = True
+            else:
+                try:
+                    update_version = typer.confirm(
+                        "You cannot overwrite external existing entities. Do you "
+                        "wish to upload the new entity with an updated version "
+                        "number?",
+                        default=True,
+                    )
+                except typer.Abort:  # pragma: no cover
+                    # Can only happen if the user presses Ctrl-C, which can not be
+                    # tested currently
+                    update_version = False
 
             if not update_version:
                 if not quiet:
@@ -199,12 +199,21 @@ def upload(
                     )
                 continue
 
-            if not quiet or not auto_confirm:
+            if quiet or auto_confirm:
+                # Use default / auto confirm
+                new_version = get_updated_version(valid_entity.entity)
+
+                if not quiet:
+                    print(
+                        "[bold blue]Info[/bold blue]: Updating the to-be-uploaded "
+                        f"entity to version: {new_version}."
+                    )
+            else:
                 # Passing incoming entity-as-model here, since the URIs (and thereby the
                 # versions) have already been determined to be the same, and the
                 # function only accepts models.
                 try:
-                    new_version: str = typer.prompt(
+                    new_version = typer.prompt(
                         "The external existing entity's version is "
                         f"{get_version(valid_entity.entity)!r}. Please enter the new "
                         "version",
@@ -220,15 +229,6 @@ def upload(
                             f"{get_uri(valid_entity.entity)}\n"
                         )
                     continue
-            else:
-                # Use default / auto confirm
-                new_version = get_updated_version(valid_entity.entity)
-
-                if not quiet:
-                    print(
-                        "[bold blue]Info[/bold blue]: Updating the to-be-uploaded "
-                        f"entity to version: {new_version}."
-                    )
 
             # Validate new version
             error_message = ""
