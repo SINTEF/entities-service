@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
 
-    from ..conftest import ParameterizeGetEntities
+    from .conftest import ParameterizeGetEntities
 
 pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
 
@@ -41,7 +41,9 @@ def test_login(
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
-    assert "Successfully logged in." in result.stdout.replace("\n", "")
+    assert "Successfully logged in." in result.stdout.replace(
+        "\n", ""
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
 @pytest.mark.usefixtures("_empty_backend_collection", "_mock_successful_oauth_response")
@@ -103,8 +105,12 @@ def test_token_persistence(
         "\n\nEXCEPTION:\n"
         f"{''.join(traceback.format_exception(result.exception)) if result.exception else ''}"  # noqa: E501
     )
-    assert "Successfully uploaded 1 entity:" in result.stdout.replace("\n", "")
-    assert not result.stderr
+    assert "Successfully uploaded 1 entity" in result.stdout.replace(
+        "\n", ""
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
 
     assert tmp_cache_file.exists()
 
@@ -126,9 +132,11 @@ def test_login_invalid_credentials(
     assert (
         "Error: Could not login. Authentication failed (InvalidGrantRequest): "
         "temporarily_unavailable" in result.stderr.replace("\n", "")
-    )
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     if "[test_client]" not in request.node.name:
-        assert not result.stdout
+        assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
 
 
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
@@ -158,8 +166,10 @@ def test_http_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     assert (
         f"Error: Could not login. HTTP exception: {error_message}"
         in result.stderr.replace("\n", "")
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
     )
-    assert not result.stdout
 
 
 @pytest.mark.usefixtures("_mock_successful_oauth_response")
@@ -182,7 +192,68 @@ def test_json_decode_errors(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
-    assert "Error: Could not login. JSON decode error: " in result.stderr.replace(
-        "\n", ""
+    assert (
+        "Error: Could not login. JSON decode error: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
     )
-    assert not result.stdout
+
+    ## Re-mock the response for "Get token" to be bad JSON
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/token",
+        method="POST",
+        text="access_token",
+    )
+
+    # Run the login CLI command
+    result = cli.invoke(APP, "login")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert (
+        "Error: Could not login. JSON decode error: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
+def test_bad_response(cli: CliRunner, httpx_mock: HTTPXMock) -> None:
+    """Ensure proper error messages are given if an HTTP error occurs."""
+    import json
+
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
+
+    error_status_code = 500
+    error_message = {"error": "Internal Server Error"}
+
+    # Mock the login HTTPX response
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_json=[],
+        status_code=error_status_code,
+        json=error_message,
+    )
+
+    # Run the login CLI command
+    result = cli.invoke(APP, "login")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert (
+        f"Error: Could not login. HTTP status code: {error_status_code}. "
+        f"Error response: {json.dumps(error_message)}"
+    ) in result.stderr.replace("\n", "").replace(
+        "  ", ""
+    ), CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
