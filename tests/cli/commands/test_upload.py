@@ -447,6 +447,42 @@ def test_existing_entity_different_content(
         stdout=result.stdout, stderr=result.stderr
     )
 
+    # Now let's check we get the same result if setting `quiet=False` and
+    # `auto_confirm=True` and not providing other input, since the previous input
+    # (still) equals the general defaults.
+    # Here would should get some outputs, however.
+    result = cli.invoke(
+        APP,
+        f"upload --file {tmp_path / 'Person.json'} --auto-confirm",
+    )
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    # Ensure no confirmations or prompts are in the output
+    assert (
+        "You cannot overwrite external existing entities. Do you wish to upload the "
+        "new entity with an updated version number?" not in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert (
+        "These entities will be uploaded. Do you want to continue?" not in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert (
+        "Please enter the new version" not in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    # Ensure specific `quiet=False` and `auto_confirm=True` outputs are in the output
+    assert (
+        "Info: Updating the to-be-uploaded entity to version:" in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert "Entities to upload" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
     # Now, let's check we update the version if wanting to.
     # Use custom version.
 
