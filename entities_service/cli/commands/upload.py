@@ -206,7 +206,7 @@ def upload(
                 if not quiet:
                     print(
                         "[bold blue]Info[/bold blue]: Updating the to-be-uploaded "
-                        f"entity to version: {new_version}."
+                        f"entity to specified version: {new_version}."
                     )
             else:
                 # Passing incoming entity-as-model here, since the URIs (and thereby the

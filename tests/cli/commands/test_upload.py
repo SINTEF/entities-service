@@ -477,7 +477,8 @@ def test_existing_entity_different_content(
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     # Ensure specific `quiet=False` and `auto_confirm=True` outputs are in the output
     assert (
-        "Info: Updating the to-be-uploaded entity to version:" in result.stdout
+        "Info: Updating the to-be-uploaded entity to specified version:"
+        in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert "Entities to upload" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
