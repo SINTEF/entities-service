@@ -23,7 +23,8 @@ jobs:
       - name: Check changes
         id: check-changes
         run: |
-          git diff --name-only origin/main | \
+          git fetch --all
+          git diff --name-only main | \
           grep -qE "entities_service/((models/|service/)(.+/)*)?[^/]*\.py" \
           && SERVICE_CHANGES=true \
           || SERVICE_CHANGES=false
