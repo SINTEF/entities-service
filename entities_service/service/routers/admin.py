@@ -26,6 +26,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 LOGGER = logging.getLogger(__name__)
 
+print("Change in entities_service/service/routers/admin.py")
+
 
 ROUTER = APIRouter(
     prefix="/_admin",
