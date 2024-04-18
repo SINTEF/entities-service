@@ -26,8 +26,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
 LOGGER = logging.getLogger("entities_service")
 
-print("Change in package root file")
-
 
 # Application lifespan function
 @asynccontextmanager
