@@ -179,13 +179,10 @@ def test_update(
     backend.update(parameterized_entity.uri, changed_raw_entity)
 
     # Retrieve the entity again
+    parsed_uri = URI_REGEX.match(parameterized_entity.uri).groupdict()
+    parsed_uri.pop("specific_namespace", None)
     entity_from_backend = backend._collection.find_one(
-        {
-            "$or": [
-                URI_REGEX.match(parameterized_entity.uri).groupdict(),
-                {"uri": parameterized_entity.uri},
-            ]
-        },
+        {"$or": [parsed_uri, {"uri": parameterized_entity.uri}]},
         projection={"_id": False},
     )
 
@@ -203,13 +200,10 @@ def test_delete(
     backend = mongo_backend("write")
 
     # Ensure the entity currently exists in the backend
+    parsed_uri = URI_REGEX.match(parameterized_entity.uri).groupdict()
+    parsed_uri.pop("specific_namespace", None)
     entity_from_backend = backend._collection.find_one(
-        {
-            "$or": [
-                URI_REGEX.match(parameterized_entity.uri).groupdict(),
-                {"uri": parameterized_entity.uri},
-            ]
-        },
+        {"$or": [parsed_uri, {"uri": parameterized_entity.uri}]},
         projection={"_id": False},
     )
 
@@ -223,13 +217,10 @@ def test_delete(
     backend.delete(parameterized_entity.uri)
 
     # Check that the entity is gone
+    parsed_uri = URI_REGEX.match(parameterized_entity.uri).groupdict()
+    parsed_uri.pop("specific_namespace", None)
     entity_from_backend = backend._collection.find_one(
-        {
-            "$or": [
-                URI_REGEX.match(parameterized_entity.uri).groupdict(),
-                {"uri": parameterized_entity.uri},
-            ]
-        },
+        {"$or": [parsed_uri, {"uri": parameterized_entity.uri}]},
         projection={"_id": False},
     )
 
@@ -249,15 +240,10 @@ def test_search(
     backend = mongo_backend("read")
 
     # Search for the entity
+    parsed_uri = URI_REGEX.match(parameterized_entity.uri).groupdict()
+    parsed_uri.pop("specific_namespace", None)
     entities_from_backend = list(
-        backend.search(
-            {
-                "$or": [
-                    URI_REGEX.match(parameterized_entity.uri).groupdict(),
-                    {"uri": parameterized_entity.uri},
-                ]
-            }
-        )
+        backend.search({"$or": [parsed_uri, {"uri": parameterized_entity.uri}]})
     )
 
     assert len(entities_from_backend) == 1
@@ -285,17 +271,9 @@ def test_count(
     assert backend.count({}) == number_of_entities
 
     # Count the entity
-    assert (
-        backend.count(
-            {
-                "$or": [
-                    URI_REGEX.match(parameterized_entity.uri).groupdict(),
-                    {"uri": parameterized_entity.uri},
-                ]
-            }
-        )
-        == 1
-    )
+    parsed_uri = URI_REGEX.match(parameterized_entity.uri).groupdict()
+    parsed_uri.pop("specific_namespace", None)
+    assert backend.count({"$or": [parsed_uri, {"uri": parameterized_entity.uri}]}) == 1
 
 
 def test_contains(

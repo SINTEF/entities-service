@@ -52,6 +52,16 @@ if TYPE_CHECKING:
             self, auth_role: Literal["read", "write"] | None = None
         ) -> None: ...
 
+    class OpenIDConfigMock(Protocol):
+        """Protocol for the openid_config_mock fixture."""
+
+        def __call__(self, base_url: str) -> dict[str, Any]: ...
+
+    class MockOpenIDConfigCall(Protocol):
+        """Protocol for the mock_openid_config_call fixture."""
+
+        def __call__(self, base_url: str) -> None: ...
+
 
 class ParameterizeGetEntities(NamedTuple):
     """Returned tuple from parameterizing all entities."""
@@ -483,80 +493,70 @@ def get_backend_user() -> GetBackendUserFixture:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _mongo_test_collection(
-    static_dir: Path, live_backend: bool, get_backend_user: GetBackendUserFixture
+def _setup_real_mongo_users(
+    live_backend: bool, get_backend_user: GetBackendUserFixture
 ) -> None:
-    """Add MongoDB test data to the chosen backend."""
-    import yaml
-
-    from entities_service.service.backend import Backends, get_backend
-    from entities_service.service.config import CONFIG
-
-    # Convert all '$ref' to 'ref' in the valid_entities.yaml file
-    entities: list[dict[str, Any]] = yaml.safe_load(
-        (static_dir / "valid_entities.yaml").read_text()
-    )
-    for entity in entities:
-        # SOFT5
-        if isinstance(entity["properties"], list):
-            for index, property_value in enumerate(list(entity["properties"])):
-                entity["properties"][index] = {
-                    key.replace("$", ""): value for key, value in property_value.items()
-                }
-
-        # SOFT7
-        elif isinstance(entity["properties"], dict):
-            for property_name, property_value in list(entity["properties"].items()):
-                entity["properties"][property_name] = {
-                    key.replace("$", ""): value for key, value in property_value.items()
-                }
-
-        else:
-            raise TypeError(
-                f"Invalid type for entity['properties']: {type(entity['properties'])}"
-            )
-
-    assert CONFIG.backend == (
-        Backends.MONGODB if live_backend else Backends.MONGOMOCK
-    ), (
-        "The backend should be set to 'mongodb' if the tests are run with a live "
-        "backend, and 'mongomock' otherwise."
-    )
-
-    if live_backend:
-        # Add test users to the database
-        backend: MongoDBBackend = get_backend(
-            settings={
-                "mongo_username": "root",
-                "mongo_password": "root",
-            },
-        )
-        admin_db = backend._collection.database.client["admin"]
-
-        existing_users: list[str] = [
-            user["user"] for user in admin_db.command("usersInfo", usersInfo=1)["users"]
-        ]
-
-        for auth_role in ("read", "write"):
-            user_info = get_backend_user(auth_role)
-            if user_info["username"] not in existing_users:
-                admin_db.command(
-                    "createUser",
-                    createUser=user_info["username"],
-                    pwd=user_info["password"],
-                    roles=user_info["roles"],
-                )
-
-
-@pytest.fixture(autouse=True)
-def _reset_mongo_test_collection(
-    get_backend_user: GetBackendUserFixture, static_dir: Path
-) -> None:
-    """Purge the MongoDB test collection."""
-    import yaml
+    """Setup the backend users for the live backend MongoDB."""
+    if not live_backend:
+        return
 
     from entities_service.service.backend import get_backend
 
+    # Add test users to the database
+    backend: MongoDBBackend = get_backend(
+        settings={
+            "mongo_username": "root",
+            "mongo_password": "root",
+        },
+    )
+    admin_db = backend._collection.database.client["admin"]
+
+    existing_users: list[str] = [
+        user["user"] for user in admin_db.command("usersInfo", usersInfo=1)["users"]
+    ]
+
+    for auth_role in ("read", "write"):
+        user_info = get_backend_user(auth_role)
+        if user_info["username"] not in existing_users:
+            admin_db.command(
+                "createUser",
+                createUser=user_info["username"],
+                pwd=user_info["password"],
+                roles=user_info["roles"],
+            )
+
+
+@pytest.fixture()
+def existing_specific_namespace() -> str:
+    """Return the specific namespace to test."""
+    return "test"
+
+
+@pytest.fixture(params=["core", "specific"])
+def namespace(
+    existing_specific_namespace: str, request: pytest.FixtureRequest
+) -> str | None:
+    """Return the namespace to test."""
+    return existing_specific_namespace if request.param == "specific" else None
+
+
+@pytest.fixture(autouse=True)
+def _reset_mongo_test_collections(
+    get_backend_user: GetBackendUserFixture,
+    static_dir: Path,
+    existing_specific_namespace: str,
+) -> None:
+    """Reset the MongoDB test collections, dropping them and re-filling them with test
+    entities."""
+    from copy import deepcopy
+
+    import yaml
+
+    from entities_service.service.backend import get_backend
+    from entities_service.service.config import CONFIG
+
+    # First, prepare the test data
+
     # Convert all '$ref' to 'ref' in the valid_entities.yaml file
     entities: list[dict[str, Any]] = yaml.safe_load(
         (static_dir / "valid_entities.yaml").read_text()
@@ -581,17 +581,37 @@ def _reset_mongo_test_collection(
                 f"Invalid type for entity['properties']: {type(entity['properties'])}"
             )
 
+    # For the specific namespace collection, rename all uris (and namespaces) to be
+    # within the specific namespace
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+    specific_namespace_entities = deepcopy(entities)
+    for entity in specific_namespace_entities:
+        if "uri" in entity:
+            entity["uri"] = entity["uri"].replace(
+                core_namespace,
+                f"{core_namespace}/{existing_specific_namespace}",
+            )
+        if "namespace" in entity:
+            entity["namespace"] = f"{core_namespace}/{existing_specific_namespace}"
+
     backend_user = get_backend_user("write")
 
-    backend: MongoDBBackend = get_backend(
-        auth_level="write",
-        settings={
-            "mongo_username": backend_user["username"],
-            "mongo_password": backend_user["password"],
-        },
-    )
-    backend._collection.delete_many({})
-    backend._collection.insert_many(entities)
+    # None is equal to the core namespace
+    for namespace in (None, existing_specific_namespace):
+        backend: MongoDBBackend = get_backend(
+            auth_level="write",
+            settings={
+                "mongo_username": backend_user["username"],
+                "mongo_password": backend_user["password"],
+            },
+            db=namespace,
+        )
+        backend._collection.drop()
+        backend._collection.insert_many(
+            specific_namespace_entities
+            if namespace == existing_specific_namespace
+            else entities
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -655,47 +675,54 @@ def auth_header(token_mock: str) -> dict[Literal["Authorization"], str]:
 
 
 @pytest.fixture()
+def openid_config_mock() -> OpenIDConfigMock:
+    """Return a mock OpenID configuration."""
+
+    def _openid_config_mock(base_url: str) -> dict[str, Any]:
+        """Return a mock OpenID configuration for `base_url`."""
+        return {
+            "issuer": base_url,
+            "authorization_endpoint": f"{base_url}/oauth/authorize",
+            "token_endpoint": f"{base_url}/oauth/token",
+            "userinfo_endpoint": f"{base_url}/oauth/userinfo",
+            "jwks_uri": f"{base_url}/oauth/discovery/keys",
+            "response_types_supported": ["code"],
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["RS256"],
+            "code_challenge_methods_supported": ["plain", "S256"],
+        }
+
+    return _openid_config_mock
+
+
+@pytest.fixture()
+def mock_openid_config_call(
+    httpx_mock: HTTPXMock, openid_config_mock: OpenIDConfigMock
+) -> MockOpenIDConfigCall:
+    """Mock the OpenID configuration."""
+
+    def _mock_openid_config_call(base_url: str) -> None:
+        """Mock the OpenID configuration at `base_url`."""
+        httpx_mock.add_response(
+            url=f"{base_url}/.well-known/openid-configuration",
+            json=openid_config_mock(base_url=base_url),
+        )
+
+    return _mock_openid_config_call
+
+
+@pytest.fixture()
 def mock_auth_verification(
     httpx_mock: HTTPXMock,
     get_backend_user: GetBackendUserFixture,
+    mock_openid_config_call: MockOpenIDConfigCall,
     auth_header: dict[Literal["Authorization"], str],
 ) -> MockAuthVerification:
     """Mock authentication on the /_admin endpoints."""
     from entities_service.service.config import CONFIG
 
-    # OpenID configuration
-    httpx_mock.add_response(
-        url=(
-            f"{str(CONFIG.oauth2_provider).rstrip('/')}"
-            "/.well-known/openid-configuration"
-        ),
-        json={
-            "issuer": str(CONFIG.oauth2_provider).rstrip("/"),
-            "authorization_endpoint": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/authorize"
-            ),
-            "token_endpoint": f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/token",
-            "userinfo_endpoint": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo"
-            ),
-            "jwks_uri": (
-                f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/discovery/keys"
-            ),
-            "response_types_supported": [
-                "code",
-            ],
-            "subject_types_supported": [
-                "public",
-            ],
-            "id_token_signing_alg_values_supported": [
-                "RS256",
-            ],
-            "code_challenge_methods_supported": [
-                "plain",
-                "S256",
-            ],
-        },
-    )
+    # Mock OpenID configuration response
+    mock_openid_config_call(base_url=str(CONFIG.oauth2_provider_base_url).rstrip("/"))
 
     def _mock_auth_verification(
         auth_role: Literal["read", "write"] | None = None
@@ -718,22 +745,22 @@ def mock_auth_verification(
 
         # Userinfo endpoint
         httpx_mock.add_response(
-            url=f"{str(CONFIG.oauth2_provider).rstrip('/')}/oauth/userinfo",
+            url=f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}/oauth/userinfo",
             json={
                 "sub": backend_user["username"],
                 "name": backend_user["username"],
                 "nickname": backend_user["username"],
                 "preferred_username": backend_user["username"],
                 "website": (
-                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
                     f"/{backend_user['username']}"
                 ),
                 "profile": (
-                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
                     f"/{backend_user['username']}"
                 ),
                 "picture": (
-                    f"{str(CONFIG.oauth2_provider).rstrip('/')}"
+                    f"{str(CONFIG.oauth2_provider_base_url).rstrip('/')}"
                     f"/{backend_user['username']}"
                 ),
                 "groups": [CONFIG.roles_group],

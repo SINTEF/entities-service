@@ -10,7 +10,11 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import FastAPI, HTTPException, Path, status
 
 from entities_service import __version__
-from entities_service.models import VersionedSOFTEntity
+from entities_service.models import (
+    Entity,
+    EntityNameType,
+    EntityVersionType,
+)
 from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.logger import setup_logger
@@ -32,8 +36,8 @@ async def lifespan(_: FastAPI):
 
     LOGGER.debug("Starting service with config: %s", CONFIG)
 
-    # Initialize backend
-    get_backend(CONFIG.backend, auth_level="write").initialize()
+    # Initialize backend with core namespace
+    get_backend(CONFIG.backend, auth_level="write")
 
     # Run application
     yield
@@ -55,55 +59,67 @@ for router in get_routers():
     APP.include_router(router)
 
 
-SEMVER_REGEX = (
-    r"^(?P<major>0|[1-9]\d*)(?:\.(?P<minor>0|[1-9]\d*))?(?:\.(?P<patch>0|[1-9]\d*))?"
-    r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
-    r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
-    r"(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
-)
-"""Semantic Versioning regular expression.
+async def _get_entity(version: str, name: str, db: str | None = None) -> dict[str, Any]:
+    """Utility function for the endpoints to retrieve an entity."""
+    uri = f"{str(CONFIG.base_url).rstrip('/')}"
 
-Slightly changed version of the one found at https://semver.org.
-The changed bits pertain to `minor` and `patch`, which are now both optional.
-"""
+    if db:
+        uri += f"/{db}"
+
+    uri += f"/{version}/{name}"
+
+    entity = get_backend(db=db).read(uri)
+
+    if entity is None:
+        raise ValueError(f"Could not find entity: uri={uri}")
+
+    return entity
 
 
 @APP.get(
     "/{version}/{name}",
-    response_model=VersionedSOFTEntity,
+    response_model=Entity,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
+    tags=["Entities"],
 )
-async def get_entity(
-    version: Annotated[
-        str,
-        Path(
-            title="Entity version",
-            pattern=SEMVER_REGEX,
-            description=(
-                "The version part must be a semantic version, following the schema "
-                "laid out by SemVer.org."
-            ),
-        ),
-    ],
-    name: Annotated[
-        str,
-        Path(
-            title="Entity name",
-            pattern=r"(?i)^[A-Z]+$",
-            description=(
-                "The name part is without any white space. It is conventionally "
-                "written in PascalCase."
-            ),
-        ),
-    ],
+async def get_core_namespace_entity(
+    version: Annotated[EntityVersionType, Path(title="Entity version")],
+    name: Annotated[EntityNameType, Path(title="Entity name")],
 ) -> dict[str, Any]:
-    """Get an entity."""
-    uri = f"{str(CONFIG.base_url).rstrip('/')}/{version}/{name}"
-    entity = get_backend().read(uri)
-    if entity is None:
+    """Get an entity from the core namespace."""
+    try:
+        return await _get_entity(version=version, name=name)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Could not find entity: uri={uri}",
-        )
-    return entity
+            detail=str(exc),
+        ) from exc
+
+
+@APP.get(
+    "/{specific_namespace:path}/{version}/{name}",
+    response_model=Entity,
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    tags=["Entities"],
+)
+async def get_specific_namespace_entity(
+    specific_namespace: Annotated[
+        str,
+        Path(
+            title="Specific namespace",
+            description="The specific namespace part of the URI.",
+        ),
+    ],
+    version: Annotated[EntityVersionType, Path(title="Entity version")],
+    name: Annotated[EntityNameType, Path(title="Entity name")],
+) -> dict[str, Any]:
+    """Get an entity from a specific namespace."""
+    try:
+        return await _get_entity(version=version, name=name, db=specific_namespace)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

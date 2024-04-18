@@ -1,4 +1,5 @@
-db.getSiblingDB("$external").runCommand(
+db = db.getSiblingDB("$external")
+db.runCommand(
     {
       createUser: "CN=entities-service,OU=Team4.0 Client,O=SINTEF,L=Trondheim,ST=Trondelag,C=NO",
       roles: [
@@ -6,6 +7,8 @@ db.getSiblingDB("$external").runCommand(
       ],
     }
 )
+
+db = db.getSiblingDB("admin")
 
 db.createUser(
     {

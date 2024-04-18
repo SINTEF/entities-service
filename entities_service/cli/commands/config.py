@@ -2,19 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Generator
 from functools import cache
-from typing import Optional, get_args
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:
-    from enum import Enum
-
-    class StrEnum(str, Enum):
-        """Enum with string values."""
-
+from typing import Annotated, get_args
 
 try:
     import typer
@@ -28,6 +18,7 @@ from pydantic import SecretBytes, SecretStr
 
 from entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from entities_service.cli._utils.global_settings import CONTEXT
+from entities_service.cli._utils.types import OptionalStr, StrEnum
 from entities_service.service.config import CONFIG
 
 APP = typer.Typer(
@@ -36,9 +27,6 @@ APP = typer.Typer(
     no_args_is_help=True,
     invoke_without_command=True,
 )
-
-# Type Aliases
-OptionalStr = Optional[str]
 
 
 class ConfigFields(StrEnum):
@@ -100,21 +88,27 @@ class ConfigFields(StrEnum):
 
 @APP.command(name="set")
 def set_config(
-    key: ConfigFields = typer.Argument(
-        help=(
-            "Configuration option to set. These can also be set as an environment "
-            f"variable by prefixing with {CONFIG.model_config['env_prefix'].upper()!r}."
+    key: Annotated[
+        ConfigFields,
+        typer.Argument(
+            help=(
+                "Configuration option to set. These can also be set as an environment "
+                "variable by prefixing with "
+                f"{CONFIG.model_config['env_prefix'].upper()!r}."
+            ),
+            show_choices=True,
+            shell_complete=ConfigFields.autocomplete,
+            case_sensitive=False,
+            show_default=False,
         ),
-        show_choices=True,
-        shell_complete=ConfigFields.autocomplete,
-        case_sensitive=False,
-        show_default=False,
-    ),
-    value: OptionalStr = typer.Argument(
-        None,
-        help="Value to set. This will be prompted for if not provided.",
-        show_default=False,
-    ),
+    ],
+    value: Annotated[
+        OptionalStr,
+        typer.Argument(
+            help="Value to set. This will be prompted for if not provided.",
+            show_default=False,
+        ),
+    ] = None,
 ) -> None:
     """Set a configuration option."""
     if not value:
@@ -149,13 +143,16 @@ def set_config(
 
 @APP.command()
 def unset(
-    key: ConfigFields = typer.Argument(
-        help="Configuration option to unset.",
-        show_choices=True,
-        shell_complete=ConfigFields.autocomplete,
-        case_sensitive=False,
-        show_default=False,
-    ),
+    key: Annotated[
+        ConfigFields,
+        typer.Argument(
+            help="Configuration option to unset.",
+            show_choices=True,
+            shell_complete=ConfigFields.autocomplete,
+            case_sensitive=False,
+            show_default=False,
+        ),
+    ],
 ) -> None:
     """Unset a single configuration option."""
     dotenv_file = CONTEXT["dotenv_path"]
@@ -187,13 +184,15 @@ def unset_all() -> None:
 
 @APP.command()
 def show(
-    reveal_sensitive: bool = typer.Option(
-        False,
-        "--reveal-sensitive",
-        help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
-        is_flag=True,
-        show_default=False,
-    ),
+    reveal_sensitive: Annotated[
+        bool,
+        typer.Option(
+            "--reveal-sensitive",
+            help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
+            is_flag=True,
+            show_default=False,
+        ),
+    ] = False,
 ) -> None:
     """Show the current configuration."""
     dotenv_file = CONTEXT["dotenv_path"]

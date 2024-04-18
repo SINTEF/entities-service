@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import Field, SecretStr, model_validator
+from pydantic.functional_validators import AfterValidator
 from pymongo.errors import (
     BulkWriteError,
     InvalidDocument,
@@ -16,7 +17,7 @@ from pymongo.errors import (
     WriteError,
 )
 
-from entities_service.models import URI_REGEX, SOFTModelTypes, soft_entity
+from entities_service.models import URI_REGEX, EntityType, soft_entity
 from entities_service.service.backend import Backends
 from entities_service.service.backend.backend import (
     Backend,
@@ -28,20 +29,12 @@ from entities_service.service.config import CONFIG, MongoDsn
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
-    from typing import Any, TypedDict
+    from typing import Any
 
     from pydantic import AnyHttpUrl
     from pymongo import MongoClient
-    from pymongo.collection import Collection as MongoCollection
 
-    from entities_service.models import VersionedSOFTEntity
-
-    class URIParts(TypedDict):
-        """The parts of a SOFT entity URI."""
-
-        namespace: str
-        version: str
-        name: str
+    from entities_service.models import Entity
 
 
 LOGGER = logging.getLogger(__name__)
@@ -74,6 +67,50 @@ MongoDBBackendWriteAccessError = (
     OperationFailure,
 )
 """Exception raised when write access is denied."""
+
+
+# Special MongoDB types
+def _validate_database_name(value: str) -> str:
+    """Validate the MongoDB database name."""
+    illegal_characters = r'/\. "$'
+    if any(character in value for character in illegal_characters):
+        raise ValueError(
+            "Invalid database name - may not contain any of the "
+            f"{illegal_characters!r} characters."
+        )
+    return value.strip()
+
+
+def _validate_collection_name(value: str) -> str:
+    """Validate the MongoDB collection name."""
+    if "$" in value:
+        raise ValueError("Invalid collection name - may not contain a '$' character.")
+
+    if value.startswith("system."):
+        raise ValueError("Invalid collection name - may not start with 'system.'.")
+
+    return value.strip()
+
+
+DatabaseName = Annotated[
+    str,
+    Field(
+        description="The MongoDB database.",
+        pattern=r"^[a-zA-Z0-9_\-]+$",
+        min_length=1,
+        max_length=63,
+    ),
+    AfterValidator(_validate_database_name),
+]
+
+CollectionName = Annotated[
+    str,
+    Field(
+        description="The MongoDB collection.",
+        min_length=1,
+    ),
+    AfterValidator(_validate_collection_name),
+]
 
 
 class MongoDBSettings(BackendSettings):
@@ -114,13 +151,9 @@ class MongoDBSettings(BackendSettings):
         ),
     ] = None
 
-    mongo_db: Annotated[str, Field(description="The MongoDB database.")] = (
-        CONFIG.mongo_db
-    )
+    mongo_db: DatabaseName = CONFIG.mongo_db
 
-    mongo_collection: Annotated[str, Field(description="The MongoDB collection.")] = (
-        CONFIG.mongo_collection
-    )
+    mongo_collection: CollectionName = CONFIG.mongo_collection
 
     mongo_driver: Annotated[
         Literal["pymongo", "mongomock"],
@@ -184,7 +217,7 @@ def get_client(
         LOGGER.debug("Using cached MongoDB client for %r.", auth_level)
         return MONGO_CLIENTS[auth_level]
 
-    LOGGER.debug("Creating new MongoDB client for %r.", username)
+    LOGGER.debug("Creating new MongoDB client for %r.", username or "X.509 certificate")
 
     # Ensure all required settings are set
     if auth_level == "read":
@@ -240,8 +273,9 @@ class MongoDBBackend(Backend):
     ) -> None:
         super().__init__(settings)
 
+        # Set up the MongoDB collection
         try:
-            self._collection: MongoCollection = get_client(
+            self._collection = get_client(
                 auth_level=self._settings.auth_level,
                 uri=str(self._settings.mongo_uri),
                 username=self._settings.mongo_username,
@@ -256,6 +290,8 @@ class MongoDBBackend(Backend):
             )[self._settings.mongo_db][self._settings.mongo_collection]
         except ValueError as exc:
             raise MongoDBBackendError(str(exc)) from exc
+
+        self.initialize()
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: uri={self._settings.mongo_uri}"
@@ -273,6 +309,10 @@ class MongoDBBackend(Backend):
 
     def initialize(self) -> None:
         """Initialize the MongoDB backend."""
+        if self._settings.auth_level == "read":
+            # Not enough rights to create an index
+            return
+
         # Check index exists
         if "URI" in (indices := self._collection.index_information()):
             if not indices["URI"].get("unique", False):
@@ -298,11 +338,10 @@ class MongoDBBackend(Backend):
         )
 
     def create(
-        self, entities: Sequence[VersionedSOFTEntity | dict[str, Any]]
+        self, entities: Sequence[Entity | dict[str, Any]]
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
         """Create one or more entities in the MongoDB."""
         LOGGER.info("Creating entities: %s", entities)
-        LOGGER.info("The creator's user name: %s", self._settings.mongo_username)
 
         entities = [self._prepare_entity(entity) for entity in entities]
 
@@ -326,7 +365,7 @@ class MongoDBBackend(Backend):
     def update(
         self,
         entity_identity: AnyHttpUrl | str,
-        entity: VersionedSOFTEntity | dict[str, Any],
+        entity: Entity | dict[str, Any],
     ) -> None:
         """Update an entity in the MongoDB."""
         entity = self._prepare_entity(entity)
@@ -367,7 +406,8 @@ class MongoDBBackend(Backend):
     def _single_uri_query(self, uri: str) -> dict[str, Any]:
         """Build a query for a single URI."""
         if (match := URI_REGEX.match(uri)) is not None:
-            uri_parts: URIParts = match.groupdict()  # type: ignore[assignment]
+            uri_parts = match.groupdict()
+            uri_parts.pop("specific_namespace", None)
         else:
             raise ValueError(f"Invalid entity URI: {uri}")
 
@@ -376,9 +416,7 @@ class MongoDBBackend(Backend):
 
         return {"$or": [uri_parts, {"uri": uri}]}
 
-    def _prepare_entity(
-        self, entity: VersionedSOFTEntity | dict[str, Any]
-    ) -> dict[str, Any]:
+    def _prepare_entity(self, entity: Entity | dict[str, Any]) -> dict[str, Any]:
         """Clean and prepare the entity for interactions with the MongoDB backend."""
         if isinstance(entity, dict):
             uri = entity.get("uri", None) or (
@@ -390,9 +428,9 @@ class MongoDBBackend(Backend):
                 **entity,
             )
 
-        if not isinstance(entity, SOFTModelTypes):
+        if not isinstance(entity, EntityType):
             raise TypeError(
-                "Entity must be a dict or a SOFTModelTypes for "
+                "Entity must be a dict or an EntityType for "
                 f"{self.__class__.__name__}."
             )
 

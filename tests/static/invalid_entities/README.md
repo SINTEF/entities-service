@@ -153,3 +153,91 @@ Error message from pydantic as of 19.12.2023 (pydantic==2.5.2):
  [type=value_error, input_value={'namespace': 'http://ont... 'Age of the person.'}]}, input_type=dict]
     For further information visit https://errors.pydantic.dev/2.5/v/value_error
 ```
+
+## `Owl.json`
+
+`Owl.json` is an invalid SOFT7 entity with a specific namespace given in the `uri` value.
+It is invalid because the specific namespace contains the invalid character dollar sign (`$`).
+
+Error message from pydantic as of 19.03.2024 (pydantic==2.6.4):
+
+```console
+1 validation error for SOFT7Entity
+uri
+  Value error, The namespace part of the URI is invalid: 1 validation error for
+function-after[_ensure_url_encodeable(), function-after[_disallowed_namespace_characters(), str]]
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+
+2 validation errors for SOFT5Entity
+uri
+  Value error, The namespace part of the URI is invalid: 1 validation error for
+function-after[_ensure_url_encodeable(), function-after[_disallowed_namespace_characters(), str]]
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+properties
+  Input should be a valid list
+    For further information visit https://errors.pydantic.dev/2.6/v/list_type
+
+1 validation error for DLiteSOFT7Entity
+uri
+  Value error, The namespace part of the URI is invalid: 1 validation error for
+function-after[_ensure_url_encodeable(), function-after[_disallowed_namespace_characters(), str]]
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+
+2 validation errors for DLiteSOFT5Entity
+uri
+  Value error, The namespace part of the URI is invalid: 1 validation error for
+function-after[_ensure_url_encodeable(), function-after[_disallowed_namespace_characters(), str]]
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+properties
+  Input should be a valid list
+    For further information visit https://errors.pydantic.dev/2.6/v/list_type
+```
+
+## `Owl5.json`
+
+`Owl5.json` is an invalid SOFT5 entity with a specific namespace given in the `namespace` value.
+It is invalid because the specific namespace contains the invalid character dollar sign (`$`).
+
+Error message from pydantic as of 19.03.2024 (pydantic==2.6.4):
+
+```console
+2 validation errors for SOFT7Entity
+namespace
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+properties
+  Input should be a valid dictionary [type=dict_type, input_value=[{'name': 'specific-speci...': 'Color
+of the owl.'}], input_type=list]
+    For further information visit https://errors.pydantic.dev/2.6/v/dict_type
+
+1 validation error for SOFT5Entity
+namespace
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+
+2 validation errors for DLiteSOFT7Entity
+namespace
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+properties
+  Input should be a valid dictionary [type=dict_type, input_value=[{'name': 'specific-speci...': 'Color
+of the owl.'}], input_type=list]
+    For further information visit https://errors.pydantic.dev/2.6/v/dict_type
+
+1 validation error for DLiteSOFT5Entity
+namespace
+  Value error, Invalid specific namespace - may not contain a '$' character.
+    For further information visit https://errors.pydantic.dev/2.6/v/value_error
+```

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import IntEnum
 from typing import Annotated
 
 from pydantic import (
@@ -147,7 +148,7 @@ class OpenIDConfiguration(BaseModel):
     ] = None
 
 
-class GitLabUserInfo(BaseModel):
+class GitLabOpenIDUserInfo(BaseModel):
     """OpenID userinfo response from GitLab.
 
     This is defined in the OpenID Connect specification.
@@ -222,3 +223,46 @@ class GitLabUserInfo(BaseModel):
             ),
         ),
     ] = []
+
+
+class GitLabUser(BaseModel):
+    """GitLab user response.
+
+    This is defined in the GitLab API documentation.
+    Reference: https://docs.gitlab.com/ee/api/users.html#single-user
+    """
+
+    id: Annotated[int, Field(description="User ID.")]
+    name: Annotated[str, Field(description="Name of the user.")]
+    username: Annotated[str, Field(description="Username of the user.")]
+    state: Annotated[str, Field(description="State of the user.")]
+    locked: Annotated[bool, Field(description="Whether the user is locked.")]
+    bot: Annotated[bool, Field(description="Whether the user is a bot.")]
+
+
+class GitLabRole(IntEnum):
+    """Enumeration of GitLab roles."""
+
+    NO_ACCESS = 0
+    MINIMAL_ACCESS = 5
+    GUEST = 10
+    REPORTER = 20
+    DEVELOPER = 30
+    MAINTAINER = 40
+    OWNER = 50
+
+
+class GitLabGroupProjectMember(BaseModel):
+    """GitLab group or project member response.
+
+    This is defined in the GitLab API documentation.
+    Reference: https://docs.gitlab.com/ee/api/members.html#get-a-member-of-a-group-or-project
+    """
+
+    id: Annotated[int, Field(description="Member ID.")]
+    username: Annotated[str, Field(description="Username of the member.")]
+    name: Annotated[str, Field(description="Name of the member.")]
+    state: Annotated[str, Field(description="State of the member.")]
+    access_level: Annotated[
+        GitLabRole, Field(description="Access level of the member.")
+    ]

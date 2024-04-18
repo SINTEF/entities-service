@@ -169,6 +169,31 @@ pytest --live-backend
 ```
 
 Remember to set the `ENTITIES_SERVICE_X509_CERTIFICATE_FILE` and `ENTITIES_SERVICE_CA_FILE` environment variables to `docker_security/test-server1.pem` and `docker_security/test-ca.pem`, respectively.
+Note, these environment variables are already specified in the `docker-compose.yml` file, however, one should still check that they are set correctly.
+
+### Test uploading entities using the CLI
+
+To test uploading entities using the CLI, one must note that validation of the entities happens twice: First by the CLI, and then by the service.
+The validation that is most tricky when testing locally is the namespace validation, as the service will validate the namespace against the `ENTITIES_SERVICE_BASE_URL` environment variable set when starting the service, which defaults to `http://onto-ns.com/meta`.
+However, if using this namespace in the CLI, the CLI will connect to the publicly running service at `http://onto-ns.com/meta`, which will not work when testing locally.
+
+So to make all this work together, one should start the service with the `ENTITIES_SERVICE_BASE_URL` environment variable set to `http://localhost:8000` (which is done through the locally available environment variable `ENTITIES_SERVICE_HOST`), and then use the CLI to upload entities to the service running at `http://localhost:8000`.
+
+In practice, this will look like this:
+
+```shell
+# Set the relevant environment variables
+export ENTITIES_SERVICE_BASE_URL=http://localhost:8000
+export ENTITIES_SERVICE_HOST=${ENTITIES_SERVICE_BASE_URL}
+
+# Start the service
+docker compose up -d
+
+# Upload entities using the CLI
+entities-service upload -f my_entities.yaml --format=yaml
+```
+
+The `my_entities.yaml` file should contain one or more entities with `uri` values of the form `http://localhost:8000/...`.
 
 ### Extra pytest markers
 

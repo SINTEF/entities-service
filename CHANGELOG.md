@@ -1,5 +1,67 @@
 # Changelog
 
+## [v0.3.0](https://github.com/SINTEF/entities-service/tree/v0.3.0) (2024-04-09)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.2.0...v0.3.0)
+
+## CI/CD-friendly CLI
+
+The CLI now supports setting an access token to upload entities - this avoids the need for manual interaction when authenticating using GitLab. The access token should preferably be case-specific and created as a group access token (see the [GitLab documentation](https://docs.gitlab.com/ee/user/group/settings/group_access_tokens.html) for more information about group access tokens).
+
+> Note, the minimum access level for the token should still be `Developer` for it to be allowed to create entities.
+> Beware that this minimum access level may change in the future.
+# Support specific namespaced URIs
+
+Support specific namespaced URIs according to #7. If one has write rights for the entity backend, by setting the `namespace` and/or `uri` value in the entity files, they will use the relevant namespace, either the core namespace or a specific namespace.
+
+## UX/DX updates
+
+Otherwise, the code has had some clean up related to entity model definitions, separating out the SOFT flavorings. Some fixes have been implemented after first tests have been run "in production".
+
+**Implemented enhancements:**
+
+- 🔐 Support supplying access token to upload [\#108](https://github.com/SINTEF/entities-service/issues/108)
+
+**Fixed bugs:**
+
+- An access token is not tested properly in the service [\#112](https://github.com/SINTEF/entities-service/issues/112)
+
+**Merged pull requests:**
+
+- Fix using access token [\#113](https://github.com/SINTEF/entities-service/pull/113) ([CasperWA](https://github.com/CasperWA))
+- Add ENTITIES\_SERVICE\_ACCESS\_TOKEN env var [\#110](https://github.com/SINTEF/entities-service/pull/110) ([CasperWA](https://github.com/CasperWA))
+
+## [v0.2.0](https://github.com/SINTEF/entities-service/tree/v0.2.0) (2024-03-22)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.1.0...v0.2.0)
+
+# Support specific namespaced URIs
+
+Support specific namespaced URIs according to #7. If one has write rights for the entity backend, by setting the `namespace` and/or `uri` value in the entity files, they will use the relevant namespace, either the core namespace or a specific namespace.
+
+## UX/DX updates
+
+Otherwise, the code has had some clean up related to entity model definitions, separating out the SOFT flavorings. Some fixes have been implemented after first tests have been run "in production".
+
+**Fixed bugs:**
+
+- The pydantic model for `GitLabUserInfo` is too strict [\#83](https://github.com/SINTEF/entities-service/issues/83)
+- The cache dir is not being created automatically [\#82](https://github.com/SINTEF/entities-service/issues/82)
+
+**Closed issues:**
+
+- Loosen name regex for retrieving entities [\#90](https://github.com/SINTEF/entities-service/issues/90)
+- Minimize code repeats in SOFT models [\#64](https://github.com/SINTEF/entities-service/issues/64)
+- Test with different "versions" of entity schemas [\#5](https://github.com/SINTEF/entities-service/issues/5)
+
+**Merged pull requests:**
+
+- Support specific namespaces [\#101](https://github.com/SINTEF/entities-service/pull/101) ([CasperWA](https://github.com/CasperWA))
+- Unify entity version and name validation [\#91](https://github.com/SINTEF/entities-service/pull/91) ([CasperWA](https://github.com/CasperWA))
+- Clean up authorization models [\#88](https://github.com/SINTEF/entities-service/pull/88) ([CasperWA](https://github.com/CasperWA))
+- Try to create cache directory on each CLI call [\#87](https://github.com/SINTEF/entities-service/pull/87) ([CasperWA](https://github.com/CasperWA))
+- Separate out entity models in SOFT and DLite [\#74](https://github.com/SINTEF/entities-service/pull/74) ([CasperWA](https://github.com/CasperWA))
+
 ## [v0.1.0](https://github.com/SINTEF/entities-service/tree/v0.1.0) (2024-01-31)
 
 [Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.0.1...v0.1.0)

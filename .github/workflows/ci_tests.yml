@@ -10,7 +10,7 @@ on:
 jobs:
   basic-tests:
     name: External
-    uses: SINTEF/ci-cd/.github/workflows/ci_tests.yml@v2.7.2
+    uses: SINTEF/ci-cd/.github/workflows/ci_tests.yml@v2.7.4
     with:
       # General setup
       install_extras: "[dev]"
@@ -61,7 +61,6 @@ jobs:
         run: |
           # Create folder for certificates
           mkdir -p docker_security
-          chmod 777 docker_security
 
           # Generate certificates
           cd docker_security && ${{ github.workspace }}/.github/docker_init/setup_mongo_security.sh
@@ -70,8 +69,6 @@ jobs:
           # Pull mongo:7 image and run it
           docker pull mongo:7
           docker run --rm -d \
-            --env MONGO_INITDB_ROOT_USERNAME=root \
-            --env MONGO_INITDB_ROOT_PASSWORD=root \
             --name "mongo" \
             --network "host" \
             --volume "${{ github.workspace }}/.github/docker_init/create_x509_user.js:/docker-entrypoint-initdb.d/0_create_x509_user.js" \

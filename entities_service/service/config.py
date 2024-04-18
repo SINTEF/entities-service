@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -15,6 +16,12 @@ MongoDsn = Annotated[
     MultiHostUrl, UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"])
 ]
 """Support MongoDB schemes with hidden port (no default port)."""
+
+
+class OAuth2Provider(Enum):
+    """Enumeration of supported OAuth2 providers."""
+
+    GITLAB = "gitlab"
 
 
 class ServiceSettings(BaseSettings):
@@ -47,8 +54,19 @@ class ServiceSettings(BaseSettings):
 
     # Security
     oauth2_provider: Annotated[
+        OAuth2Provider,
+        Field(
+            description="OAuth2 provider. (Currently only GitLab is supported.)",
+        ),
+    ] = OAuth2Provider.GITLAB
+
+    oauth2_provider_base_url: Annotated[
         AnyHttpUrl, Field(description="OAuth2 provider base URL.")
     ] = AnyHttpUrl("https://gitlab.sintef.no")
+
+    access_token: Annotated[
+        SecretStr | None, Field(description="Access token for the OAuth2 provider.")
+    ] = None
 
     roles_group: Annotated[str, Field(description="GitLab group for roles.")] = (
         "team4.0-authentication/entities-service"
