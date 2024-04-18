@@ -27,3 +27,5 @@ for typer_app, typer_app_kwargs in get_subtyper_apps():
 # Add all "leaf"-commands
 for command, commands_kwargs in get_commands():
     APP.command(**commands_kwargs)(command)
+
+print("Change in CLI 'root'")
