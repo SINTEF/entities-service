@@ -18,9 +18,6 @@ MongoDsn = Annotated[
 """Support MongoDB schemes with hidden port (no default port)."""
 
 
-print("Change in 'root' service file")
-
-
 class OAuth2Provider(Enum):
     """Enumeration of supported OAuth2 providers."""
 
