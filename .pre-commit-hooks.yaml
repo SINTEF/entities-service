@@ -1,0 +1,18 @@
+- id: validate-entities
+  name: Validate Entities
+  entry: entities-service validate --format=json --format=yaml --verbose
+  language: python
+  types: [file]
+  types_or: [json, yaml]
+  always_run: false
+  fail_fast: false
+  verbose: false
+  pass_filenames: true
+  require_serial: true
+  description: |
+    Validate Entities contained in files, either singularly or as part of a list of Entities.
+    It is recommended to scope this hook to only the files that contain Entities.
+  language_version: python3.10  # Minimum version of Python required to run this hook.
+  minimum_pre_commit_version: "0"
+  args: []
+  stages: [pre-commit, pre-merge-commit, pre-push, manual]
