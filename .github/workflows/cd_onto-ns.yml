@@ -1,15 +1,18 @@
 name: CD - Deploy to onto-ns.com
 
 on:
-  workflow_run:
-    workflows: ["CI - Tests"]
-    types: [completed]
-    branches: [main]
+  push:
+    branches:
+      - 'cwa/close-92-minimized-deployments'
+  # workflow_run:
+  #   workflows: ["CI - Tests"]
+  #   types: [completed]
+  #   branches: [main]
 
 jobs:
   check-service-changes:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       service-changes: ${{ steps.check-changes.outputs.service-changes }}
 
@@ -27,59 +30,77 @@ jobs:
 
           echo "service-changes=$SERVICE_CHANGES" >> $GITHUB_OUTPUT
 
-  deploy:
+  output-true:
     runs-on: ubuntu-latest
     needs: check-service-changes
     if: ${{ needs.check-service-changes.outputs.service-changes == 'true' }}
 
     steps:
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+      - name: Output it 'true'
+        run: cat $GITHUB_OUTPUT
 
-      - name: Install dependencies
-        run: |
-          sudo apt update && sudo apt install -y curl
+  output-false:
+    runs-on: ubuntu-latest
+    needs: check-service-changes
+    if: ${{ needs.check-service-changes.outputs.service-changes == 'false' }}
 
-          python -m pip install --upgrade pip
-          pip install -U setuptools wheel
-          pip install -U requests
+    steps:
+      - name: Output it 'false'
+        run: cat $GITHUB_OUTPUT
 
-      - name: Deploy updated main
-        run: |
-          curl -o response.json --silent -m 30 http://api.onto-ns.com/deploy/?service=entities-service
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   needs: check-service-changes
+  #   if: ${{ needs.check-service-changes.outputs.service-changes == 'true' }}
 
-          cat << EOF | python
-          import json
-          from pathlib import Path
-          import sys
+  #   steps:
+  #     - name: Set up Python 3.10
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.10"
 
-          response = json.loads(Path('response.json').read_bytes())
-          if response["service"] != "entities-service":
-              sys.exit(
-                  "ERROR: Did not deploy the correct service\n"
-                  f"  service: {response['service']}\n"
-                  f"  code: {response['returncode']}\n"
-                  f"  stderr: {response['stderr']}\n\n"
-                  f"  stdout: {response['stdout']}"
-              )
-          if response["returncode"] != 0:
-              sys.exit(
-                  "ERROR: Non-zero return code\n"
-                  f"  code: {response['returncode']}\n"
-                  f"  stderr:\n{response['stderr']}\n\n"
-                  f"  stdout:\n{response['stdout']}"
-              )
-          if response["stderr"]:
-              print(
-                  "WARNING: stderr is not empty\n"
-                  f"  stderr:\n{response['stderr']}\n\n"
-              )
-          print(
-              "SUCCESS!\n"
-              f"  code: {response['returncode']}\n"
-              f"  stdout:\n{response['stdout']}"
-          )
+  #     - name: Install dependencies
+  #       run: |
+  #         sudo apt update && sudo apt install -y curl
 
-          EOF
+  #         python -m pip install --upgrade pip
+  #         pip install -U setuptools wheel
+  #         pip install -U requests
+
+  #     - name: Deploy updated main
+  #       run: |
+  #         curl -o response.json --silent -m 30 http://api.onto-ns.com/deploy/?service=entities-service
+
+  #         cat << EOF | python
+  #         import json
+  #         from pathlib import Path
+  #         import sys
+
+  #         response = json.loads(Path('response.json').read_bytes())
+  #         if response["service"] != "entities-service":
+  #             sys.exit(
+  #                 "ERROR: Did not deploy the correct service\n"
+  #                 f"  service: {response['service']}\n"
+  #                 f"  code: {response['returncode']}\n"
+  #                 f"  stderr: {response['stderr']}\n\n"
+  #                 f"  stdout: {response['stdout']}"
+  #             )
+  #         if response["returncode"] != 0:
+  #             sys.exit(
+  #                 "ERROR: Non-zero return code\n"
+  #                 f"  code: {response['returncode']}\n"
+  #                 f"  stderr:\n{response['stderr']}\n\n"
+  #                 f"  stdout:\n{response['stdout']}"
+  #             )
+  #         if response["stderr"]:
+  #             print(
+  #                 "WARNING: stderr is not empty\n"
+  #                 f"  stderr:\n{response['stderr']}\n\n"
+  #             )
+  #         print(
+  #             "SUCCESS!\n"
+  #             f"  code: {response['returncode']}\n"
+  #             f"  stdout:\n{response['stdout']}"
+  #         )
+
+  #         EOF
