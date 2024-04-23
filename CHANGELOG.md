@@ -1,5 +1,40 @@
 # Changelog
 
+## [Unreleased](https://github.com/SINTEF/entities-service/tree/HEAD)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.4.0...HEAD)
+
+## New `validate` CLI command
+
+A new CLI command (`validate`) has been added to make it possible to validate entities.
+This is convenient both as a split of the bloated `upload` command implementation, but also as a separate functionality for data documentation repositories to ensure any changes to entities will still result in valid entities.
+
+Furthermore, a new `--auto-confirm/-y` option has been added to the `upload` command as an extension on the `--quiet/-q` option. It will still ensure print statements occur, but will use defaults and "Yes" responses whenever it is needed.
+
+**Implemented enhancements:**
+
+- ✨ Add an option to the `upload` command to auto-confirm the summary [\#119](https://github.com/SINTEF/entities-service/issues/119)
+
+## [v0.4.0](https://github.com/SINTEF/entities-service/tree/v0.4.0) (2024-04-16)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.3.0...v0.4.0)
+
+## New `validate` CLI command
+
+A new CLI command (`validate`) has been added to make it possible to validate entities.
+This is convenient both as a split of the bloated `upload` command implementation, but also as a separate functionality for data documentation repositories to ensure any changes to entities will still result in valid entities.
+
+Furthermore, a new `--auto-confirm/-y` option has been added to the `upload` command as an extension on the `--quiet/-q` option. It will still ensure print statements occur, but will use defaults and "Yes" responses whenever it is needed.
+
+**Implemented enhancements:**
+
+- ✨ Add a new `validate` command [\#118](https://github.com/SINTEF/entities-service/issues/118)
+
+**Merged pull requests:**
+
+- New `--auto-confirm/-y` option for `upload` cmd [\#121](https://github.com/SINTEF/entities-service/pull/121) ([CasperWA](https://github.com/CasperWA))
+- Add a new 'validate' CLI command [\#120](https://github.com/SINTEF/entities-service/pull/120) ([CasperWA](https://github.com/CasperWA))
+
 ## [v0.3.0](https://github.com/SINTEF/entities-service/tree/v0.3.0) (2024-04-09)
 
 [Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.2.0...v0.3.0)
