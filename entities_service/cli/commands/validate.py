@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -49,11 +51,12 @@ def validate(
         typer.Argument(
             metavar="[SOURCE]...",
             help="Path to file or directory with one or more entities.",
-            exists=True,
+            exists=False,
             file_okay=True,
             dir_okay=True,
             readable=True,
-            resolve_path=True,
+            resolve_path=False,
+            allow_dash=True,
             show_default=False,
         ),
     ] = None,
@@ -195,14 +198,50 @@ def validate(
 
     ## Consolidate provided directories and filepaths
 
+    # stdin
+    stdin_variations = [Path("-"), Path("/dev/stdin"), Path("CONIN$"), Path("CON")]
+    if any(stdin_variation in unique_sources for stdin_variation in stdin_variations):
+        source_input_regex = re.compile(r"\"([^\"]*)\"|'([^']*)'|([^\s]+)")
+
+        # Add filepaths and directory paths from stdin
+        for line in sys.stdin.readlines():
+            if not line:
+                continue
+
+            for match in source_input_regex.findall(line):
+                for source in match:
+                    if not source:
+                        continue
+
+                    if (stdin_source := Path(source).resolve()).exists():
+                        unique_sources.add(stdin_source)
+                    else:
+                        ERROR_CONSOLE.print(
+                            f"[bold red]Error[/bold red]: Path '{source}' does not "
+                            "exist."
+                        )
+                        raise typer.Exit(1)
+
+    # Validate and sort sources according to type
     for source in unique_sources:
+        if source in stdin_variations:
+            # This has been dealt with above
+            continue
+
+        if not source.exists():
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Path '{source}' does not exist."
+            )
+            raise typer.Exit(1)
+
         if source.is_file():
-            unique_filepaths.add(source)
+            unique_filepaths.add(source.resolve())
         elif source.is_dir():
-            directories.append(source)
+            directories.append(source.resolve())
         else:
             ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: {source} is not a file or directory."
+                f"[bold red]Error[/bold red]: Path '{source}' is not a file or "
+                "directory."
             )
             raise typer.Exit(1)
 
