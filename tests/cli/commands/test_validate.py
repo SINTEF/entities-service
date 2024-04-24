@@ -1068,7 +1068,7 @@ def test_source_is_no_file_or_dir(cli: CliRunner) -> None:
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Error: /dev/null is not a file or directory." in result.stderr
+        "Error: Path '/dev/null' is not a file or directory." in result.stderr
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
