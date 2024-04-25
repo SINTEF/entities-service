@@ -206,6 +206,20 @@ def test_validate_no_source_or_file_or_dir(cli: CliRunner) -> None:
     assert not result.stdout
 
 
+def test_validate_non_existent_file(cli: CliRunner, tmp_path: Path) -> None:
+    """Test error when a non-existent file is provided."""
+    from entities_service.cli.main import APP
+
+    non_existent_path = tmp_path / "non_existant.json"
+
+    result = cli.invoke(APP, f"validate {non_existent_path}")
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert f"Error: Path '{non_existent_path}' does not exist." in result.stderr
+    assert not result.stdout
+
+
 def test_validate_directory(
     cli: CliRunner,
     static_dir: Path,
@@ -1103,6 +1117,10 @@ def test_using_stdin(
 
     stdin = "\n".join(str(filepath) for filepath in filepaths)
     stdin += f"\n{test_dir}"
+
+    # Add an extra newline to simulate supplying a file as input, with an empty line at
+    # the end. This should be ignored and not result in an error.
+    stdin += "\n"
 
     result = cli.invoke(APP, f"validate {stdin_variation}", input=stdin)
 
