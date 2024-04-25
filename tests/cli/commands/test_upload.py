@@ -8,7 +8,7 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any
+    from typing import Any, Literal
 
     from pytest_httpx import HTTPXMock
     from typer.testing import CliRunner
@@ -838,4 +838,85 @@ def test_unable_to_upload(
         f"Error message: "
         f"{dumped_error_message}"
         in result.stderr.replace("\n", "").replace("  ", "").replace("'", '"')
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+
+@pytest.mark.usefixtures("_empty_backend_collection", "_mock_successful_oauth_response")
+@pytest.mark.parametrize("stdin_variation", ["-", "/dev/stdin", "CON", "CONIN$"])
+def test_using_stdin(
+    cli: CliRunner,
+    static_dir: Path,
+    tmp_path: Path,
+    httpx_mock: HTTPXMock,
+    token_mock: str,
+    stdin_variation: Literal["-", "/dev/stdin", "CON", "CONIN$"],
+) -> None:
+    """Test that it's possible to pipe in a filepath to validate."""
+    import json
+
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
+
+    valid_entities_dir = static_dir / "valid_entities"
+    entity_uris: list[str] = [
+        json.loads(filepath.read_text())["uri"]
+        for filepath in valid_entities_dir.glob("*.json")
+    ]
+
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir(parents=True)
+    filepaths = []
+
+    number_of_valid_entities = len(entity_uris)
+
+    for index, filepath in enumerate(valid_entities_dir.glob("*.json")):
+        if index % 2 == 0:  # Let's put half in the folder
+            test_dir.joinpath(filepath.name).write_text(filepath.read_text())
+        else:  # And the other half in a reference
+            filepaths.append(filepath)
+
+    stdin = "\n".join(str(filepath) for filepath in filepaths)
+    stdin += f"\n{test_dir}"
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
+
+    # Mock response for "Check if entity already exists"
+    for entity_uri in entity_uris:
+        httpx_mock.add_response(
+            url=entity_uri,
+            status_code=404,  # not found
+        )
+
+    # Mock response for "Upload entities"
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        method="POST",
+        match_headers={"Authorization": f"Bearer {token_mock}"},
+        status_code=201,  # created
+    )
+
+    result = cli.invoke(APP, f"upload {stdin_variation}", input=stdin)
+
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert (
+        f"Successfully uploaded {number_of_valid_entities} entities" in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    # There should be "number_of_valid_entities" number of `No` entries in the summary,
+    # since none of the entities exist externally.
+    assert (
+        result.stdout.count("No") == number_of_valid_entities
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
