@@ -95,7 +95,7 @@ def test_upload_filepath(
         status_code=201,  # created
     )
 
-    result = cli.invoke(main.APP, f"upload --file {entity_filepath}")
+    result = cli.invoke(main.APP, f"upload {entity_filepath}")
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -106,7 +106,7 @@ def test_upload_filepath(
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
     ## Additionally test nothing is uploaded if user decides to not upload.
-    result = cli.invoke(main.APP, f"upload --file {entity_filepath}", input="n\n")
+    result = cli.invoke(main.APP, f"upload {entity_filepath}", input="n\n")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -141,7 +141,7 @@ def test_upload_filepath_invalid_format(
         match_json=[],
     )
 
-    result = cli.invoke(APP, f"upload --file {tmp_path / 'Person.txt'}")
+    result = cli.invoke(APP, f"upload {tmp_path / 'Person.txt'}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -210,7 +210,7 @@ def test_upload_directory(
         status_code=201,  # created
     )
 
-    result = cli.invoke(main.APP, f"upload --dir {directory}")
+    result = cli.invoke(main.APP, f"upload {directory}")
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -242,9 +242,7 @@ def test_upload_files_with_unchosen_format(
     )
 
     directory = static_dir / "valid_entities"
-    file_inputs = " ".join(
-        f"--file={filepath}" for filepath in directory.glob("*.json")
-    )
+    file_inputs = " ".join(str(filepath) for filepath in directory.glob("*.json"))
 
     result = cli.invoke(APP, f"upload --format yaml {file_inputs}")
 
@@ -287,7 +285,7 @@ def test_existing_entity(
         json=raw_entity,
     )
 
-    result = cli.invoke(APP, f"upload --file {entity_filepath}")
+    result = cli.invoke(APP, f"upload {entity_filepath}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -370,7 +368,7 @@ def test_existing_entity_different_content(
     # First, let's check we skip the file if not wanting to update the version
     result = cli.invoke(
         APP,
-        f"upload --file {tmp_path / 'Person.json'}",
+        f"upload {tmp_path / 'Person.json'}",
         input="n\n",
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -411,7 +409,7 @@ def test_existing_entity_different_content(
 
     result = cli.invoke(
         APP,
-        f"upload --file {tmp_path / 'Person.json'}",
+        f"upload {tmp_path / 'Person.json'}",
         input="y\n\n",
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -435,7 +433,7 @@ def test_existing_entity_different_content(
     # input, since the previous input equals the general defaults.
     result = cli.invoke(
         APP,
-        f"upload --file {tmp_path / 'Person.json'} --quiet",
+        f"upload {tmp_path / 'Person.json'} --quiet",
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -453,7 +451,7 @@ def test_existing_entity_different_content(
     # Here would should get some outputs, however.
     result = cli.invoke(
         APP,
-        f"upload --file {tmp_path / 'Person.json'} --auto-confirm",
+        f"upload {tmp_path / 'Person.json'} --auto-confirm",
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -506,7 +504,7 @@ def test_existing_entity_different_content(
 
     result = cli.invoke(
         APP,
-        f"upload --file {tmp_path / 'Person.json'}",
+        f"upload {tmp_path / 'Person.json'}",
         input=f"y\n{custom_version}\n",
     )
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -592,8 +590,7 @@ def test_existing_entity_errors(
     # The existing version is '0.1'.
     result = cli.invoke(
         APP,
-        f"upload {'--fail-fast ' if fail_fast else ''}"
-        f"--file {tmp_path / 'Person.json'}",
+        f"upload {'--fail-fast ' if fail_fast else ''}" f"{tmp_path / 'Person.json'}",
         input="y\n0.1\n",
     )
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
@@ -622,8 +619,7 @@ def test_existing_entity_errors(
     # Let's check an error occurs if the version is not of the type MAJOR.MINOR.PATCH.
     result = cli.invoke(
         APP,
-        f"upload {'--fail-fast ' if fail_fast else ''}"
-        f"--file {tmp_path / 'Person.json'}",
+        f"upload {'--fail-fast ' if fail_fast else ''}" f"{tmp_path / 'Person.json'}",
         input="y\nv0.1\n",
     )
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
@@ -678,7 +674,7 @@ def test_http_errors(
     # Mock response for "Check if entity already exists"
     httpx_mock.add_exception(HTTPError(error_message), url=parameterized_entity.uri)
 
-    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -702,7 +698,7 @@ def test_http_errors(
         match_json=[parameterized_entity.backend_entity],
     )
 
-    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -743,7 +739,7 @@ def test_json_decode_errors(
         url=parameterized_entity.uri, status_code=200, content=b"not json"
     )
 
-    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -768,7 +764,7 @@ def test_json_decode_errors(
         match_json=[parameterized_entity.backend_entity],
     )
 
-    result = cli.invoke(APP, f"upload --quiet --file {test_file}")
+    result = cli.invoke(APP, f"upload --quiet {test_file}")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -820,7 +816,7 @@ def test_unable_to_upload(
         match_json=[parameterized_entity.backend_entity],
     )
 
-    result = cli.invoke(APP, f"upload --file {test_file}")
+    result = cli.invoke(APP, f"upload {test_file}")
 
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr

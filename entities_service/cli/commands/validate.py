@@ -44,7 +44,20 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def validate(
-    filepaths: Annotated[
+    sources: Annotated[
+        OptionalListPath,
+        typer.Argument(
+            metavar="[SOURCE]...",
+            help="Path to file or directory with one or more entities.",
+            exists=True,
+            file_okay=True,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            show_default=False,
+        ),
+    ] = None,
+    filepaths: Annotated[  # deprecated (in favor of SOURCE)
         OptionalListPath,
         typer.Option(
             "--file",
@@ -54,11 +67,15 @@ def validate(
             dir_okay=False,
             readable=True,
             resolve_path=True,
-            help="Path to file with one or more entities.",
+            help=(
+                "Path to file with one or more entities. [bold][red]Deprecated[/bold] "
+                "instead pass in a filepath as an argument (SOURCE)[/red]."
+            ),
             show_default=False,
+            hidden=True,
         ),
     ] = None,
-    directories: Annotated[
+    directories: Annotated[  # deprecated (in favor of SOURCE)
         OptionalListPath,
         typer.Option(
             "--dir",
@@ -70,11 +87,11 @@ def validate(
             resolve_path=True,
             help=(
                 "Path to directory with files that include one or more entities. "
-                "All files matching the given format(s) in the directory will be "
-                "validated. Subdirectories will be ignored. This option can be "
-                "provided multiple times, e.g., to include multiple subdirectories."
+                "Subdirectories will be ignored. [bold][red]Deprecated[/bold] "
+                "instead pass in a directory as an argument (SOURCE)[/red]."
             ),
             show_default=False,
+            hidden=True,
         ),
     ] = None,
     file_formats: Annotated[
@@ -144,6 +161,8 @@ def validate(
     ] = False,
 ) -> Sequence[Entity] | Sequence[ValidEntity]:
     """Validate (local) entities."""
+    unique_sources = set(sources or [])
+
     unique_filepaths = set(filepaths or [])
     directories = list(set(directories or []))
     file_formats = list(set(file_formats or []))
@@ -156,14 +175,36 @@ def validate(
         if EntityFileFormats.YML not in file_formats:
             file_formats.append(EntityFileFormats.YML)
 
-    if not filepaths and not directories:
+    if not (sources or filepaths or directories):
         ERROR_CONSOLE.print(
-            "[bold red]Error[/bold red]: Missing either option '--file' / '-f' or "
-            "'--dir' / '-d'."
+            "[bold red]Error[/bold red]: Please, provide at least one SOURCE."
         )
         raise typer.Exit(1)
 
+    # --file/-f and --dir/-d are depcrecated in favor of SOURCE
+    if unique_filepaths:
+        print(
+            "[bold yellow]Warning[/bold yellow]: The option '--file/-f' is deprecated. "
+            "Please, use a SOURCE instead."
+        )
+    if directories:
+        print(
+            "[bold yellow]Warning[/bold yellow]: The option '--dir/-d' is deprecated. "
+            "Please, use a SOURCE instead."
+        )
+
     ## Consolidate provided directories and filepaths
+
+    for source in unique_sources:
+        if source.is_file():
+            unique_filepaths.add(source)
+        elif source.is_dir():
+            directories.append(source)
+        else:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: {source} is not a file or directory."
+            )
+            raise typer.Exit(1)
 
     for directory in directories:
         for root, _, files in os.walk(directory):
