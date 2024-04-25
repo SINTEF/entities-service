@@ -206,6 +206,20 @@ def test_validate_no_source_or_file_or_dir(cli: CliRunner) -> None:
     assert not result.stdout
 
 
+def test_validate_non_existent_file(cli: CliRunner, tmp_path: Path) -> None:
+    """Test error when a non-existent file is provided."""
+    from entities_service.cli.main import APP
+
+    non_existent_path = tmp_path / "non_existant.json"
+
+    result = cli.invoke(APP, f"validate {non_existent_path}")
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert f"Error: Path '{non_existent_path}' does not exist." in result.stderr
+    assert not result.stdout
+
+
 def test_validate_directory(
     cli: CliRunner,
     static_dir: Path,
@@ -1068,8 +1082,60 @@ def test_source_is_no_file_or_dir(cli: CliRunner) -> None:
         stdout=result.stdout, stderr=result.stderr
     )
     assert (
-        "Error: /dev/null is not a file or directory." in result.stderr
+        "Error: Path '/dev/null' is not a file or directory." in result.stderr
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
     assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
+
+
+@pytest.mark.parametrize("stdin_variation", ["-", "/dev/stdin", "CON", "CONIN$"])
+def test_using_stdin(
+    cli: CliRunner,
+    static_dir: Path,
+    tmp_path: Path,
+    stdin_variation: Literal["-", "/dev/stdin", "CON", "CONIN$"],
+) -> None:
+    """Test that it's possible to pipe in a filepath to validate."""
+    from entities_service.cli.main import APP
+
+    valid_entities_dir = static_dir / "valid_entities"
+
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir(parents=True)
+    filepaths = []
+
+    number_of_valid_entities = 0
+
+    for index, filepath in enumerate(valid_entities_dir.glob("*.json")):
+        if index % 2 == 0:  # Let's put half in the folder
+            test_dir.joinpath(filepath.name).write_text(filepath.read_text())
+        else:  # And the other half in a reference
+            filepaths.append(filepath)
+
+        number_of_valid_entities += 1
+
+    stdin = "\n".join(str(filepath) for filepath in filepaths)
+    stdin += f"\n{test_dir}"
+
+    # Add an extra newline to simulate supplying a file as input, with an empty line at
+    # the end. This should be ignored and not result in an error.
+    stdin += "\n"
+
+    result = cli.invoke(APP, f"validate {stdin_variation}", input=stdin)
+
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    # There should be "number_of_valid_entities" number of `No` entries in the summary,
+    # since none of the entities exist externally.
+    assert (
+        result.stdout.count("No") == number_of_valid_entities
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)

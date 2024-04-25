@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -49,11 +51,12 @@ def validate(
         typer.Argument(
             metavar="[SOURCE]...",
             help="Path to file or directory with one or more entities.",
-            exists=True,
+            exists=False,
             file_okay=True,
             dir_okay=True,
             readable=True,
-            resolve_path=True,
+            resolve_path=False,
+            allow_dash=True,
             show_default=False,
         ),
     ] = None,
@@ -162,18 +165,15 @@ def validate(
 ) -> Sequence[Entity] | Sequence[ValidEntity]:
     """Validate (local) entities."""
     unique_sources = set(sources or [])
+    unique_file_formats = set(file_formats or [])
 
+    # Include values from deprecated options
     unique_filepaths = set(filepaths or [])
-    directories = list(set(directories or []))
-    file_formats = list(set(file_formats or []))
+    unique_directories = set(directories or [])
 
-    # Handle YAML/YML file format
-    if EntityFileFormats.YAML in file_formats or EntityFileFormats.YML in file_formats:
-        # Ensure both YAML and YML are in the list
-        if EntityFileFormats.YAML not in file_formats:
-            file_formats.append(EntityFileFormats.YAML)
-        if EntityFileFormats.YML not in file_formats:
-            file_formats.append(EntityFileFormats.YML)
+    # Handle YAML/YML file format, ensuring both YAML and YML are in the set
+    if unique_file_formats & {EntityFileFormats.YAML, EntityFileFormats.YML}:
+        unique_file_formats |= {EntityFileFormats.YAML, EntityFileFormats.YML}
 
     if not (sources or filepaths or directories):
         ERROR_CONSOLE.print(
@@ -187,7 +187,7 @@ def validate(
             "[bold yellow]Warning[/bold yellow]: The option '--file/-f' is deprecated. "
             "Please, use a SOURCE instead."
         )
-    if directories:
+    if unique_directories:
         print(
             "[bold yellow]Warning[/bold yellow]: The option '--dir/-d' is deprecated. "
             "Please, use a SOURCE instead."
@@ -195,23 +195,51 @@ def validate(
 
     ## Consolidate provided directories and filepaths
 
+    # stdin
+    stdin_variations = [Path(_) for _ in ("-", "/dev/stdin", "CONIN$", "CON")]
+    if any(stdin_variation in unique_sources for stdin_variation in stdin_variations):
+        source_input_regex = re.compile(r"\"([^\"]*)\"|'([^']*)'|([^\s]+)")
+
+        # Add filepaths and directory paths from stdin
+        for line in sys.stdin.readlines():
+            for match in source_input_regex.findall(line):
+                unique_sources |= {Path(source) for source in match if source}
+
+    # Validate and sort sources according to type
     for source in unique_sources:
-        if source.is_file():
-            unique_filepaths.add(source)
-        elif source.is_dir():
-            directories.append(source)
-        else:
+        if source in stdin_variations:
+            # This is a stdin path and has been dealt with above
+            continue
+
+        resolved_source = source.resolve()
+
+        if not resolved_source.exists():
             ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: {source} is not a file or directory."
+                f"[bold red]Error[/bold red]: Path '{source}' does not exist."
             )
             raise typer.Exit(1)
 
-    for directory in directories:
+        if resolved_source.is_file():
+            unique_filepaths.add(resolved_source)
+        elif resolved_source.is_dir():
+            unique_directories.add(resolved_source)
+        else:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Path '{source}' is not a file or "
+                "directory."
+            )
+            raise typer.Exit(1)
+
+    for directory in unique_directories:
         for root, _, files in os.walk(directory):
             unique_filepaths |= {
-                Path(root) / file
-                for file in files
-                if file.lower().endswith(tuple(file_formats))
+                Path(root) / filename
+                for filename in files
+                if filename.lower().endswith(
+                    tuple(
+                        f".{file_format}".lower() for file_format in unique_file_formats
+                    )
+                )
             }
 
     if not unique_filepaths:
@@ -239,7 +267,7 @@ def validate(
             else filepath
         )
 
-        if (file_format := filepath.suffix[1:].lower()) not in file_formats:
+        if (file_format := filepath.suffix[1:].lower()) not in unique_file_formats:
             if not quiet:
                 print(f"[bold blue]Info[/bold blue]: Skipping file: {repr_filepath}")
 
