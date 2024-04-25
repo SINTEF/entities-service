@@ -18,6 +18,7 @@ APP = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
     callback=global_options,
+    rich_markup_mode="rich",
 )
 
 # Add sub-Typer apps (sub-command groups)

@@ -26,6 +26,7 @@ APP = typer.Typer(
     help="Manage configuration options.",
     no_args_is_help=True,
     invoke_without_command=True,
+    rich_markup_mode="rich",
 )
 
 

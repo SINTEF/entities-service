@@ -74,9 +74,7 @@ def test_validate_filepath(
         status_code=404,  # not found
     )
 
-    result = cli.invoke(
-        APP, f"validate {'--quiet ' if quiet else ''}--file {entity_filepath}"
-    )
+    result = cli.invoke(APP, f"validate {'--quiet ' if quiet else ''}{entity_filepath}")
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -131,7 +129,7 @@ def test_validate_filepath_invalid(
     result = cli.invoke(
         APP,
         f"validate {'--quiet ' if quiet else ''}{'--fail-fast ' if fail_fast else ''}"
-        f"--file {invalid_entity_filepath}",
+        f"{invalid_entity_filepath}",
     )
 
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
@@ -182,7 +180,7 @@ def test_validate_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> Non
 
     (tmp_path / "Person.txt").touch()
 
-    result = cli.invoke(APP, f"validate --file {tmp_path / 'Person.txt'}")
+    result = cli.invoke(APP, f"validate {tmp_path / 'Person.txt'}")
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
@@ -195,15 +193,16 @@ def test_validate_filepath_invalid_format(cli: CliRunner, tmp_path: Path) -> Non
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
-def test_validate_no_file_or_dir(cli: CliRunner) -> None:
-    """Test error when no file or directory is provided."""
+def test_validate_no_source_or_file_or_dir(cli: CliRunner) -> None:
+    """Test error when no SOURCE, file or directory are provided (the latter two are
+    deprecated)."""
     from entities_service.cli.main import APP
 
     result = cli.invoke(APP, "validate --format json")
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
     )
-    assert "Missing either option '--file' / '-f'" in result.stderr
+    assert "Error: Please, provide at least one SOURCE" in result.stderr
     assert not result.stdout
 
 
@@ -251,7 +250,7 @@ def test_validate_directory(
             status_code=404,  # not found
         )
 
-    result = cli.invoke(main.APP, f"validate --dir {directory}")
+    result = cli.invoke(main.APP, f"validate {directory}")
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -280,7 +279,7 @@ def test_validate_empty_dir(cli: CliRunner, tmp_path: Path) -> None:
     (yaml_dir / "Person.yaml").touch()
 
     for directory in (empty_dir, yaml_dir):
-        result = cli.invoke(main.APP, f"validate --format json --dir {directory}")
+        result = cli.invoke(main.APP, f"validate --format json {directory}")
 
         assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
             stdout=result.stdout, stderr=result.stderr
@@ -296,9 +295,7 @@ def test_validate_files_with_unchosen_format(cli: CliRunner, static_dir: Path) -
     from entities_service.cli.main import APP
 
     directory = static_dir / "valid_entities"
-    file_inputs = " ".join(
-        f"--file={filepath}" for filepath in directory.glob("*.json")
-    )
+    file_inputs = " ".join(str(filepath) for filepath in directory.glob("*.json"))
 
     result = cli.invoke(APP, f"validate --format yaml {file_inputs}")
 
@@ -370,7 +367,7 @@ def test_validate_directory_invalid_entities(
             (directory / filepath.name).write_text(json.dumps(invalid_entity))
 
     result = cli.invoke(
-        APP, f"validate {'--fail-fast ' if fail_fast else ''}--dir {directory}"
+        APP, f"validate {'--fail-fast ' if fail_fast else ''}{directory}"
     )
 
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
@@ -490,7 +487,7 @@ def test_existing_entity(
         result = cli.invoke(
             APP,
             f"validate {'--no-external-calls ' if no_external_calls else ''}"
-            f"--file {entity_filepath}",
+            f"{entity_filepath}",
         )
 
         assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -646,7 +643,7 @@ def test_existing_entity_different_content(
             APP,
             f"validate {'--verbose ' if verbose else ''}"
             f"{'--no-external-calls ' if no_external_calls else ''}"
-            f"--file {tmp_path / 'Person.json'}",
+            f"{tmp_path / 'Person.json'}",
         )
 
         assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
@@ -742,7 +739,7 @@ def test_http_errors(
     # Mock response for "Check if entity already exists"
     httpx_mock.add_exception(HTTPError(error_message), url=parameterized_entity.uri)
 
-    result = cli.invoke(APP, f"validate --quiet --file {test_file}")
+    result = cli.invoke(APP, f"validate --quiet {test_file}")
 
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -775,7 +772,7 @@ def test_json_decode_errors(
         url=parameterized_entity.uri, status_code=200, content=b"not json"
     )
 
-    result = cli.invoke(APP, f"validate --quiet --file {test_file}")
+    result = cli.invoke(APP, f"validate --quiet {test_file}")
 
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -842,7 +839,7 @@ def test_non_unique_uris(
         )
 
     result = cli.invoke(
-        APP, f"validate {'--fail-fast ' if fail_fast else ''}--dir {target_directory}"
+        APP, f"validate {'--fail-fast ' if fail_fast else ''}{target_directory}"
     )
 
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
@@ -938,9 +935,7 @@ def test_list_of_entities_in_single_file(
             status_code=404,  # not found
         )
 
-    result = cli.invoke(
-        APP, f"validate --format {yaml_format} --file {entities_filepath}"
-    )
+    result = cli.invoke(APP, f"validate --format {yaml_format} {entities_filepath}")
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -975,7 +970,7 @@ def test_bad_list_of_entities_in_single_file(
     result = cli.invoke(
         APP,
         f"validate {'--fail-fast ' if fail_fast else ''}"
-        f"--format=yaml --file {bad_list_of_entities_filepath}",
+        f"--format=yaml {bad_list_of_entities_filepath}",
     )
 
     assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
@@ -1014,3 +1009,67 @@ def test_bad_list_of_entities_in_single_file(
             result.stdout.replace("\n", "")
             == "There were no valid entities among the supplied sources."
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+
+def test_file_and_dir_deprecation_warning(cli: CliRunner, static_dir: Path) -> None:
+    """Test that a warning is given when a file or a directory option is provided.
+
+    But it should still work.
+    """
+    from entities_service.cli.main import APP
+
+    directory = static_dir / "valid_entities"
+    entity_filepath = directory / "Person.json"
+
+    # file
+    result = cli.invoke(APP, f"validate --file {entity_filepath}")
+
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Warning: The option '--file/-f' is deprecated. Please, use a SOURCE instead."
+        in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    # directory
+    result = cli.invoke(APP, f"validate --dir {directory}")
+
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Warning: The option '--dir/-d' is deprecated. Please, use a SOURCE instead."
+        in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+def test_source_is_no_file_or_dir(cli: CliRunner) -> None:
+    """Test that an error is given when the source is neither a file nor a directory."""
+    from entities_service.cli.main import APP
+
+    result = cli.invoke(APP, "validate /dev/null")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert (
+        "Error: /dev/null is not a file or directory." in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )

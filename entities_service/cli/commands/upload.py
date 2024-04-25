@@ -47,7 +47,20 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def upload(
-    filepaths: Annotated[
+    sources: Annotated[
+        OptionalListPath,
+        typer.Argument(
+            metavar="[SOURCE]...",
+            help="Path to file or directory with one or more entities.",
+            exists=True,
+            file_okay=True,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            show_default=False,
+        ),
+    ] = None,
+    filepaths: Annotated[  # deprecated (in favor of SOURCE)
         OptionalListPath,
         typer.Option(
             "--file",
@@ -57,11 +70,15 @@ def upload(
             dir_okay=False,
             readable=True,
             resolve_path=True,
-            help="Path to file with one or more entities.",
+            help=(
+                "Path to file with one or more entities. [bold][red]Deprecated[/bold] "
+                "instead pass in a filepath as an argument (SOURCE)[/red]."
+            ),
             show_default=False,
+            hidden=True,
         ),
     ] = None,
-    directories: Annotated[
+    directories: Annotated[  # deprecated (in favor of SOURCE)
         OptionalListPath,
         typer.Option(
             "--dir",
@@ -73,11 +90,11 @@ def upload(
             resolve_path=True,
             help=(
                 "Path to directory with files that include one or more entities. "
-                "All files matching the given format(s) in the directory will be "
-                "uploaded. Subdirectories will be ignored. This option can be provided "
-                "multiple times, e.g., to include multiple subdirectories."
+                "Subdirectories will be ignored. [bold][red]Deprecated[/bold] "
+                "instead pass in a directory as an argument (SOURCE)[/red]."
             ),
             show_default=False,
+            hidden=True,
         ),
     ] = None,
     file_formats: Annotated[
@@ -132,6 +149,7 @@ def upload(
 
     # Validate the entities before uploading
     valid_entities = validate(
+        sources=sources,
         filepaths=filepaths,
         directories=directories,
         file_formats=file_formats,

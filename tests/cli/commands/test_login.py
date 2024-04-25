@@ -97,7 +97,7 @@ def test_token_persistence(
     assert not tmp_cache_file.exists()
 
     # Run the upload command
-    result = cli.invoke(APP, f"upload --file {test_file}")
+    result = cli.invoke(APP, f"upload {test_file}")
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
