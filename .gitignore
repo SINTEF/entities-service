@@ -9,3 +9,6 @@ coverage.xml
 # running
 logs/
 docker_security/
+
+# build
+dist/
