@@ -151,6 +151,20 @@ def validate(
             show_default=True,
         ),
     ] = False,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict",
+            help=(
+                "Strict validation of entities. This means validation will fail if "
+                "an external entity already exists and the two entities are not equal. "
+                "This option is only relevant if '--no-external-calls' is not provided."
+                " If both '--no-external-calls' and this options is provided, an error "
+                "will be emitted."
+            ),
+            show_default=True,
+        ),
+    ] = False,
     # Hidden options - used only when calling the function directly
     return_full_info: Annotated[
         bool,
@@ -171,9 +185,7 @@ def validate(
     unique_filepaths = set(filepaths or [])
     unique_directories = set(directories or [])
 
-    # Handle YAML/YML file format, ensuring both YAML and YML are in the set
-    if unique_file_formats & {EntityFileFormats.YAML, EntityFileFormats.YML}:
-        unique_file_formats |= {EntityFileFormats.YAML, EntityFileFormats.YML}
+    ## Initial checks
 
     if not (sources or filepaths or directories):
         ERROR_CONSOLE.print(
@@ -192,6 +204,17 @@ def validate(
             "[bold yellow]Warning[/bold yellow]: The option '--dir/-d' is deprecated. "
             "Please, use a SOURCE instead."
         )
+
+    if no_external_calls and strict:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: The options '--no-external-calls' and "
+            "'--strict' can not be used together."
+        )
+        raise typer.Exit(1)
+
+    # Handle YAML/YML file format, ensuring both YAML and YML are in the set
+    if unique_file_formats & {EntityFileFormats.YAML, EntityFileFormats.YML}:
+        unique_file_formats |= {EntityFileFormats.YAML, EntityFileFormats.YML}
 
     ## Consolidate provided directories and filepaths
 
@@ -394,14 +417,33 @@ def validate(
             successes.append(ValidEntity(entity_model, True, True, None))
         else:
             # Record the differences between the external and local entities
-            successes.append(
-                ValidEntity(
-                    entity_model,
-                    True,
-                    False,
-                    pretty_compare_dicts(external_entity, dumped_entity),
+            pretty_diff = pretty_compare_dicts(external_entity, dumped_entity)
+            successes.append(ValidEntity(entity_model, True, False, pretty_diff))
+
+            if strict:
+                ERROR_CONSOLE.print(
+                    f"[bold red]Error[/bold red]: Entity {get_uri(entity_model)} "
+                    "already exists externally and differs in its contents."
                 )
-            )
+
+                if fail_fast:
+                    if verbose:
+                        ERROR_CONSOLE.print(
+                            "\n[bold blue]Detailed differences:[/bold blue]"
+                        )
+                        ERROR_CONSOLE.print(
+                            "", Rule(title=get_uri(entity_model)), f"\n{pretty_diff}\n"
+                        )
+                    elif not quiet and not return_full_info:
+                        ERROR_CONSOLE.print(
+                            "\n[bold blue]Use the option '--verbose' to see the "
+                            "difference between the external and local entity."
+                            "[/bold blue]\n"
+                        )
+
+                    raise typer.Exit(1)
+
+                failed_entities.append(get_uri(entity_model))
 
     ## Report the results
 
@@ -448,17 +490,16 @@ def validate(
     if successes:
         # List the validated entities in a table
         table = Table(
-            expand=True,
             box=box.HORIZONTALS,
             show_edge=False,
             highlight=True,
         )
 
-        table.add_column("Namespace", no_wrap=True)
+        table.add_column("Namespace", no_wrap=False)
         table.add_column("Name", no_wrap=True)
         table.add_column("Version", no_wrap=True)
-        table.add_column("Exists externally", no_wrap=True)
-        table.add_column("Equal to external", no_wrap=True)
+        table.add_column("Exists externally", no_wrap=False)
+        table.add_column("Equal to external", no_wrap=False)
 
         # Sort the entities in the following order:
         # 1. Namespace
@@ -486,7 +527,11 @@ def validate(
                 ],
                 {
                     True: "Yes",
-                    False: "No",
+                    False: (
+                        "[bold red]No[/bold red] (error in strict-mode)"
+                        if strict
+                        else "No"
+                    ),
                     None: "Unknown" if no_external_calls else "-",
                 }[valid_entity.equal_to_remote],
             )
@@ -525,11 +570,11 @@ def validate(
             "sources.[/bold yellow]\n"
         )
 
-    if not (failed_filepaths or failed_entities):
-        return (
-            successes
-            if return_full_info
-            else [valid_entity.entity for valid_entity in successes]  # type: ignore[misc]
-        )
+    if failed_filepaths or failed_entities:
+        raise typer.Exit(1)
 
-    raise typer.Exit(1)
+    return (
+        successes
+        if return_full_info
+        else [valid_entity.entity for valid_entity in successes]  # type: ignore[misc]
+    )

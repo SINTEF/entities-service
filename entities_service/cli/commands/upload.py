@@ -143,6 +143,20 @@ def upload(
             show_default=False,
         ),
     ] = False,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict",
+            help=(
+                "Strict validation of entities. This means the command will fail "
+                "during the validation process, if an external entity already exists "
+                "and the two entities are not equal. This option is only relevant if "
+                "'--no-external-calls' is not provided. If both '--no-external-calls'"
+                " and this options is provided, an error will be emitted."
+            ),
+            show_default=True,
+        ),
+    ] = False,
 ) -> None:
     """Upload (local) entities to a remote location."""
     # Ensure the user is logged in
@@ -159,6 +173,7 @@ def upload(
         no_external_calls=False,
         return_full_info=True,
         verbose=False,
+        strict=strict,
     )
 
     # Sanity check - done only for typing to be caught by mypy and testing
