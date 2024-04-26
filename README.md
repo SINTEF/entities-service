@@ -300,5 +300,6 @@ Copyright by [Casper Welzel Andersen](https://github.com/CasperWA), [SINTEF](htt
 
 This project is made possible by funding from:
 
-- MEDIATE (2022-2025) that receives funding from the RCN, Norway; FNR, Luxenburg; SMWK Germany via the M-era.net programme, project9557,
-- [MatCHMaker](https://he-matchmaker.eu) (2022-2026) that receives funding from the European Union’s Horizon Europe research and innovation programme under grant agreement N 101091687.
+- MEDIATE (2022-2025) that receives funding from the RCN, Norway, FNR, Luxembourg, and SMWK, Germany via the M-ERA.NET programme, project9557.
+  M-ERA.NET 2 and M-ERA.NET 3 have received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreements No 685451 and No 958174.
+- [MatCHMaker](https://he-matchmaker.eu) (2022-2026) that receives funding from the European Union’s Horizon Europe research and innovation programme under grant agreement No 101091687.
