@@ -1139,3 +1139,153 @@ def test_using_stdin(
     assert (
         result.stdout.count("No") == number_of_valid_entities
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+
+@pytest.mark.parametrize("fail_fast", [True, False], ids=["fail-fast", "no-fail-fast"])
+@pytest.mark.parametrize("verbose", [True, False], ids=["verbose", "no-verbose"])
+def test_validate_strict(
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    fail_fast: bool,
+    verbose: bool,
+) -> None:
+    """Test validate with the strict option."""
+    import json
+
+    from entities_service.cli.main import APP
+
+    directory = static_dir / "valid_entities"
+
+    # We need at least 4 valid entities to make this test meaningful
+    assert len(list(directory.glob("*.json"))) >= 4
+
+    file_inputs = ""
+    number_existing_changed_entities = 0
+
+    # Mock response for "Check if entity already exists"
+    for index, entity in enumerate(
+        (json.loads(filepath.read_bytes()), filepath)
+        for filepath in directory.glob("*.json")
+    ):
+        raw_entity, filepath = entity
+
+        file_inputs += f" {filepath}"
+
+        assert "uri" in raw_entity
+
+        # Let's say half exist externally already
+        if index % 2 == 0:
+            existing_entity_content = raw_entity.copy()
+
+            # And for half of those, let's say they exist with different content
+            if index % 4 == 0:
+                if isinstance(existing_entity_content["properties"], dict):
+                    assert "extra_property" not in existing_entity_content["properties"]
+                    existing_entity_content["properties"]["extra_property"] = {
+                        "type": "string",
+                        "description": "extra property for testing --strict",
+                    }
+                else:
+                    assert isinstance(existing_entity_content["properties"], list)
+                    extra_property = {
+                        "name": "extra_property",
+                        "type": "string",
+                        "description": "extra property for testing --strict",
+                    }
+                    assert extra_property not in existing_entity_content["properties"]
+
+                number_existing_changed_entities += 1
+
+            httpx_mock.add_response(
+                url=existing_entity_content["uri"],
+                status_code=200,  # ok
+                json=existing_entity_content,
+            )
+
+            if fail_fast:
+                break
+
+        # While the other half do not exist externally...
+        else:
+            httpx_mock.add_response(
+                url=raw_entity["uri"],
+                status_code=404,  # not found
+            )
+
+    assert (
+        number_existing_changed_entities > 0
+    ), "No entities were given 'existing entity with changed content'-role to test."
+
+    result = cli.invoke(
+        APP,
+        "validate --strict "
+        f"{'--fail-fast ' if fail_fast else ''}"
+        f"{'--verbose ' if verbose else ''}"
+        f"{file_inputs}",
+    )
+
+    print(CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr))
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "already exists externally and differs in its contents." in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert (
+        "There were no valid entities among the supplied sources." not in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+    if fail_fast:
+        assert (
+            "Failed to validate one or more entities. See above for more details."
+            not in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        assert "Valid Entities" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+    else:
+        assert (
+            "Failed to validate one or more entities. See above for more details."
+            in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
+        assert (
+            result.stdout.replace(" ", "")
+            .replace("\n", "")
+            .count("No(errorinstrict-mode)")
+            == number_existing_changed_entities
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+    if verbose:
+        assert "Detailed differences" in (
+            result.stderr if fail_fast else result.stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    else:
+        assert "Use the option '--verbose'" in (
+            result.stderr if fail_fast else result.stdout
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+
+def test_exclusive_no_external_calls_and_strict(cli: CliRunner) -> None:
+    """Test that the exclusive options --no-external-calls and --strict are handled."""
+    from entities_service.cli.main import APP
+
+    result = cli.invoke(APP, "validate --no-external-calls --strict /dev/null")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Error: The options '--no-external-calls' and '--strict' can not be used "
+        "together." in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
