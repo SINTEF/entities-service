@@ -1,7 +1,15 @@
-# Service for serving entities
+# Entities Service
+
+> REST API service for serving entities
 
 This is a FastAPI-based REST API service running on onto-ns.com.
 It's purpose is to serve entities from an underlying database.
+
+Other than the REST API service, the repository also contains a CLI for validating and uploading entities to the service, as well as create and manipulate the service' configuration file.
+See the [CLI documentation](#cli) for more information.
+
+The repository also contains a [pre-commit](https://pre-commit.com/) hook `validate-entities`, which may be used externally to validate entities before committing them a repository.
+See the [pre-commit hook documentation](#pre-commit-hook-validate-entities) for more information.
 
 ## Install the service
 
@@ -135,9 +143,57 @@ For using it locally, no changes are needed, as the service will automatically c
 
 For using it with Docker, use the `--env-file .env` argument when calling `docker run` or `docker compose up`.
 
+## CLI
+
+The CLI is a command-line interface for interacting with the Entities Service.
+It can be used to validate and upload entities to the service, as well as create and manipulate the service' configuration file.
+
+To see the available commands and options, run:
+
+```shell
+entities-service --help
+```
+
+## pre-commit hook `validate-entities`
+
+The `validate-entities` [pre-commit](https://pre-commit.com) hook runs the CLI command `entities-service validate` on all files that are about to be committed.
+This is to ensure that all entities are valid before committing them to the repository.
+
+By default it runs with the `--verbose` flag, which will print out detailed differences if an entity already exists externally and differs in its content.
+Furthermore, it will run such that all supported file formats (currently JSON and YAML/YML) will be validated.
+
+**Important**: Add the `.[cli]` entry to the `additional_dependencies` argument.
+
+It is also advisable to focus in which directories or files the hook should run for, by adding the `files` argument.
+
+Here is an example of how to add the `validate-entities` pre-commit hook to your `.pre-commit-config.yaml` file, given a repository that contains entities in the `entities` directory in the root of the repository:
+
+```yaml
+repos:
+# ...
+- repo: https://github.com/SINTEF/entities-service
+  rev: v0.4.0
+  hooks:
+  - id: validate-entities
+    additional_dependencies: [".[cli]"]
+    files: ^entities/.*\.(json|yaml|yml)$
+```
+
+This will run for all JSON, YAML, and YML files in the `entities` directory and its subdirectories.
+
+Note, you can add the `--no-external-calls` argument if you wish to not make external calls to the Entities Service when validating entities.
+This is useful when running the pre-commit hook in an environment where the Entities Service is not available, or when you wish to only validate the entities locally.
+
+```yaml
+# ...
+    args: ['--no-external-calls']
+# ...
+```
+
 ## Testing
 
-The service is tested using `pytest` and can be tested against a local MongoDB server and Entities Service instance or against a mock MongoDB server and Entities Service instance utilizing [Starlette's TestClient](https://fastapi.tiangolo.com/reference/testclient/#test-client-testclient).
+The repository code is tested using `pytest`.
+For the service, it can be tested against a local MongoDB server and Entities Service instance or against a mock MongoDB server and Entities Service instance utilizing [Starlette's TestClient](https://fastapi.tiangolo.com/reference/testclient/#test-client-testclient).
 
 To run the tests, first install the test dependencies:
 
@@ -190,7 +246,7 @@ export ENTITIES_SERVICE_HOST=${ENTITIES_SERVICE_BASE_URL}
 docker compose up -d
 
 # Upload entities using the CLI
-entities-service upload -f my_entities.yaml --format=yaml
+entities-service upload my_entities.yaml --format=yaml
 ```
 
 The `my_entities.yaml` file should contain one or more entities with `uri` values of the form `http://localhost:8000/...`.
@@ -239,3 +295,11 @@ The fixture is available for all tests.
 
 All files in this repository are [MIT licensed](LICENSE).  
 Copyright by [Casper Welzel Andersen](https://github.com/CasperWA), [SINTEF](https://www.sintef.no).
+
+## Acknowledgements
+
+This project is made possible by funding from:
+
+- MEDIATE (2022-2025) that receives funding from the RCN, Norway, FNR, Luxembourg, and SMWK, Germany via the M-ERA.NET programme, project9557.
+  M-ERA.NET 2 and M-ERA.NET 3 have received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreements No 685451 and No 958174.
+- [MatCHMaker](https://he-matchmaker.eu) (2022-2026) that receives funding from the European Union’s Horizon Europe research and innovation programme under grant agreement No 101091687.
