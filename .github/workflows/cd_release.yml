@@ -24,6 +24,10 @@ jobs:
       build_libs: flit
       build_cmd: "flit build"
       changelog_exclude_labels: skip_changelog,duplicate,question,invalid,wontfix
+      version_update_changes_separator: ","
+      version_update_changes: |
+        {package_dir}/__init__.py,__version__ *= *(?:'|\").*(?:'|\"),__version__ = \"{version}\"
+        README.md,rev: v[0-9]+.*$,rev: v{version}
       publish_on_pypi: false
 
       # Documentation
