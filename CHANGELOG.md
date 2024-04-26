@@ -1,21 +1,53 @@
 # Changelog
 
-## [Unreleased](https://github.com/SINTEF/entities-service/tree/HEAD)
+## [v0.5.0](https://github.com/SINTEF/entities-service/tree/v0.5.0) (2024-04-26)
 
-[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.4.0...HEAD)
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.4.0...v0.5.0)
 
-## New `validate` CLI command
+# Use the CLI in CI/CD
 
-A new CLI command (`validate`) has been added to make it possible to validate entities.
-This is convenient both as a split of the bloated `upload` command implementation, but also as a separate functionality for data documentation repositories to ensure any changes to entities will still result in valid entities.
+With the latest updates to the `entities-service` CLI it can be used as intended in CI/CD workflows.
 
-Furthermore, a new `--auto-confirm/-y` option has been added to the `upload` command as an extension on the `--quiet/-q` option. It will still ensure print statements occur, but will use defaults and "Yes" responses whenever it is needed.
+To make this happen, this release further upgrades the CLI, mainly by deprecating the `--file/-f` and `--dir/-d` inputs for the `upload` and `validate` commands in favor of a `SOURCE...` argument, i.e., one can supply (relative or absolute) paths to files and directories multiple times to the commands, separating them by a space (or wrapping them in quotation marks (either `"` or `'` will work).
+
+In addition, this new `SOURCE...` argument is utilized in two cases:
+- One can supply the arguments via `stdin`.
+- The `validate` command has been wrapped as a [pre-commit](https://pre-commit.com) hook.
+
+The `stdin` possibility allows one to do something like:
+
+```console
+git diff --name-only | entities-service validate -
+```
+
+This will supply the `validate` command with a list of files that are different between the current `git` working directory and the previous commit.
+
+## pre-commit hook `validate-entities`
+
+When using the hook, one should focus in the files it runs on via the `files` hook argument. One _must_ also supply the argument `additional_dependencies` with the value `'.[cli]'` (note, this argument expects a list, so this value should be one of the  values in that list).
+
+The hook will automatically run on all implemented formats (currently JSON and YAML/YML).
+
+The hook will automatically use the `--verbose` flag, should there be any content differences between the local and externally existing counterparts.
 
 **Implemented enhancements:**
 
-- ✨ Add an option to the `upload` command to auto-confirm the summary [\#119](https://github.com/SINTEF/entities-service/issues/119)
+- ✨ Support piping in SOURCE's \(filepaths and directories\) [\#130](https://github.com/SINTEF/entities-service/issues/130)
+- ✨ New option `--strict` for the `validate` command [\#129](https://github.com/SINTEF/entities-service/issues/129)
+- ✨ Run some CLI commands as pre-commit hooks [\#122](https://github.com/SINTEF/entities-service/issues/122)
 
-## [v0.4.0](https://github.com/SINTEF/entities-service/tree/v0.4.0) (2024-04-16)
+**Closed issues:**
+
+- Only deploy service if changes in service is detected [\#92](https://github.com/SINTEF/entities-service/issues/92)
+
+**Merged pull requests:**
+
+- Update README with pre-commit and CLI info [\#134](https://github.com/SINTEF/entities-service/pull/134) ([CasperWA](https://github.com/CasperWA))
+- Add `--strict` option to CLI [\#132](https://github.com/SINTEF/entities-service/pull/132) ([CasperWA](https://github.com/CasperWA))
+- Support using stdin as input for CLI [\#131](https://github.com/SINTEF/entities-service/pull/131) ([CasperWA](https://github.com/CasperWA))
+- Only deploy service to onto-ns.com if relevant changes detected [\#124](https://github.com/SINTEF/entities-service/pull/124) ([CasperWA](https://github.com/CasperWA))
+
+## [v0.4.0](https://github.com/SINTEF/entities-service/tree/v0.4.0) (2024-04-23)
 
 [Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.3.0...v0.4.0)
 
@@ -28,6 +60,7 @@ Furthermore, a new `--auto-confirm/-y` option has been added to the `upload` com
 
 **Implemented enhancements:**
 
+- ✨ Add an option to the `upload` command to auto-confirm the summary [\#119](https://github.com/SINTEF/entities-service/issues/119)
 - ✨ Add a new `validate` command [\#118](https://github.com/SINTEF/entities-service/issues/118)
 
 **Merged pull requests:**

@@ -172,7 +172,7 @@ Here is an example of how to add the `validate-entities` pre-commit hook to your
 repos:
 # ...
 - repo: https://github.com/SINTEF/entities-service
-  rev: v0.4.0
+  rev: v0.5.0
   hooks:
   - id: validate-entities
     additional_dependencies: [".[cli]"]
