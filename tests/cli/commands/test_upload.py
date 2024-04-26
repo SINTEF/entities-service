@@ -920,3 +920,94 @@ def test_using_stdin(
     assert (
         result.stdout.count("No") == number_of_valid_entities
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+
+@pytest.mark.usefixtures("_mock_successful_oauth_response")
+@pytest.mark.parametrize("fail_fast", [True, False], ids=["fail-fast", "no-fail-fast"])
+def test_upload_strict(
+    cli: CliRunner,
+    static_dir: Path,
+    httpx_mock: HTTPXMock,
+    fail_fast: bool,
+) -> None:
+    """Test the `strict` flag."""
+    import json
+
+    from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
+
+    valid_entity = static_dir / "valid_entities" / "Person.json"
+    raw_entity: dict[str, Any] = json.loads(valid_entity.read_bytes())
+
+    # Change the entity's content to make it different from the file
+    assert "dimensions" in raw_entity
+    assert isinstance(raw_entity["dimensions"], dict)
+    assert "n_skills" in raw_entity["dimensions"]
+
+    new_n_skills_description = "Skill number."
+    assert raw_entity["dimensions"]["n_skills"] != new_n_skills_description
+
+    changed_entity = raw_entity.copy()
+    changed_entity["dimensions"]["n_skills"] = new_n_skills_description
+
+    # Mock a good login check
+    httpx_mock.add_response(
+        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+        status_code=204,
+        match_json=[],
+    )
+
+    # Mock response for "Check if entity already exists"
+    assert changed_entity["uri"] is not None
+    httpx_mock.add_response(
+        url=changed_entity["uri"],
+        status_code=200,  # ok
+        json=changed_entity,
+    )
+
+    result = cli.invoke(
+        APP,
+        f"upload --strict {'--fail-fast ' if fail_fast else ''}{valid_entity}",
+    )
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "already exists externally and differs in its contents." in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert (
+        "No entities were uploaded." not in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+    if fail_fast:
+        assert (
+            "Failed to validate one or more entities. See above for more details."
+            not in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        assert "Valid Entities" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+    else:
+        assert (
+            "Failed to validate one or more entities. See above for more details."
+            in result.stderr
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        assert "Valid Entities" in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+            stdout=result.stdout, stderr=result.stderr
+        )
+
+        assert (
+            result.stdout.replace(" ", "")
+            .replace("\n", "")
+            .count("No(errorinstrict-mode)")
+            == 1
+        ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+    assert "Detailed diferences" not in (
+        result.stderr if fail_fast else result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert "Use the option '--verbose'" not in (
+        result.stderr if fail_fast else result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
