@@ -54,8 +54,21 @@ def test_get_entity(
     if "identity" in expected_entity:
         expected_entity["uri"] = expected_entity.pop("identity")
 
+    # Assert necessary keys are present:
+    #   uri OR namespace, version, name MUST be present
+    #   dimensions and properties MUST be present
+    #   properties MUST NOT be empty
+    assert "uri" in retrieved_entity or all(
+        _ in retrieved_entity for _ in ("namespace", "version", "name")
+    )
+    assert "dimensions" in retrieved_entity
+    assert "properties" in retrieved_entity
+    assert retrieved_entity["properties"]
+
     for key, value in retrieved_entity.items():
-        assert key in expected_entity, retrieved_entity
+        if key != "dimensions":
+            # Dimensions may have been added as an empty list or dict by the service
+            assert key in expected_entity, retrieved_entity
 
         if key == "uri":
             assert value == (
@@ -64,6 +77,9 @@ def test_get_entity(
             ), f"key: {key}"
         elif key == "namespace":
             assert value == current_namespace, f"key: {key}"
+        elif key == "dimensions":
+            assert isinstance(value, (list, dict)), f"key: {key}"
+            assert value == expected_entity.get(key, value), f"key: {key}"
         else:
             assert value == expected_entity[key], f"key: {key}"
 
@@ -102,7 +118,7 @@ def test_get_entity_instance(
         else:
             assert response_json["uri"] == parameterized_entity.entity["identity"]
 
-    # Ensure an empty dimension is always returned
+    # Ensure at least an empty dimension is always returned
     if (
         "dimensions" not in parameterized_entity.entity
         or not parameterized_entity.entity["dimensions"]

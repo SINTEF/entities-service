@@ -19,6 +19,7 @@ from entities_service.models import URI_REGEX, Entity, get_uri
 from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.security import verify_token
+from entities_service.service.utils import _add_dimensions
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -128,6 +129,9 @@ async def create_entities(
             )
         ):
             raise write_fail_exception
+
+        # Ensure the returned entities have the dimensions key
+        await _add_dimensions(created_namespaced_entities)
 
         if isinstance(created_namespaced_entities, dict):
             created_entities.append(created_namespaced_entities)
