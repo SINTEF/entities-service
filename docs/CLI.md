@@ -11,7 +11,7 @@ $ entities-service [OPTIONS] COMMAND [ARGS]...
 **Options**:
 
 * `--version`: Show version and exit.
-* `--dotenv-config FILE`: Use the .env file at the given location for the current command. By default it will point to the .env file in the current directory.  [default: /home/cwa/venv/entities-service/entities-service/.env]
+* `--dotenv-config FILE`: Use the .env file at the given location for the current command. By default it will point to the .env file in the current directory.  [default: .env]
 * `--install-completion`: Install completion for the current shell.
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
 * `--help`: Show this message and exit.
@@ -36,7 +36,7 @@ $ entities-service config [OPTIONS] COMMAND [ARGS]...
 **Options**:
 
 * `--version`: Show version and exit.
-* `--dotenv-config FILE`: Use the .env file at the given location for the current command. By default it will point to the .env file in the current directory.  [default: /home/cwa/venv/entities-service/entities-service/.env]
+* `--dotenv-config FILE`: Use the .env file at the given location for the current command. By default it will point to the .env file in the current directory.  [default: .env]
 * `--help`: Show this message and exit.
 
 **Commands**:
