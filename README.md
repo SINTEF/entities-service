@@ -154,6 +154,8 @@ To see the available commands and options, run:
 entities-service --help
 ```
 
+A complete list of commands and options can be found in the [CLI documentation](docs/CLI.md).
+
 ## pre-commit hook `validate-entities`
 
 The `validate-entities` [pre-commit](https://pre-commit.com) hook runs the CLI command `entities-service validate` on all files that are about to be committed.
