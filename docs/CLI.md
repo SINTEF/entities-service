@@ -21,6 +21,7 @@ $ entities-service [OPTIONS] COMMAND [ARGS]...
 * `config`: Manage configuration options.
 * `login`: Login to the entities service.
 * `upload`: Upload (local) entities to a remote location.
+* `validate`: Validate (local) entities.
 
 ## `entities-service config`
 
@@ -133,14 +134,42 @@ Upload (local) entities to a remote location.
 **Usage**:
 
 ```console
-$ entities-service upload [OPTIONS]
+$ entities-service upload [OPTIONS] [SOURCE]...
 ```
+
+**Arguments**:
+
+* `[SOURCE]...`: Path to file or directory with one or more entities.
 
 **Options**:
 
-* `-f, --file FILE`: Path to file with one or more entities.
-* `-d, --dir DIRECTORY`: Path to directory with files that include one or more entities. All files matching the given format(s) in the directory will be uploaded. Subdirectories will be ignored. This option can be provided multiple times, e.g., to include multiple subdirectories.
 * `--format [json|yaml|yml]`: Format of entity file(s).  [default: json]
 * `--fail-fast`: Stop uploading entities on the first error during file validation.
-* `-q, -s, -y, --quiet, --silent`: Do not print anything on success and do not ask for confirmation. IMPORTANT, for content conflicts the defaults will be chosen.
+* `-q, -s, --quiet, --silent`: Do not print anything on success and do not ask for confirmation. IMPORTANT, for content conflicts the defaults will be chosen.
+* `-y, --auto-confirm`: Automatically agree to any confirmations and use defaults for content conflicts. This differs from --quiet in that it will still print information.
+* `--strict`: Strict validation of entities. This means the command will fail during the validation process, if an external entity already exists and the two entities are not equal. This option is only relevant if '--no-external-calls' is not provided. If both '--no-external-calls' and this options is provided, an error will be emitted.
+* `--help`: Show this message and exit.
+
+## `entities-service validate`
+
+Validate (local) entities.
+
+**Usage**:
+
+```console
+$ entities-service validate [OPTIONS] [SOURCE]...
+```
+
+**Arguments**:
+
+* `[SOURCE]...`: Path to file or directory with one or more entities.
+
+**Options**:
+
+* `--format [json|yaml|yml]`: Format of entity file(s).  [default: json]
+* `--fail-fast`: Stop validating entities on the first discovered error.
+* `-q, -s, -y, --quiet, --silent`: Do not print anything on success.
+* `--no-external-calls`: Do not make any external calls to validate the entities. This includes mainly comparing local entities with their remote counterparts.
+* `-v, --verbose`: Print the differences between the external and local entities (if any).
+* `--strict`: Strict validation of entities. This means validation will fail if an external entity already exists and the two entities are not equal. This option is only relevant if '--no-external-calls' is not provided. If both '--no-external-calls' and this options is provided, an error will be emitted.
 * `--help`: Show this message and exit.
