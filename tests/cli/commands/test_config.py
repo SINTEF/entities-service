@@ -12,13 +12,15 @@ if TYPE_CHECKING:
     from typer import Typer
     from typer.testing import CliRunner
 
+pytestmark = pytest.mark.usefixtures("_mock_config_base_url")
+
 
 @pytest.fixture()
 def _prefill_dotenv_config(dotenv_file: Path) -> None:
     """'Pre'-fill the monkeypatched dotenv config paths."""
     from dotenv import set_key
 
-    from entities_service.cli.config import ConfigFields
+    from entities_service.cli.commands.config import ConfigFields
     from entities_service.service.config import CONFIG
 
     env_prefix = CONFIG.model_config["env_prefix"]
@@ -32,7 +34,7 @@ def _prefill_dotenv_config(dotenv_file: Path) -> None:
 
 def test_config(cli: CliRunner) -> None:
     """Test `entities-service config` CLI command."""
-    from entities_service.cli.config import APP
+    from entities_service.cli.commands.config import APP
 
     result = cli.invoke(APP)
     assert result.exit_code == 0, result.stderr
@@ -49,7 +51,7 @@ def test_set(
     dotenv_file: Path,
 ) -> None:
     """Test `entities-service config set` CLI command."""
-    from entities_service.cli.config import ConfigFields
+    from entities_service.cli.commands.config import ConfigFields
     from entities_service.service.config import CONFIG
 
     env_prefix = CONFIG.model_config["env_prefix"]
@@ -94,7 +96,7 @@ def test_unset(
     """Test `entities-service config unset` CLI command."""
     from dotenv import dotenv_values
 
-    from entities_service.cli.config import ConfigFields
+    from entities_service.cli.commands.config import ConfigFields
     from entities_service.service.config import CONFIG
 
     env_prefix = CONFIG.model_config["env_prefix"]
@@ -164,7 +166,7 @@ def test_show(
     """Test `entities-service config show` CLI command."""
     from dotenv import dotenv_values
 
-    from entities_service.cli.config import ConfigFields
+    from entities_service.cli.commands.config import ConfigFields
     from entities_service.service.config import CONFIG
 
     assert dotenv_file.exists()
@@ -213,7 +215,7 @@ def test_show_file_not_exist(
 
 def test_configfields_autocompletion() -> None:
     """Test the ConfigFields.autocomplete() method."""
-    from entities_service.cli.config import ConfigFields
+    from entities_service.cli.commands.config import ConfigFields
     from entities_service.service.config import CONFIG
 
     test_values = {

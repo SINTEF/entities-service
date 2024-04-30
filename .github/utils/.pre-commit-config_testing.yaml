@@ -1,0 +1,57 @@
+# Template file to generate pre-commit-hooks.yaml files from to test in the CI
+
+repos:
+  - repo: .
+    rev: HEAD
+    hooks:
+    - id: validate-entities
+      alias: default
+      files: 'tests/static/valid_entities.yaml'
+      args:
+      - --no-external-calls
+      language_version: SET_PYTHON_VERSION
+      verbose: true
+      additional_dependencies: ['.[cli]']
+    - id: validate-entities
+      alias: invalid-entities
+      files: 'tests/static/invalid_entities/.*\.json$'
+      args:
+      - --no-external-calls
+      language_version: SET_PYTHON_VERSION
+      verbose: true
+      additional_dependencies: ['.[cli]']
+    - id: validate-entities
+      alias: mixed-validity
+      files: 'tests/static/(invalid_entities/)?.*\.(json|yaml|yml)$'
+      args:
+      - --no-external-calls
+      language_version: SET_PYTHON_VERSION
+      verbose: true
+      additional_dependencies: ['.[cli]']
+    - id: validate-entities
+      alias: quiet
+      files: 'tests/static/valid_entities.yaml'
+      args:
+      - --no-external-calls
+      - --quiet
+      language_version: SET_PYTHON_VERSION
+      verbose: true
+      additional_dependencies: ['.[cli]']
+    - id: validate-entities
+      alias: quiet-mixed-validity
+      files: 'tests/static/(invalid_entities/)?.*\.(json|yaml|yml)$'
+      args:
+      - --no-external-calls
+      - --quiet
+      language_version: SET_PYTHON_VERSION
+      verbose: true
+      additional_dependencies: ['.[cli]']
+    - id: validate-entities
+      alias: fail-fast
+      files: 'tests/static/invalid_entities/.*\.json$'
+      args:
+      - --no-external-calls
+      - --fail-fast
+      language_version: SET_PYTHON_VERSION
+      verbose: true
+      additional_dependencies: ['.[cli]']

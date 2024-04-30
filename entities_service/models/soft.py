@@ -97,7 +97,7 @@ def _ensure_url_encodeable(value: str) -> str:
     """Ensure that the value is URL encodeable."""
     try:
         quote(value)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         raise ValueError(f"The value is not URL encodeable: {error}") from error
     return value
 
@@ -184,7 +184,7 @@ class SOFTEntity(BaseModel):
         """Validate all parts of the `uri`."""
         try:
             uri_deconstructed = URI_REGEX.match(str(value))
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             error_message = f"The URI is invalid: {error}\n"
             raise ValueError(error_message) from error
 

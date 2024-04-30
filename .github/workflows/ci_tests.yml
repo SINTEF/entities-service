@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
@@ -185,7 +185,7 @@ jobs:
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
@@ -194,3 +194,81 @@ jobs:
         env:
           OS: ubuntu-latest
           PYTHON: ${{ matrix.python_version }}
+
+  pre-commit-hooks:
+    name: Run custom pre-commit hooks
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+        os: ["ubuntu-latest", "windows-latest"]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install -U pip
+        pip install -U setuptools wheel
+        pip install pre-commit
+
+    - name: Update pre-commit config file with Python version
+      run: sed -i "s/SET_PYTHON_VERSION/python${{ matrix.python-version }}/g" .github/utils/.pre-commit-config_testing.yaml
+
+    # Note, shell defaults to bash in ubuntu and pwsh in windows
+
+    - name: Run validate-entities
+      run: python .github/utils/run_pre-commit_hooks.py default
+
+    - name: Run invalid-entities
+      run: python .github/utils/run_pre-commit_hooks.py invalid-entities
+
+    - name: Run mixed-validity
+      run: python .github/utils/run_pre-commit_hooks.py mixed-validity
+
+    - name: Run quiet
+      run: python .github/utils/run_pre-commit_hooks.py quiet
+
+    - name: Run quiet-mixed-validity
+      run: python .github/utils/run_pre-commit_hooks.py quiet-mixed-validity
+
+    - name: Run fail-fast
+      run: python .github/utils/run_pre-commit_hooks.py fail-fast
+
+    - name: Run validate-entities (cmd)
+      if: runner.os == 'Windows'
+      run: python .github/utils/run_pre-commit_hooks.py default
+      shell: cmd
+
+    - name: Run invalid-entities (cmd)
+      if: runner.os == 'Windows'
+      run: python .github/utils/run_pre-commit_hooks.py invalid-entities
+      shell: cmd
+
+    - name: Run mixed-validity (cmd)
+      if: runner.os == 'Windows'
+      run: python .github/utils/run_pre-commit_hooks.py mixed-validity
+      shell: cmd
+
+    - name: Run quiet (cmd)
+      if: runner.os == 'Windows'
+      run: python .github/utils/run_pre-commit_hooks.py quiet
+      shell: cmd
+
+    - name: Run quiet-mixed-validity (cmd)
+      if: runner.os == 'Windows'
+      run: python .github/utils/run_pre-commit_hooks.py quiet-mixed-validity
+      shell: cmd
+
+    - name: Run fail-fast (cmd)
+      if: runner.os == 'Windows'
+      run: python .github/utils/run_pre-commit_hooks.py fail-fast
+      shell: cmd
