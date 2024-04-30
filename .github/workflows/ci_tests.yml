@@ -302,13 +302,7 @@ jobs:
         run: |
           # Build the CLI documentation
           # Run it twice, since the first run may create a doc only for the `config` sub-typer app.
-          typer entities_service.cli.main utils docs --output docs/CLI.md
-          typer entities_service.cli.main utils docs --output docs/CLI.md
+          typer entities_service.cli.main utils docs --output /tmp/CLI.md
+          typer entities_service.cli.main utils docs --output /tmp/CLI.md
 
-          if [ "${{ github.event_name}}" == "pull_request" ]; then
-            BEFORE_SHA=${{ github.event.pull_request.base.sha }}
-          else
-            BEFORE_SHA=${{ github.event.before }}
-          fi
-
-          git diff --exit-code ${BEFORE_SHA} docs/CLI.md
+          diff /tmp/CLI.md docs/CLI.md
