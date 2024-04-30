@@ -17,7 +17,6 @@ jobs:
 
       # pre-commit
       python_version_pre-commit: "3.10"
-      # skip_pre-commit_hooks: "build-cli-docs"
 
       # pylint & safety
       python_version_pylint_safety: "3.10"
