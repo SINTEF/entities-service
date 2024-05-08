@@ -1,5 +1,39 @@
 # Changelog
 
+## [Unreleased](https://github.com/SINTEF/entities-service/tree/HEAD)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.6.0...HEAD)
+
+# Support `identity` and ensure `dimensions` is present
+
+`identity` is now allowed as an alias for `uri`. This is in accord with regular SOFT schemas.
+
+The `dimensions` key is now always returned when retrieving an entity, even if empty. This is done mainly to support DLite usage, since DLite cannot handle entities that do not explicitly define the `dimensions` key, even though it may be empty.
+
+# pre-commit.ci
+
+The DX has been optimized by using [pre-commit.ci](https://pre-commit.ci) for running pre-commit hooks on a PR as well as autoupgrading the hooks weekly as part of the repository's CI/CD.
+
+## [v0.6.0](https://github.com/SINTEF/entities-service/tree/v0.6.0) (2024-05-08)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.5.0...v0.6.0)
+
+# Support `identity` and ensure `dimensions` is present
+
+`identity` is now allowed as an alias for `uri`. This is in accord with regular SOFT schemas.
+
+The `dimensions` key is now always returned when retrieving an entity, even if empty. This is done mainly to support DLite usage, since DLite cannot handle entities that do not explicitly define the `dimensions` key, even though it may be empty.
+
+# pre-commit.ci
+
+The DX has been optimized by using [pre-commit.ci](https://pre-commit.ci) for running pre-commit hooks on a PR as well as autoupgrading the hooks weekly as part of the repository's CI/CD.
+
+**Merged pull requests:**
+
+- \[pre-commit.ci\] pre-commit autoupdate [\#144](https://github.com/SINTEF/entities-service/pull/144) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#141](https://github.com/SINTEF/entities-service/pull/141) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- Allow `identity`, ensure `dimensions` is returned, & use pre-commit.ci [\#103](https://github.com/SINTEF/entities-service/pull/103) ([CasperWA](https://github.com/CasperWA))
+
 ## [v0.5.0](https://github.com/SINTEF/entities-service/tree/v0.5.0) (2024-04-26)
 
 [Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.4.0...v0.5.0)
