@@ -50,8 +50,10 @@ def test_create_single_entity(
         # Update namespace in entity
         if "namespace" in entity:
             entity["namespace"] = current_namespace
-        if "uri" in entity:
-            entity["uri"] = entity["uri"].replace(core_namespace, current_namespace)
+
+        id_key = "uri" if "uri" in entity else "identity"
+        if id_key in entity:
+            entity[id_key] = entity[id_key].replace(core_namespace, current_namespace)
 
     # Create single entity
     with client(auth_role="write") as client_:
@@ -62,6 +64,20 @@ def test_create_single_entity(
         )
 
     response_json = response.json()
+
+    # Update entity according to the expected response
+    if "identity" in entity:
+        entity["uri"] = entity.pop("identity")
+
+    if "dimensions" not in entity:
+        # SOFT5
+        if isinstance(entity["properties"], list):
+            entity["dimensions"] = []
+        # SOFT7
+        elif isinstance(entity["properties"], dict):
+            entity["dimensions"] = {}
+        else:
+            pytest.fail(f"Invalid entity: {entity}")
 
     # Check response
     assert response.status_code == 201, response_json
@@ -78,6 +94,8 @@ def test_create_multiple_entities(
     get_backend_user: GetBackendUserFixture,
 ) -> None:
     """Test creating multiple entities."""
+    from copy import deepcopy
+
     import yaml
 
     from entities_service.service.backend import get_backend
@@ -95,11 +113,15 @@ def test_create_multiple_entities(
     # Add specific namespace entities
     core_namespace = str(CONFIG.base_url).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
+
     for entity in list(entities):
+        id_key = "uri" if "uri" in entity else "identity"
+        if id_key in entity:
+            entity[id_key] = entity[id_key].replace(core_namespace, specific_namespace)
+
         if "namespace" in entity:
             entity["namespace"] = specific_namespace
-        if "uri" in entity:
-            entity["uri"] = entity["uri"].replace(core_namespace, specific_namespace)
+
         entities.append(entity)
 
     # Create multiple entities
@@ -112,14 +134,53 @@ def test_create_multiple_entities(
 
     response_json = response.json()
 
+    # Update entities according to the expected response
+    expected_response_entities = []
+    expected_backend_entities = []
+
+    for entity in entities:
+        new_response_entity = deepcopy(entity)
+        new_backend_entity = deepcopy(entity)
+
+        if "identity" in entity:
+            new_response_entity["uri"] = new_response_entity.pop("identity")
+            new_backend_entity["uri"] = new_backend_entity.pop("identity")
+
+        # SOFT5 style
+        if isinstance(entity["properties"], list):
+            if "dimensions" not in entity:
+                new_response_entity["dimensions"] = []
+
+            new_backend_entity["properties"] = [
+                {key.replace("$ref", "ref"): value for key, value in property_.items()}
+                for property_ in entity["properties"]
+            ]
+
+        # SOFT7
+        elif isinstance(entity["properties"], dict):
+            if "dimensions" not in entity:
+                new_response_entity["dimensions"] = {}
+
+            for property_name, property_value in list(entity["properties"].items()):
+                new_backend_entity["properties"][property_name] = {
+                    key.replace("$ref", "ref"): value
+                    for key, value in property_value.items()
+                }
+
+        else:
+            pytest.fail(f"Invalid entity: {entity}")
+
+        expected_response_entities.append(new_response_entity)
+        expected_backend_entities.append(new_backend_entity)
+
     # Check response
     assert response.status_code == 201, response_json
     assert isinstance(response_json, list), response_json
-    assert response_json == entities, response_json
+    assert response_json == expected_response_entities, response_json
     assert len(response_json) == 2 * original_length, response_json
 
     # Check they can be retrieved
-    for entity in entities:
+    for entity in expected_response_entities:
         uri = entity.get("uri", None) or (
             f"{entity.get('namespace', '')}/{entity.get('version', '')}"
             f"/{entity.get('name', '')}"
@@ -149,28 +210,11 @@ def test_create_multiple_entities(
         },
         db=existing_specific_namespace,
     )
-    for entity in entities:
+    for entity in expected_backend_entities:
         uri = entity.get("uri", None) or (
             f"{entity.get('namespace', '')}/{entity.get('version', '')}"
             f"/{entity.get('name', '')}"
         )
-
-        # Match the entity with how they are stored in the backend (MongoDB)
-        # SOFT5 style
-        if isinstance(entity.get("properties", None), list):
-            entity["properties"] = [
-                {key.replace("$ref", "ref"): value for key, value in property_.items()}
-                for property_ in entity["properties"]
-            ]
-        # SOFT7 style
-        elif isinstance(entity.get("properties", None), dict):
-            for property_name, property_value in list(entity["properties"].items()):
-                entity["properties"][property_name] = {
-                    key.replace("$ref", "ref"): value
-                    for key, value in property_value.items()
-                }
-        else:
-            pytest.fail("Invalid entity: {entity}")
 
         if uri.startswith(specific_namespace):
             assert specific_backend.read(uri) == entity, (
@@ -252,7 +296,7 @@ def test_create_invalid_entity(
 
     # Create single invalid entities
     for entity in entities:
-        uri = entity.get("uri", None) or (
+        uri = entity.get("uri", entity.get("identity", None)) or (
             f"{entity.get('namespace', '')}/{entity.get('version', '')}"
             f"/{entity.get('name', '')}"
         )
@@ -352,7 +396,7 @@ def test_backend_write_error_exception(
     assert "detail" in response_json, response_json
     assert response_json["detail"] == (
         "Could not create entities with uris: "
-        f"{', '.join(entity['uri'] for entity in entities)}"
+        f"{', '.join(entity.get('uri', entity.get('identity')) for entity in entities)}"
     ), response_json
 
 
@@ -434,8 +478,26 @@ def test_create_entity_in_new_namespace(
     # Update namespace in entity
     if "namespace" in entity:
         entity["namespace"] = current_namespace
-    if "uri" in entity:
-        entity["uri"] = entity["uri"].replace(core_namespace, current_namespace)
+
+    id_key = "uri" if "uri" in entity else "identity"
+    if id_key in entity:
+        entity[id_key] = entity[id_key].replace(core_namespace, current_namespace)
+
+    # Create expected entity
+    expected_entity = deepcopy(entity)
+
+    if "identity" in expected_entity:
+        expected_entity["uri"] = expected_entity.pop("identity")
+
+    if "dimensions" not in expected_entity:
+        # SOFT5
+        if isinstance(expected_entity["properties"], list):
+            expected_entity["dimensions"] = []
+        # SOFT7
+        elif isinstance(expected_entity["properties"], dict):
+            expected_entity["dimensions"] = {}
+        else:
+            pytest.fail(f"Invalid entity: {expected_entity}")
 
     # Ensure the backend does not exist
     backend_user = get_backend_user()
@@ -463,7 +525,7 @@ def test_create_entity_in_new_namespace(
     # Check response
     assert response.status_code == 201, response_json
     assert isinstance(response_json, dict), response_json
-    assert response_json == entity, response_json
+    assert response_json == expected_entity, response_json
 
     # Check backend
     current_collections = new_backend._collection.database.list_collection_names()

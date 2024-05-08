@@ -19,6 +19,7 @@ from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.logger import setup_logger
 from entities_service.service.routers import get_routers
+from entities_service.service.utils import _get_entity
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -57,23 +58,6 @@ APP = FastAPI(
 # Add routers
 for router in get_routers():
     APP.include_router(router)
-
-
-async def _get_entity(version: str, name: str, db: str | None = None) -> dict[str, Any]:
-    """Utility function for the endpoints to retrieve an entity."""
-    uri = f"{str(CONFIG.base_url).rstrip('/')}"
-
-    if db:
-        uri += f"/{db}"
-
-    uri += f"/{version}/{name}"
-
-    entity = get_backend(db=db).read(uri)
-
-    if entity is None:
-        raise ValueError(f"Could not find entity: uri={uri}")
-
-    return entity
 
 
 @APP.get(

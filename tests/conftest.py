@@ -217,7 +217,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     for entity in entities:
         name: str | None = entity.get("name")
         if name is None:
-            uri: str | None = entity.get("uri")
+            uri: str | None = entity.get("uri", entity.get("identity"))
             if uri is None:
                 raise ValueError(
                     "Could not retrieve neither uri and name from test entity."
@@ -326,13 +326,14 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
     from entities_service.service.config import CONFIG
 
-    def get_version_name(uri: str) -> tuple[str, str]:
+    def get_uri_parts(uri: str) -> tuple[str, str]:
         """Return the version and name part of a uri."""
         # namespace = "http://onto-ns.com/meta"
         namespace = str(CONFIG.base_url).rstrip("/")
 
         match = re.match(
-            rf"^{re.escape(namespace)}/(?P<version>[^/]+)/(?P<name>[^/]+)$", uri
+            rf"^{re.escape(namespace)}/(?P<version>[^/]+)/(?P<name>[^/]+)$",
+            uri,
         )
         assert match is not None, (
             f"Could not retrieve version and name from {uri!r}. "
@@ -341,7 +342,10 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
             "Hint: Did you (inadvertently) set the base_url to something?"
         )
 
-        return match.group("version") or "", match.group("name") or ""
+        return (
+            match.group("version") or "",
+            match.group("name") or "",
+        )
 
     def get_uri(entity: dict[str, Any]) -> str:
         """Return the uri for an entity."""
@@ -364,13 +368,22 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     )
 
     for entity in entities:
-        uri = entity.get("uri") or get_uri(entity)
+        uri = entity.get("uri", entity.get("identity")) or get_uri(entity)
 
-        version, name = get_version_name(uri)
+        version, name = get_uri_parts(uri)
 
-        # Replace $ref with ref
         backend_entity = deepcopy(entity)
 
+        # Replace 'identity' with 'uri'
+        if "identity" in backend_entity:
+            if "uri" in backend_entity:
+                raise ValueError(
+                    "Both 'identity' and 'uri' keys are present in the test entity. "
+                    "Please remove one of them."
+                )
+            backend_entity["uri"] = backend_entity.pop("identity")
+
+        # Replace '$ref' with 'ref'
         # SOFT5
         if isinstance(backend_entity["properties"], list):
             backend_entity["properties"] = [
@@ -557,11 +570,11 @@ def _reset_mongo_test_collections(
 
     # First, prepare the test data
 
-    # Convert all '$ref' to 'ref' in the valid_entities.yaml file
     entities: list[dict[str, Any]] = yaml.safe_load(
         (static_dir / "valid_entities.yaml").read_text()
     )
     for entity in entities:
+        ## Convert all '$ref' to 'ref' in the valid_entities.yaml file
         # SOFT5
         if isinstance(entity["properties"], list):
             for index, property_value in enumerate(list(entity["properties"])):
@@ -581,16 +594,23 @@ def _reset_mongo_test_collections(
                 f"Invalid type for entity['properties']: {type(entity['properties'])}"
             )
 
+        ## Convert all "identity" to "uri"
+        if "identity" in entity:
+            entity["uri"] = entity.pop("identity")
+
     # For the specific namespace collection, rename all uris (and namespaces) to be
-    # within the specific namespace
+    # within the specific namespace.
+    specific_namespaced_entities = deepcopy(entities)
     core_namespace = str(CONFIG.base_url).rstrip("/")
-    specific_namespace_entities = deepcopy(entities)
-    for entity in specific_namespace_entities:
+
+    for entity in specific_namespaced_entities:
         if "uri" in entity:
+            # Ensure the backend uses `uri` instead of `identity`
             entity["uri"] = entity["uri"].replace(
                 core_namespace,
                 f"{core_namespace}/{existing_specific_namespace}",
             )
+
         if "namespace" in entity:
             entity["namespace"] = f"{core_namespace}/{existing_specific_namespace}"
 
@@ -608,9 +628,7 @@ def _reset_mongo_test_collections(
         )
         backend._collection.drop()
         backend._collection.insert_many(
-            specific_namespace_entities
-            if namespace == existing_specific_namespace
-            else entities
+            entities if namespace is None else specific_namespaced_entities
         )
 
 
@@ -628,22 +646,26 @@ def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture()
 def _empty_backend_collection(
-    live_backend: bool, get_backend_user: GetBackendUserFixture
+    get_backend_user: GetBackendUserFixture,
+    existing_specific_namespace: str,
 ) -> None:
     """Empty the backend collection."""
     from entities_service.service.backend import get_backend
 
-    backend_settings = {}
-    if live_backend:
-        backend_user = get_backend_user("write")
-        backend_settings = {
-            "mongo_username": backend_user["username"],
-            "mongo_password": backend_user["password"],
-        }
+    backend_user = get_backend_user("write")
 
-    backend: MongoDBBackend = get_backend(settings=backend_settings)
-    backend._collection.delete_many({})
-    assert backend._collection.count_documents({}) == 0
+    # None is equal to the core namespace
+    for namespace in (None, existing_specific_namespace):
+        backend: MongoDBBackend = get_backend(
+            auth_level="write",
+            settings={
+                "mongo_username": backend_user["username"],
+                "mongo_password": backend_user["password"],
+            },
+            db=namespace,
+        )
+        backend._collection.delete_many({})
+        assert backend._collection.count_documents({}) == 0
 
 
 @pytest.fixture()
