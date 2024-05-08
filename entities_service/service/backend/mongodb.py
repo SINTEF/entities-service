@@ -419,7 +419,7 @@ class MongoDBBackend(Backend):
     def _prepare_entity(self, entity: Entity | dict[str, Any]) -> dict[str, Any]:
         """Clean and prepare the entity for interactions with the MongoDB backend."""
         if isinstance(entity, dict):
-            uri = entity.get("uri", None) or (
+            uri = entity.get("uri", entity.get("identity", None)) or (
                 f"{entity.get('namespace', '')}/{entity.get('version', '')}"
                 f"/{entity.get('name', '')}"
             )

@@ -174,6 +174,7 @@ class SOFTEntity(BaseModel):
                 "The universal identifier for the entity. This MUST start with the base"
                 " URL."
             ),
+            validation_alias=AliasChoices("identity", "uri"),
         ),
     ] = None
     description: Annotated[str, Field(description="Description of the entity.")] = ""
@@ -244,7 +245,7 @@ class SOFTEntity(BaseModel):
         if (
             isinstance(data, dict)
             and any(data.get(_) is None for _ in ("name", "version", "namespace"))
-            and data.get("uri") is None
+            and data.get("uri", data.get("identity")) is None
         ):
             error_message = (
                 "Either `name`, `version`, and `namespace` or `uri` must be set.\n"
@@ -254,13 +255,14 @@ class SOFTEntity(BaseModel):
         if (
             isinstance(data, dict)
             and all(data.get(_) is not None for _ in ("name", "version", "namespace"))
-            and data.get("uri") is not None
-            and data["uri"] != f"{data['namespace']}/{data['version']}/{data['name']}"
+            and data.get("uri", data.get("identity")) is not None
+            and data.get("uri", data.get("identity", ""))
+            != f"{data['namespace']}/{data['version']}/{data['name']}"
         ):
             # Ensure that `uri` is consistent with `name`, `version`, and `namespace`.
             diff = "\n  ".join(
                 difflib.ndiff(
-                    [data["uri"]],
+                    [data.get("uri", data.get("identity", ""))],
                     [f"{data['namespace']}/{data['version']}/{data['name']}"],
                 )
             )
@@ -269,4 +271,5 @@ class SOFTEntity(BaseModel):
                 f"`namespace`:\n\n  {diff}\n\n"
             )
             raise ValueError(error_message)
+
         return data

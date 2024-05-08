@@ -60,7 +60,11 @@ def test_upload_filepath(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
 
-    assert "uri" in raw_entity
+    id_key = "uri" if "uri" in raw_entity else "identity"
+    assert id_key in raw_entity
+
+    # Match raw_entity to a backend entity (always use 'uri')
+    raw_entity["uri"] = raw_entity.pop(id_key)
 
     if namespace:
         # Update the entity's namespace to the current namespace
@@ -82,7 +86,7 @@ def test_upload_filepath(
 
     # Mock response for "Check if entity already exists"
     httpx_mock.add_response(
-        url=raw_entity["uri"],
+        url=raw_entity[id_key],
         status_code=404,  # not found
     )
 
@@ -176,11 +180,13 @@ def test_upload_directory(
         directory = tmp_path / "valid_entities"
         directory.mkdir(parents=True, exist_ok=True)
         for index, raw_entity in enumerate(raw_entities):
+            id_key = "uri" if "uri" in raw_entity else "identity"
+
             # Update the entity's namespace to the current namespace
             if "namespace" in raw_entity:
                 raw_entity["namespace"] = current_namespace
-            if "uri" in raw_entity:
-                raw_entity["uri"] = raw_entity["uri"].replace(
+            if id_key in raw_entity:
+                raw_entity[id_key] = raw_entity[id_key].replace(
                     f"{core_namespace}/", f"{current_namespace}/"
                 )
 
@@ -196,9 +202,9 @@ def test_upload_directory(
 
     # Mock response for "Check if entity already exists"
     for raw_entity in raw_entities:
-        assert "uri" in raw_entity
+        assert any(_ in raw_entity for _ in ("uri", "identity"))
         httpx_mock.add_response(
-            url=raw_entity["uri"],
+            url=raw_entity.get("uri", raw_entity.get("identity")),
             status_code=404,  # not found
         )
 
@@ -322,14 +328,16 @@ def test_existing_entity_different_content(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
 
+    assert "uri" in raw_entity
+
     if namespace:
         # Update the entity's namespace to the current namespace
         if "namespace" in raw_entity:
             raw_entity["namespace"] = current_namespace
-        if "uri" in raw_entity:
-            raw_entity["uri"] = raw_entity["uri"].replace(
-                f"{core_namespace}/", f"{current_namespace}/"
-            )
+
+        raw_entity["uri"] = raw_entity["uri"].replace(
+            f"{core_namespace}/", f"{current_namespace}/"
+        )
 
         # Write the updated entity to file
         directory = tmp_path / "valid_entities"
@@ -345,7 +353,6 @@ def test_existing_entity_different_content(
     )
 
     # Mock response for "Check if entity already exists"
-    assert "uri" in raw_entity
     httpx_mock.add_response(
         url=raw_entity["uri"],
         status_code=200,  # ok
@@ -549,14 +556,16 @@ def test_existing_entity_errors(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     current_namespace = f"{core_namespace}/{namespace}" if namespace else core_namespace
 
+    assert "uri" in raw_entity
+
     if namespace:
         # Update the entity's namespace to the current namespace
         if "namespace" in raw_entity:
             raw_entity["namespace"] = current_namespace
-        if "uri" in raw_entity:
-            raw_entity["uri"] = raw_entity["uri"].replace(
-                f"{core_namespace}/", f"{current_namespace}/"
-            )
+
+        raw_entity["uri"] = raw_entity["uri"].replace(
+            f"{core_namespace}/", f"{current_namespace}/"
+        )
 
         # Write the updated entity to file
         directory = tmp_path / "valid_entities"
@@ -572,7 +581,6 @@ def test_existing_entity_errors(
     )
 
     # Mock response for "Check if entity already exists"
-    assert "uri" in raw_entity
     httpx_mock.add_response(
         url=raw_entity["uri"],
         status_code=200,  # ok
@@ -859,7 +867,9 @@ def test_using_stdin(
 
     valid_entities_dir = static_dir / "valid_entities"
     entity_uris: list[str] = [
-        json.loads(filepath.read_text())["uri"]
+        json.loads(filepath.read_text()).get(
+            "uri", json.loads(filepath.read_text()).get("identity")
+        )
         for filepath in valid_entities_dir.glob("*.json")
     ]
 
