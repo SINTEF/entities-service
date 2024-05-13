@@ -36,6 +36,7 @@ def mongo_backend(get_backend_user: GetBackendUserFixture) -> GetMongoBackend:
                 "mongo_username": backend_user["username"],
                 "mongo_password": backend_user["password"],
             },
+            db=None,
         )
 
     return _mongo_backend
