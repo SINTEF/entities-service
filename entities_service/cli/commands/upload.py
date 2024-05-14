@@ -371,6 +371,8 @@ def upload(
                     f"{name} (v{version})",
                 )
 
+                last_namespace = namespace
+
             print(
                 "",
                 Rule(title="[bold green]Entities to upload[/bold green]"),
