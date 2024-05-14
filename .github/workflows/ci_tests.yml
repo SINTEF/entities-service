@@ -280,8 +280,6 @@ jobs:
     steps:
       - name: Checkout ${{ github.repository }}
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - name: Setup Python 3.10
         uses: actions/setup-python@v5
@@ -304,4 +302,21 @@ jobs:
           typer entities_service.cli.main utils docs --output /tmp/CLI.md
           typer entities_service.cli.main utils docs --output /tmp/CLI.md
 
-          diff /tmp/CLI.md docs/CLI.md
+          diff /tmp/CLI.md docs/CLI.md > /tmp/CLI_diff.md
+
+          ERROR_CODE=$?
+
+          if [ ${ERROR_CODE} -eq 2 ]; then
+            echo "diff encountered an error."
+            exit 2
+          elif [ ${ERROR_CODE} -eq 1 ]; then
+            echo "CLI documentation has changed. Please update the documentation."
+            echo "Diff:"
+            cat /tmp/CLI_diff.md
+            exit 1
+          elif [ ${ERROR_CODE} -eq 0 ]; then
+            echo "CLI documentation is up-to-date."
+          else
+            echo "Unknown error."
+            exit 3
+          fi
