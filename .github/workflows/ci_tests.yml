@@ -299,10 +299,10 @@ jobs:
         run: |
           # Build the CLI documentation
           # Run it twice, since the first run may create a doc only for the `config` sub-typer app.
-          typer entities_service.cli.main utils docs --output /tmp/CLI.md
-          typer entities_service.cli.main utils docs --output /tmp/CLI.md
+          typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
+          typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
 
-          diff /tmp/CLI.md docs/CLI.md > /tmp/CLI_diff.md
+          diff --suppress-common-lines /tmp/CLI.md docs/CLI.md 2>&1 > /tmp/CLI_diff.md && ERROR_CODE=0 || ERROR_CODE=$?
 
           ERROR_CODE=$?
 
