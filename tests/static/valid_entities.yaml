@@ -79,3 +79,17 @@
       shape:
       - n_dogs
       description: The person's dogs.
+
+# Test identity
+- identity: http://onto-ns.com/meta/1.0/Owl
+  description: An owl.
+  properties:
+    specific-species:
+      type: string
+      description: Specific species of owl.
+    age:
+      type: int
+      description: Age of the owl.
+    color:
+      type: string
+      description: Color of the owl.

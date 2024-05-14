@@ -36,11 +36,15 @@ from rich import get_console
 from rich import print as rich_print
 from rich.console import Console
 
+from entities_service.cli._utils.types import StrReversor
+from entities_service.models import URI_REGEX, get_uri
 from entities_service.models.auth import OpenIDConfiguration
 from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TextIO
+
+    from entities_service.models import Entity
 
 
 EXC_MSG_INSTALL_PACKAGE = (
@@ -106,6 +110,31 @@ def pretty_compare_dicts(
             rich.pretty.pretty_repr(dict_first).splitlines(),
             rich.pretty.pretty_repr(dict_second).splitlines(),
         ),
+    )
+
+
+def get_namespace_name_version(entity: Entity | dict[str, Any]) -> tuple[str, str, str]:
+    """Extract the namespace, name, and version from an entity.
+
+    The version is reversed to sort it in descending order (utilizing StrReversor).
+    """
+    if isinstance(entity, dict):
+        uri = entity.get("uri", entity.get("identity", None)) or (
+            f"{entity.get('namespace', '')}/{entity.get('version', '')}"
+            f"/{entity.get('name', '')}"
+        )
+    else:
+        uri = get_uri(entity)
+
+    if (matched_uri := URI_REGEX.match(uri)) is None:
+        raise ValueError(
+            f"Could not parse URI {uri} with regular expression {URI_REGEX.pattern}"
+        )
+
+    return (
+        matched_uri.group("specific_namespace") or "/",
+        matched_uri.group("name"),
+        StrReversor(matched_uri.group("version")),
     )
 
 

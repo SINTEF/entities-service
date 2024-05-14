@@ -22,6 +22,7 @@ services:
     volumes:
       - "${PWD}:/app"
     user: "1000:1000"
+    stop_grace_period: 1s
 
   mongodb:
     image: mongo:7
@@ -44,6 +45,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    stop_grace_period: 1s
 
 networks:
   entities_service_net:
