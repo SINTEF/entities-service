@@ -16,10 +16,19 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 SUB_TYPER_APPS = ("config",)
+NO_ARGS_IS_HELP_COMMANDS = ("upload", "validate")
+ALIASED_COMMANDS = {"list_entities": "list"}
 
 
 def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
-    """Return all CLI commands, along with typer.command() kwargs."""
+    """Return all CLI commands, along with typer.command() kwargs.
+
+    It is important the command module name matches the command function name.
+
+    To have a command with an alias, add the alias to the ALIASED_COMMANDS dict.
+    To have a command that does not require arguments to show the help message, add
+    the command name to the NO_ARGS_IS_HELP_COMMANDS tuple.
+    """
     this_dir = Path(__file__).parent.resolve()
 
     for path in this_dir.glob("*.py"):
@@ -38,15 +47,20 @@ def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
             )
 
         command_kwargs = {}
-        if path.stem in ("upload", "validate"):
+        if path.stem in NO_ARGS_IS_HELP_COMMANDS:
             command_kwargs["no_args_is_help"] = True
+        if path.stem in ALIASED_COMMANDS:
+            command_kwargs["name"] = ALIASED_COMMANDS[path.stem]
 
         yield getattr(module, path.stem), command_kwargs
 
 
 def get_subtyper_apps() -> Generator[tuple[Typer, dict[str, Any]], None, None]:
     """Return all CLI Typer apps, which are a group of sub-command groups, along with
-    typer.add_typer() kwargs."""
+    typer.add_typer() kwargs.
+
+    This is done according to the SUB_TYPER_APPS tuple.
+    """
     this_dir = Path(__file__).parent.resolve()
 
     for path in this_dir.glob("*.py"):
