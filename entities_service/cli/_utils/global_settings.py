@@ -28,7 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 CONTEXT: ContextDict = {
-    "dotenv_path": (Path.cwd() / str(CONFIG.model_config["env_file"])).resolve(),
+    "dotenv_path": Path(str(CONFIG.model_config["env_file"])),
 }
 """Global context for the CLI used to communicate global options."""
 
