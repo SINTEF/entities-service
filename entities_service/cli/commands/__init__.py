@@ -15,9 +15,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typer import Typer
 
 
-SUB_TYPER_APPS = ("config",)
+SUB_TYPER_APPS = ("config", "list")
 NO_ARGS_IS_HELP_COMMANDS = ("upload", "validate")
-ALIASED_COMMANDS = {"list_entities": "list"}
+ALIASED_COMMANDS = {}
 
 
 def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
