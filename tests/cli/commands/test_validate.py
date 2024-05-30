@@ -1207,6 +1207,7 @@ def test_validate_strict(
                         "description": "extra property for testing --strict",
                     }
                     assert extra_property not in existing_entity_content["properties"]
+                    existing_entity_content["properties"].append(extra_property)
 
                 number_existing_changed_entities += 1
 
