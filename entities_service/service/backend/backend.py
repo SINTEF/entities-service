@@ -62,6 +62,8 @@ class Backend(ABC):
         self._settings = settings or self._settings_model()
         self._is_closed: bool = False
 
+        self._initialize()
+
     # Exceptions
     @property
     @abstractmethod
@@ -114,7 +116,7 @@ class Backend(ABC):
 
     # Backend methods (initialization)
     @abstractmethod
-    def initialize(self) -> None:  # pragma: no cover
+    def _initialize(self) -> None:  # pragma: no cover
         """Initialize the backend."""
         raise NotImplementedError
 

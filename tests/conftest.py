@@ -626,21 +626,10 @@ def _reset_mongo_test_collections(
             },
             db=namespace,
         )
+        print(backend.__dict__)
         backend._collection.drop()
         backend._collection.insert_many(
             entities if namespace is None else specific_namespaced_entities
-        )
-
-
-@pytest.fixture(autouse=True)
-def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock the MongoDBBackend.initialize() method."""
-    # Only mock the lifespan context manager if the tests are not run with a live
-    # backend
-    if not live_backend:
-        monkeypatch.setattr(
-            "entities_service.service.backend.mongodb.MongoDBBackend.initialize",
-            lambda _: None,
         )
 
 

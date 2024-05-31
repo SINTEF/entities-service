@@ -267,12 +267,25 @@ class MongoDBBackend(Backend):
     _settings_model: type[MongoDBSettings] = MongoDBSettings
     _settings: MongoDBSettings
 
-    def __init__(
-        self,
-        settings: MongoDBSettings | dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(settings)
+    # Exceptions
+    @property
+    def write_access_exception(self) -> tuple:
+        return MongoDBBackendWriteAccessError
 
+    # Standard magic methods
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}: uri={self._settings.mongo_uri}"
+
+    # Required abstract methods
+    def __iter__(self) -> Iterator[dict[str, Any]]:
+        return iter(self._collection.find({}, projection={"_id": False}))
+
+    def __len__(self) -> int:
+        return self._collection.count_documents({})
+
+    # Backend methods (initialization)
+    def _initialize(self) -> None:
+        """Initialize the MongoDB backend."""
         # Set up the MongoDB collection
         try:
             self._collection = get_client(
@@ -291,26 +304,12 @@ class MongoDBBackend(Backend):
         except ValueError as exc:
             raise MongoDBBackendError(str(exc)) from exc
 
-        self.initialize()
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}: uri={self._settings.mongo_uri}"
-
-    # Exceptions
-    @property
-    def write_access_exception(self) -> tuple:
-        return MongoDBBackendWriteAccessError
-
-    def __iter__(self) -> Iterator[dict[str, Any]]:
-        return iter(self._collection.find({}, projection={"_id": False}))
-
-    def __len__(self) -> int:
-        return self._collection.count_documents({})
-
-    def initialize(self) -> None:
-        """Initialize the MongoDB backend."""
-        if self._settings.auth_level == "read":
-            # Not enough rights to create an index
+        # Create a unique DB index for the URI
+        if (
+            self._settings.auth_level == "read"
+            or self._settings.mongo_driver == "mongomock"
+        ):
+            # Not enough rights to create an index or using mongomock
             return
 
         # Check index exists
@@ -337,6 +336,7 @@ class MongoDBBackend(Backend):
             ["uri", "namespace", "version", "name"], unique=True, name="URI"
         )
 
+    # Backend methods (CRUD)
     def create(
         self, entities: Sequence[Entity | dict[str, Any]]
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
@@ -377,6 +377,7 @@ class MongoDBBackend(Backend):
         filter = self._single_uri_query(str(entity_identity))
         self._collection.delete_one(filter)
 
+    # Backend methods (search)
     def search(self, query: Any = None) -> Iterator[dict[str, Any]]:
         """Search for entities."""
         query = query or {}
@@ -395,6 +396,7 @@ class MongoDBBackend(Backend):
 
         return self._collection.count_documents(query)
 
+    # Backend methods (close)
     def close(self) -> None:
         """We never close the MongoDB connection once its created."""
         if self._settings.mongo_driver == "mongomock":
