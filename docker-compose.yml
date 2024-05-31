@@ -1,4 +1,4 @@
-version: "3"
+name: "entities-service"
 
 services:
   entities_service:
