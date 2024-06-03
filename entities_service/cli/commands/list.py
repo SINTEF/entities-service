@@ -15,8 +15,14 @@ except ImportError as exc:  # pragma: no cover
 
     raise ImportError(EXC_MSG_INSTALL_PACKAGE) from exc
 
+from pydantic import ValidationError
+from pydantic.networks import AnyUrl
 
-from entities_service.cli._utils.generics import ERROR_CONSOLE, print
+from entities_service.cli._utils.generics import (
+    ERROR_CONSOLE,
+    get_namespace_name_version,
+    print,
+)
 from entities_service.cli._utils.types import OptionalListStr
 from entities_service.models import URI_REGEX, soft_entity
 from entities_service.service.config import CONFIG
@@ -54,8 +60,8 @@ def namespaces(
             response = client.get("/_api/namespaces")
         except httpx.HTTPError as exc:
             ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: Could not list namespaces. HTTP exception: "
-                f"{exc}"
+                "[bold red]Error[/bold red]: Could not list namespaces. HTTP "
+                f"exception: {exc}"
             )
             raise typer.Exit(1) from exc
 
@@ -78,29 +84,29 @@ def namespaces(
 
     namespaces: list[str] = response.json()
 
-    if not namespaces:
-        print("No namespaces found")
-        raise typer.Exit()
+    if not namespaces:  # pragma: no cover
+        # This will never be reached, since the server will always return at least one
+        # namespace (the "core" namespace)
+        # This is kept here for completeness
+        ERROR_CONSOLE.print("[bold red]Error[/bold red]: No namespaces found.")
+        raise typer.Exit(1)
 
     if return_info:
         return namespaces
 
     # Print namespaces
     table = Table(
-        title="Namespaces:",
-        title_style="bold",
-        title_justify="left",
         box=box.HORIZONTALS,
         show_edge=False,
         highlight=True,
     )
 
-    table.add_column("Namespace", no_wrap=True)
+    table.add_column("Namespaces:", no_wrap=True)
 
     for namespace in sorted(namespaces):
         table.add_row(namespace)
 
-    print("", table)
+    print("", table, "")
 
     return None
 
@@ -127,7 +133,7 @@ def entities(
     ] = False,
 ) -> None:
     """List entities from the entities service."""
-    valid_namespaces = namespaces(return_info=True)
+    valid_namespaces: list[str] = namespaces(return_info=True)
 
     if all_namespaces:
         namespace = valid_namespaces
@@ -135,23 +141,35 @@ def entities(
     if namespace is None:
         namespace = [str(CONFIG.base_url).rstrip("/")]
 
-    namespace: list[None | str] = [_parse_namespace(ns) for ns in namespace]
+    try:
+        target_namespaces = [_parse_namespace(ns) for ns in namespace]
+    except ValueError as exc:
+        ERROR_CONSOLE.print(
+            "[bold red]Error[/bold red]: Invalid namespace given: " f"{exc}"
+        )
+        raise typer.Exit(1) from exc
 
-    if not all(ns in valid_namespaces for ns in namespace):
+    if not all(ns in valid_namespaces for ns in target_namespaces):
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Invalid namespace(s) given: "
-            f"{[ns for ns in namespace if ns not in valid_namespaces]}"
+            f"{[ns for ns in target_namespaces if ns not in valid_namespaces]}"
         )
         raise typer.Exit(1)
 
-    # Namespace is now the specific namespace (str) or the "core" namespace (None)
-    path_prefix = f"/{namespace}" if namespace is not None else ""
+    # Get all specific namespaces from target namespaces (including "core", if present)
+    # `specific_namespaces` will consist of specific namespaces (str)
+    # and/or the "core" namespace (None)
+    specific_namespaces = [_get_specific_namespace(ns) for ns in target_namespaces]
 
     with httpx.Client(base_url=str(CONFIG.base_url)) as client:
         try:
             response = client.get(
-                f"{path_prefix}/_api/entities",
-                params={"namespace": namespace},
+                "/_api/entities",
+                params={
+                    "namespace": [
+                        ns if ns is not None else "" for ns in specific_namespaces
+                    ]
+                },
             )
         except httpx.HTTPError as exc:
             ERROR_CONSOLE.print(
@@ -187,40 +205,85 @@ def entities(
 
     # Print entities
     table = Table(
-        title=f"Entities in namespace {namespace}:",
-        title_style="bold",
-        title_justify="left",
         box=box.HORIZONTALS,
         show_edge=False,
         highlight=True,
     )
 
     # Sort the entities in the following order:
-    # 1. Namespace (only relevant if --all/-a is given)
+    # 1. Namespace (only relevant if multiple namespaces are given)
     # 2. Name
     # 3. Version (reversed)
 
-    if all_namespaces:
-        table.add_column("Namespace", no_wrap=True)
+    if len(target_namespaces) > 1:
+        table.add_column("Namespace", no_wrap=False)
     table.add_column("Name", no_wrap=True)
     table.add_column("Version", no_wrap=True)
 
-    previous_entity_name = ""
-    for entity in sorted(entities, key=lambda entity: entity.name):
-        if entity.name == previous_entity_name:
-            # Only add the version
-            table.add_row("", entity.version)
+    last_namespace, last_name = "", ""
+    for entity in sorted(
+        entities, key=lambda entity: get_namespace_name_version(entity)
+    ):
+        entity_namespace, entity_name, entity_version = get_namespace_name_version(
+            entity
+        )
+
+        if entity_namespace != last_namespace:
+            # Add line in table
+            table.add_section()
+
+        if len(target_namespaces) > 1:
+            # Include namespace
+            table.add_row(
+                entity_namespace if entity_namespace != last_namespace else "",
+                (
+                    entity_name
+                    if entity_name != last_name or entity_namespace != last_namespace
+                    else ""
+                ),
+                entity_version,
+            )
         else:
-            table.add_row(entity.name, entity.version)
+            table.add_row(
+                entity_name if entity_name != last_name else "",
+                entity_version,
+            )
 
-        previous_entity_name = entity.name
+        last_namespace, last_name = entity_namespace, entity_name
 
-    print("", table)
+    print(f"\nBase namespace: {str(CONFIG.base_url).rstrip('/')}\n", table, "")
 
 
-def _parse_namespace(namespace: str) -> str | None:
-    """Parse the namespace and return the specific namespace (if any)."""
-    if (match := URI_REGEX.match(namespace)) is None:
-        return namespace
+def _parse_namespace(namespace: str | None) -> str:
+    """Parse a (specfic) namespace, returning a full namespace."""
+    # If a full URI (including version and name) is passed,
+    # extract and return the namespace
+    if namespace is not None and (match := URI_REGEX.match(namespace)) is not None:
+        return match.group("namespace")
 
-    return match.group("specific_namespace")
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+
+    if namespace is None or (
+        isinstance(namespace, str) and namespace.strip() in ("/", "")
+    ):
+        return core_namespace
+
+    if namespace.startswith(core_namespace):
+        return namespace.rstrip("/")
+
+    try:
+        AnyUrl(namespace)
+    except (ValueError, TypeError, ValidationError):
+        # Expect the namespace to be a specific namespace
+        return f"{core_namespace}/{namespace.lstrip('/')}"
+
+    # The namespace is a URL, but not within the core namespace
+    raise ValueError(f"{namespace} is not within the core namespace {core_namespace}")
+
+
+def _get_specific_namespace(namespace: str) -> str | None:
+    """Retrieve the specific namespace (if any) from a full namespace."""
+    namespace = namespace[len(str(CONFIG.base_url).rstrip("/")) :]
+    if namespace.strip() in ("/", ""):
+        return None
+    return namespace.lstrip("/")

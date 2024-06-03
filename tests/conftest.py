@@ -626,7 +626,6 @@ def _reset_mongo_test_collections(
             },
             db=namespace,
         )
-        print(backend.__dict__)
         backend._collection.drop()
         backend._collection.insert_many(
             entities if namespace is None else specific_namespaced_entities

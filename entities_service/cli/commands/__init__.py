@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 SUB_TYPER_APPS = ("config", "list")
 NO_ARGS_IS_HELP_COMMANDS = ("upload", "validate")
-ALIASED_COMMANDS = {}
+ALIASED_COMMANDS: dict[str, str] = {}
 
 
 def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
@@ -46,7 +46,7 @@ def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
                 "name."
             )
 
-        command_kwargs = {}
+        command_kwargs: dict[str, Any] = {}
         if path.stem in NO_ARGS_IS_HELP_COMMANDS:
             command_kwargs["no_args_is_help"] = True
         if path.stem in ALIASED_COMMANDS:

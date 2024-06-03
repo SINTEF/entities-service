@@ -404,6 +404,13 @@ class MongoDBBackend(Backend):
 
         super().close()
 
+    # Backend methods (other)
+    def get_dbs(self) -> list[str]:
+        """Get the collections in the MongoDB."""
+        return self._collection.database.list_collection_names(
+            filter={"name": {"$regex": r"^(?!system\.)"}}
+        )
+
     # MongoDBBackend specific methods
     def _single_uri_query(self, uri: str) -> dict[str, Any]:
         """Build a query for a single URI."""

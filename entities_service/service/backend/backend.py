@@ -172,3 +172,12 @@ class Backend(ABC):
             raise BackendError("Backend is already closed")
 
         self._is_closed = True
+
+    # Backend methods (other)
+    @abstractmethod
+    def get_dbs(self) -> list[str]:  # pragma: no cover
+        """Get the backend databases.
+
+        This is related (but not necessarily equivalent) to the specific namespaces.
+        """
+        raise NotImplementedError

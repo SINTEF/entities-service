@@ -12,6 +12,7 @@ from .soft import (
     NO_GROUPS_SEMVER_REGEX,
     SEMVER_REGEX,
     URI_REGEX,
+    EntityNamespaceType,
     EntityNameType,
     EntityVersionType,
 )
@@ -34,6 +35,7 @@ __all__ = (
     "URI_REGEX",
     "SEMVER_REGEX",
     "NO_GROUPS_SEMVER_REGEX",
+    "EntityNamespaceType",
     "EntityNameType",
     "EntityVersionType",
 )
