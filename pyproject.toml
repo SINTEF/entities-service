@@ -154,6 +154,11 @@ filterwarnings = [
     # 'app' parameter is deprecated in httpx
     # starlette's TestClient should be updated
     "ignore:.*'app' shortcut is now deprecated.*:DeprecationWarning",
+
+    # Starlette's TestClient does not properly close all memory streams.
+    # For more information see the discussion on GitHub:
+    # https://github.com/encode/starlette/discussions/2603
+    "ignore:.*ResourceWarning. Unclosed <MemoryObjectReceiveStream>.*:pytest.PytestUnraisableExceptionWarning",
 ]
 asyncio_mode = "auto"
 
