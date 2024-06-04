@@ -58,7 +58,7 @@ def test_multiple_initialize(mongo_backend: GetMongoBackend) -> None:
     assert "_id_" in indices
 
     # Initialize the backend again, ensuring the "URI" index is not recreated
-    backend.initialize()
+    backend._initialize()
 
     indices = backend._collection.index_information()
     assert len(indices) == 2, indices
