@@ -158,7 +158,7 @@ filterwarnings = [
     # Starlette's TestClient does not properly close all memory streams.
     # For more information see the discussion on GitHub:
     # https://github.com/encode/starlette/discussions/2603
-    "ignore::pytest.PytestUnraisableExceptionWarning",
+    "ignore:.*MemoryObjectReceiveStream.*:pytest.PytestUnraisableExceptionWarning",
 ]
 asyncio_mode = "auto"
 
