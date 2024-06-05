@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
     from ...conftest import GetBackendUserFixture
 
+pytestmark = pytest.mark.usefixtures("_mock_config_base_url")
+
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
 
@@ -133,6 +135,8 @@ def test_list_entities_namespace(
 
     core_namespace = str(CONFIG.base_url).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
+
+    print(core_namespace)
 
     backend_user = get_backend_user(auth_role="read")
     backend: MongoDBBackend = get_backend(

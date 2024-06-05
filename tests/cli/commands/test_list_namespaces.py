@@ -12,10 +12,13 @@ if TYPE_CHECKING:
     from typer import Typer
     from typer.testing import CliRunner
 
+pytestmark = pytest.mark.usefixtures("_mock_config_base_url")
+
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
 
 def test_list_namespaces(
+    live_backend: bool,
     cli: CliRunner,
     list_app: Typer,
     existing_specific_namespace: str,
@@ -27,12 +30,13 @@ def test_list_namespaces(
     core_namespace = str(CONFIG.base_url).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
-    # Mock response for the list namespaces command
-    httpx_mock.add_response(
-        url=f"{core_namespace}/_api/namespaces",
-        method="GET",
-        json=[core_namespace, specific_namespace],
-    )
+    if live_backend:
+        # Mock response for the list namespaces command
+        httpx_mock.add_response(
+            url=f"{core_namespace}/_api/namespaces",
+            method="GET",
+            json=[core_namespace, specific_namespace],
+        )
 
     result = cli.invoke(list_app, "namespaces")
 
@@ -52,6 +56,7 @@ def test_list_namespaces(
 
 
 def test_list_namespaces_return_info(
+    live_backend: bool,
     existing_specific_namespace: str,
     httpx_mock: HTTPXMock,
     capsys: pytest.CaptureFixture,
@@ -66,12 +71,13 @@ def test_list_namespaces_return_info(
 
     namespaces_info = [core_namespace, specific_namespace]
 
-    # Mock response for the list namespaces command
-    httpx_mock.add_response(
-        url=f"{core_namespace}/_api/namespaces",
-        method="GET",
-        json=namespaces_info,
-    )
+    if live_backend:
+        # Mock response for the list namespaces command
+        httpx_mock.add_response(
+            url=f"{core_namespace}/_api/namespaces",
+            method="GET",
+            json=namespaces_info,
+        )
 
     result = namespaces(return_info=True)
 
