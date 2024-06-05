@@ -251,7 +251,12 @@ def entities(
 
         last_namespace, last_name = entity_namespace, entity_name
 
-    print(f"\nBase namespace: {str(CONFIG.base_url).rstrip('/')}\n", table, "")
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+    single_namespace = ""
+    if len(target_namespaces) == 1 and entity_namespace != core_namespace:
+        single_namespace = f"Specific namespace: {core_namespace}/{entity_namespace}\n"
+
+    print(f"\nBase namespace: {core_namespace}\n{single_namespace}", table, "")
 
 
 def _parse_namespace(namespace: str | None) -> str:
