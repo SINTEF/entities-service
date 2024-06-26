@@ -58,11 +58,7 @@ cli = [
 ]
 testing = [
     "cryptography ~=42.0",
-<<<<<<< ci/update-pyproject
-    "dlite-python ~=0.5.16; python_version < '3.12'",
-=======
     "dlite-python ~=0.5.16",
->>>>>>> ci/dependency-updates
     "mongomock ~=4.1",
     "numpy <2",  # requirement for DLite v0.5.16, which does not support NumPy v2
     "pytest ~=8.2",
