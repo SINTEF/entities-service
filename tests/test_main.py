@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -84,10 +83,6 @@ def test_get_entity(
             assert value == expected_entity[key], f"key: {key}"
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12),
-    reason="DLite-Python does not support Python 3.12 and above.",
-)
 def test_get_entity_instance(
     parameterized_entity: ParameterizeGetEntities,
     client: ClientFixture,
