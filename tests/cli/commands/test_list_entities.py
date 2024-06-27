@@ -54,7 +54,7 @@ def test_list_entities(
         },
         db=None,
     )
-    core_entities = [soft_entity(**entity) for entity in core_backend.search()]
+    core_entities = list(core_backend.search())
 
     if not live_backend:
         # Mock response for listing (valid) namespaces
@@ -71,12 +71,24 @@ def test_list_entities(
             url=f"{core_namespace}/_api/entities?namespace=",
             method="GET",
             json=[
-                entity.model_dump(mode="json", by_alias=True, exclude_unset=True)
+                soft_entity(**entity).model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                )
                 for entity in core_entities
             ],
         )
 
-    result = cli.invoke(list_app, "entities")
+    # This will ensure the right namespace is used when testing with a live backend.
+    # This (sort of) goes against the test, as we're testing calling `entities` without
+    # any extra arguments or options... But this can (and will) be tested without a live
+    # backend.
+    command = (
+        f"entities {CONFIG.model_fields['base_url'].default}"
+        if live_backend
+        else "entities"
+    )
+
+    result = cli.invoke(list_app, command)
 
     assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
         stdout=result.stdout, stderr=result.stderr
@@ -93,11 +105,11 @@ def test_list_entities(
     for entity in core_entities:
         name, version = None, None
 
-        if entity.name and entity.version:
-            name, version = entity.name, entity.version
+        if entity.get("name") and entity.get("version"):
+            name, version = entity["name"], entity["version"]
         else:
-            assert entity.uri
-            match = URI_REGEX.match(str(entity.uri))
+            assert entity.get("uri")
+            match = URI_REGEX.match(entity["uri"])
             assert match is not None
             name, version = match.group("name"), match.group("version")
 
@@ -129,14 +141,15 @@ def test_list_entities_namespace(
     Note, this will fail if ever a set of test entities are named similarly,
     but versioned differently.
     """
+    if live_backend and namespace_format == "short":
+        pytest.skip("Cannot test short namespace format with a live backend.")
+
     from entities_service.models import URI_REGEX, soft_entity
     from entities_service.service.backend import get_backend
     from entities_service.service.config import CONFIG
 
-    core_namespace = str(CONFIG.base_url).rstrip("/")
+    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
-
-    print(core_namespace)
 
     backend_user = get_backend_user(auth_role="read")
     backend: MongoDBBackend = get_backend(
@@ -147,7 +160,7 @@ def test_list_entities_namespace(
         },
         db=namespace,
     )
-    backend_entities = [soft_entity(**entity) for entity in backend.search()]
+    backend_entities = list(backend.search())
 
     if not live_backend:
         # Mock response for listing (valid) namespaces
@@ -165,7 +178,9 @@ def test_list_entities_namespace(
             ),
             method="GET",
             json=[
-                entity.model_dump(mode="json", by_alias=True, exclude_unset=True)
+                soft_entity(**entity).model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                )
                 for entity in backend_entities
             ],
         )
@@ -184,12 +199,13 @@ def test_list_entities_namespace(
     )
 
     assert (
-        f"Base namespace: {core_namespace}" in result.stdout
+        f"Base namespace: {str(CONFIG.base_url).rstrip('/')}" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
     if namespace:
         assert (
-            f"Specific namespace: {core_namespace}/{namespace}" in result.stdout
+            f"Specific namespace: {str(CONFIG.base_url).rstrip('/')}/{namespace}"
+            in result.stdout
         ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
     assert "Namespace" not in result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
@@ -199,11 +215,11 @@ def test_list_entities_namespace(
     for entity in backend_entities:
         name, version = None, None
 
-        if entity.name and entity.version:
-            name, version = entity.name, entity.version
+        if entity.get("name") and entity.get("version"):
+            name, version = entity["name"], entity["version"]
         else:
-            assert entity.uri
-            match = URI_REGEX.match(str(entity.uri))
+            assert entity.get("uri")
+            match = URI_REGEX.match(entity["uri"])
             assert match is not None
             name, version = match.group("name"), match.group("version")
 
@@ -236,7 +252,7 @@ def test_list_entities_all_namespaces(
     from entities_service.service.backend import get_backend
     from entities_service.service.config import CONFIG
 
-    core_namespace = str(CONFIG.base_url).rstrip("/")
+    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
     backend_user = get_backend_user(auth_role="read")
@@ -248,7 +264,7 @@ def test_list_entities_all_namespaces(
         },
         db=None,
     )
-    core_entities = [soft_entity(**entity) for entity in core_backend.search()]
+    core_entities = list(core_backend.search())
     specific_backend: MongoDBBackend = get_backend(
         auth_level="write",
         settings={
@@ -257,7 +273,7 @@ def test_list_entities_all_namespaces(
         },
         db=existing_specific_namespace,
     )
-    specific_entities = [soft_entity(**entity) for entity in specific_backend.search()]
+    specific_entities = list(specific_backend.search())
 
     if not live_backend:
         # Mock response for listing (valid) namespaces
@@ -275,7 +291,9 @@ def test_list_entities_all_namespaces(
             ),
             method="GET",
             json=[
-                entity.model_dump(mode="json", by_alias=True, exclude_unset=True)
+                soft_entity(**entity).model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                )
                 for entity in [*core_entities, *specific_entities]
             ],
         )
@@ -287,7 +305,7 @@ def test_list_entities_all_namespaces(
     )
 
     assert (
-        f"Base namespace: {core_namespace}" in result.stdout
+        f"Base namespace: {str(CONFIG.base_url).rstrip('/')}" in result.stdout
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
     # We have multiple namespaces, so this line should not appear
@@ -307,13 +325,17 @@ def test_list_entities_all_namespaces(
     for entity in [*core_entities, *specific_entities]:
         short_namespace, name, version = None, None, None
 
-        if entity.namespace and entity.name and entity.version:
-            namespace, name, version = entity.namespace, entity.name, entity.version
+        if entity.get("namespace") and entity.get("name") and entity.get("version"):
+            namespace, name, version = (
+                entity["namespace"],
+                entity["name"],
+                entity["version"],
+            )
             namespace = namespace[len(core_namespace) :]
             short_namespace = "/" if namespace in ("/", "") else namespace.lstrip("/")
         else:
-            assert entity.uri
-            match = URI_REGEX.match(str(entity.uri))
+            assert entity.get("uri")
+            match = URI_REGEX.match(entity["uri"])
             assert match is not None
             short_namespace, name, version = (
                 match.group("specific_namespace"),

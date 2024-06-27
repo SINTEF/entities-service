@@ -27,10 +27,10 @@ def test_list_namespaces(
     """Test `entities-service list namespaces` CLI command."""
     from entities_service.service.config import CONFIG
 
-    core_namespace = str(CONFIG.base_url).rstrip("/")
+    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
-    if live_backend:
+    if not live_backend:
         # Mock response for the list namespaces command
         httpx_mock.add_response(
             url=f"{core_namespace}/_api/namespaces",
@@ -66,12 +66,12 @@ def test_list_namespaces_return_info(
     from entities_service.cli.commands.list import namespaces
     from entities_service.service.config import CONFIG
 
-    core_namespace = str(CONFIG.base_url).rstrip("/")
+    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
     namespaces_info = [core_namespace, specific_namespace]
 
-    if live_backend:
+    if not live_backend:
         # Mock response for the list namespaces command
         httpx_mock.add_response(
             url=f"{core_namespace}/_api/namespaces",

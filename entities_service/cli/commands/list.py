@@ -24,11 +24,11 @@ from entities_service.cli._utils.generics import (
     print,
 )
 from entities_service.cli._utils.types import OptionalListStr
-from entities_service.models import URI_REGEX, soft_entity
+from entities_service.models import GENERIC_NAMESPACE_URI_REGEX
 from entities_service.service.config import CONFIG
 
 if TYPE_CHECKING:  # pragma: no cover
-    from entities_service.models import Entity
+    from typing import Any
 
 
 APP = typer.Typer(
@@ -145,7 +145,7 @@ def entities(
         target_namespaces = [_parse_namespace(ns) for ns in namespace]
     except ValueError as exc:
         ERROR_CONSOLE.print(
-            "[bold red]Error[/bold red]: Invalid namespace given: " f"{exc}"
+            f"[bold red]Error[/bold red]: Cannot parse given namespace(s): {exc}"
         )
         raise typer.Exit(1) from exc
 
@@ -153,6 +153,7 @@ def entities(
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Invalid namespace(s) given: "
             f"{[ns for ns in target_namespaces if ns not in valid_namespaces]}"
+            f"\nValid namespaces: {valid_namespaces}"
         )
         raise typer.Exit(1)
 
@@ -195,9 +196,7 @@ def entities(
         ERROR_CONSOLE.print_json(data=error_message)
         raise typer.Exit(1)
 
-    # We do not need to validate the response, since the server's response model will do
-    # that for us
-    entities: list[Entity] = [soft_entity(**entity) for entity in response.json()]
+    entities: list[dict[str, Any]] = response.json()
 
     if not entities:
         print(f"No entities found in namespace {namespace}")
@@ -259,11 +258,14 @@ def entities(
     print(f"\nBase namespace: {core_namespace}\n{single_namespace}", table, "")
 
 
-def _parse_namespace(namespace: str | None) -> str:
-    """Parse a (specfic) namespace, returning a full namespace."""
+def _parse_namespace(namespace: str | None, allow_external: bool = True) -> str:
+    """Parse a (specific) namespace, returning a full namespace."""
     # If a full URI (including version and name) is passed,
     # extract and return the namespace
-    if namespace is not None and (match := URI_REGEX.match(namespace)) is not None:
+    if (
+        namespace is not None
+        and (match := GENERIC_NAMESPACE_URI_REGEX.match(namespace)) is not None
+    ):
         return match.group("namespace")
 
     core_namespace = str(CONFIG.base_url).rstrip("/")
@@ -283,12 +285,21 @@ def _parse_namespace(namespace: str | None) -> str:
         return f"{core_namespace}/{namespace.lstrip('/')}"
 
     # The namespace is a URL, but not within the core namespace
-    raise ValueError(f"{namespace} is not within the core namespace {core_namespace}")
+    if allow_external:
+        return namespace.rstrip("/")
+
+    raise ValueError(
+        f"{namespace} is not within the core namespace {core_namespace} and external "
+        "namespaces are not allowed (set 'allow_external=True')."
+    )
 
 
 def _get_specific_namespace(namespace: str) -> str | None:
     """Retrieve the specific namespace (if any) from a full namespace."""
-    namespace = namespace[len(str(CONFIG.base_url).rstrip("/")) :]
+    if namespace.startswith(str(CONFIG.base_url).rstrip("/")):
+        namespace = namespace[len(str(CONFIG.base_url).rstrip("/")) :]
+
     if namespace.strip() in ("/", ""):
         return None
+
     return namespace.lstrip("/")

@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from .dlite_soft5 import DLiteSOFT5Entity
 from .dlite_soft7 import DLiteSOFT7Entity
 from .soft import (
+    GENERIC_NAMESPACE_URI_REGEX,
     NO_GROUPS_SEMVER_REGEX,
     SEMVER_REGEX,
     URI_REGEX,
@@ -27,17 +28,18 @@ EntityType = get_args(Entity)
 
 __all__ = (
     "Entity",
-    "EntityType",
-    "soft_entity",
-    "get_uri",
-    "get_version",
-    "get_updated_version",
-    "URI_REGEX",
-    "SEMVER_REGEX",
-    "NO_GROUPS_SEMVER_REGEX",
     "EntityNamespaceType",
     "EntityNameType",
+    "EntityType",
     "EntityVersionType",
+    "GENERIC_NAMESPACE_URI_REGEX",
+    "get_updated_version",
+    "get_uri",
+    "get_version",
+    "NO_GROUPS_SEMVER_REGEX",
+    "SEMVER_REGEX",
+    "soft_entity",
+    "URI_REGEX",
 )
 
 
