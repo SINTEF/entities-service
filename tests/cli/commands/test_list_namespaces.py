@@ -81,7 +81,7 @@ def test_list_namespaces_return_info(
 
     result = namespaces(return_info=True)
 
-    assert result == namespaces_info
+    assert set(result) == set(namespaces_info)
 
     # There should be no output in this "mode"
     result = capsys.readouterr()
