@@ -14,6 +14,7 @@ from pydantic import AnyHttpUrl, ValidationError
 from entities_service.models import URI_REGEX, Entity, EntityNamespaceType
 from entities_service.service.backend import get_backend, get_dbs
 from entities_service.service.config import CONFIG
+from entities_service.service.utils import _get_entities
 
 LOGGER = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ async def list_entities(
     entities = []
     for namespace in parsed_namespaces:
         # Retrieve entities from the database
-        entities.extend(await retrieve_entities(namespace))
+        entities.extend(await _get_entities(namespace))
 
     return entities
 
@@ -125,7 +126,10 @@ async def list_entities(
     response_model_exclude_unset=True,
 )
 async def list_namespaces() -> list[str]:
-    """List all namespaces for current in the given namespace(s).
+    """List all entities' namespaces.
+
+    This endpoint will return a list of all namespaces from existing entities in the
+    backend.
 
     Currently, a specific namespace is equivalent to a database in the backend.
     And the "core" namespace is equivalent to the default database in the backend.
@@ -141,13 +145,24 @@ async def list_namespaces() -> list[str]:
     However, currently only MongoDB is supported as a backend. In the future, other
     backends may be supported, and the configuration setting may be updated to reflect
     this. Everything else around it should remain the same.
+
+    An entity is retrieved from each database, since the specific namespace may differ
+    from the database name. Note, this is always true for the "core" namespace, which
+    is equivalent to the default database.
+
+    If no namespaces are found in the backend, a 500 error will be raised.
     """
     namespaces: list[str] = []
 
     for db in get_dbs():
-        # Retrieve the first entity from the database
         backend = get_backend(CONFIG.backend, auth_level="read", db=db)
-        entity = next(backend.search())
+
+        # Ignore empty backends
+        if not len(backend):
+            continue
+
+        # Retrieve the first entity from the database
+        entity = next(iter(backend))
 
         if "namespace" in entity:
             namespaces.append(entity["namespace"])
@@ -157,7 +172,11 @@ async def list_namespaces() -> list[str]:
             )
             continue
 
-        if "uri" not in entity or (match := URI_REGEX.match(entity["uri"])) is None:
+        if (
+            "uri" not in entity or (match := URI_REGEX.match(entity["uri"])) is None
+        ):  # pragma: no cover
+            # This should never actually be reached, as all entities stored in the
+            # backend via the service, will have either a valid namespace or valid URI.
             LOGGER.error("Entity %r does not have a valid URI.", entity)
             raise HTTPException(
                 status_code=500,
@@ -177,9 +196,3 @@ async def list_namespaces() -> list[str]:
         )
 
     return namespaces
-
-
-async def retrieve_entities(namespace: str | None) -> list[dict[str, Any]]:
-    """Retrieve entities from the namespace-specific backend."""
-    backend = get_backend(CONFIG.backend, auth_level="read", db=namespace)
-    return list(backend.search())

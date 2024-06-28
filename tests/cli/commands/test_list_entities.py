@@ -54,7 +54,7 @@ def test_list_entities(
         },
         db=None,
     )
-    core_entities = list(core_backend.search())
+    core_entities = list(core_backend)
 
     if not live_backend:
         # Mock response for listing (valid) namespaces
@@ -160,7 +160,7 @@ def test_list_entities_namespace(
         },
         db=namespace,
     )
-    backend_entities = list(backend.search())
+    backend_entities = list(backend)
 
     if not live_backend:
         # Mock response for listing (valid) namespaces
@@ -264,7 +264,7 @@ def test_list_entities_all_namespaces(
         },
         db=None,
     )
-    core_entities = list(core_backend.search())
+    core_entities = list(core_backend)
     specific_backend: MongoDBBackend = get_backend(
         auth_level="write",
         settings={
@@ -273,7 +273,7 @@ def test_list_entities_all_namespaces(
         },
         db=existing_specific_namespace,
     )
-    specific_entities = list(specific_backend.search())
+    specific_entities = list(specific_backend)
 
     if not live_backend:
         # Mock response for listing (valid) namespaces

@@ -82,6 +82,12 @@ class Backend(ABC):
         if not self._is_closed:
             self.close()
 
+    def __iter__(self) -> Iterator[dict[str, Any]]:
+        return iter(self.search())
+
+    def __len__(self) -> int:
+        return self.count()
+
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:
         if isinstance(item, dict):
@@ -105,14 +111,6 @@ class Backend(ABC):
             return self.read(get_uri(item)) is not None
 
         return False
-
-    @abstractmethod
-    def __iter__(self) -> Iterator[dict[str, Any]]:  # pragma: no cover
-        raise NotImplementedError
-
-    @abstractmethod
-    def __len__(self) -> int:  # pragma: no cover
-        raise NotImplementedError
 
     # Backend methods (initialization)
     @abstractmethod

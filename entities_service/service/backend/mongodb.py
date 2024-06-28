@@ -276,13 +276,6 @@ class MongoDBBackend(Backend):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: uri={self._settings.mongo_uri}"
 
-    # Required abstract methods
-    def __iter__(self) -> Iterator[dict[str, Any]]:
-        return iter(self._collection.find({}, projection={"_id": False}))
-
-    def __len__(self) -> int:
-        return self._collection.count_documents({})
-
     # Backend methods (initialization)
     def _initialize(self) -> None:
         """Initialize the MongoDB backend."""
