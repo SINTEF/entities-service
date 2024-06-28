@@ -61,7 +61,10 @@ def test_list_entities(client: ClientFixture, static_dir: Path) -> None:
 
 
 def test_list_entities_specified_namespaces(
-    client: ClientFixture, static_dir: Path, existing_specific_namespace: str
+    client: ClientFixture,
+    static_dir: Path,
+    existing_specific_namespace: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test calling the endpoint with the 'namespaces' query parameter."""
     import json
@@ -121,8 +124,10 @@ def test_list_entities_specified_namespaces(
             params={
                 "namespace": [
                     existing_specific_namespace,
-                    str(CONFIG.model_fields["base_url"].default).rstrip("/"),
+                    core_namespace,
                     "/",
+                    specific_namespace,
+                    f"{core_namespace}/1.0/Entity",
                 ]
             },
         )
@@ -145,3 +150,45 @@ def test_list_entities_specified_namespaces(
             "not found in expected response:\n\n"
             f"{json.dumps(sorted_expected_response, indent=2)}"
         )
+
+    # Check logs
+    assert (
+        f"Namespace {core_namespace + '/1.0/Entity'!r} is a URI (as a URL)."
+        in caplog.text
+    ), caplog.text
+
+    for full_namespace in (core_namespace, specific_namespace):
+        assert (
+            f"Namespace {full_namespace!r} is a 'regular' full namespace."
+            in caplog.text
+        ), caplog.text
+
+
+def test_list_entities_invalid_namespaces(
+    client: ClientFixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test calling the endpoint with invalid 'namespaces' query parameter."""
+    from entities_service.service.config import CONFIG
+
+    invalid_namespace = "http://example.com"
+    expected_log_error = (
+        f"Namespace {invalid_namespace!r} does not start with the base URL "
+        f"{CONFIG.base_url}."
+    )
+    expected_response = f"Invalid namespace: {invalid_namespace}."
+
+    with client() as client_:
+        response = client_.get(
+            "/_api/entities", params={"namespace": [invalid_namespace]}
+        )
+
+    response_json = response.json()
+
+    # Check response
+    assert response.status_code == 400, response_json
+    assert isinstance(response_json, dict), response_json
+    assert "detail" in response_json, response_json
+    assert response_json["detail"] == expected_response, response_json
+
+    # Check logs
+    assert expected_log_error in caplog.text, caplog.text
