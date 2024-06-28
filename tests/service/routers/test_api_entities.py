@@ -81,7 +81,7 @@ def test_list_entities_specified_namespaces(
     core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
-    for entity in list(entities):
+    for entity in deepcopy(entities):
         id_key = "uri" if "uri" in entity else "identity"
         if id_key in entity:
             entity[id_key] = entity[id_key].replace(core_namespace, specific_namespace)
