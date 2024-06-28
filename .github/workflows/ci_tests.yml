@@ -111,7 +111,7 @@ jobs:
             --env ENTITIES_SERVICE_X509_CERTIFICATE_FILE \
             --env ENTITIES_SERVICE_CA_FILE \
             --env PORT=${ENTITIES_SERVICE_PORT} \
-            --env RUN_TIME=40 \
+            --env RUN_TIME=60 \
             --env STOP_TIME=3 \
             --name "entities-service" \
             --network "host" \
