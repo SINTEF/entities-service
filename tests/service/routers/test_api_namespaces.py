@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
-    from ...conftest import ClientFixture
+    from ...conftest import ClientFixture, GetBackendUserFixture
 
 
 def test_list_namespaces(client: ClientFixture) -> None:
@@ -53,11 +53,17 @@ def test_empty_dbs(client: ClientFixture) -> None:
 
 @pytest.mark.usefixtures("_empty_backend_collection")
 def test_namespace_from_entity_namespace(
-    client: ClientFixture, static_dir: Path
+    client: ClientFixture,
+    static_dir: Path,
+    get_backend_user: GetBackendUserFixture,
 ) -> None:
     """Test retrieving the namespace from an entity's 'namespace' attribute."""
     import yaml
 
+    from entities_service.service.backend import get_backend
+    from entities_service.service.config import CONFIG
+
+    entity: dict[str, Any] | None = None
     entities: list[dict[str, Any]] = yaml.safe_load(
         (static_dir / "valid_entities.yaml").read_text()
     )
@@ -70,17 +76,23 @@ def test_namespace_from_entity_namespace(
             "No entity with the 'namespace' attribute found in 'valid_entities.yaml'."
         )
 
+    assert entity is not None
+
+    # Ensure namespace is the core namespace
+    entity["namespace"] = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+
+    # Remove uri/identity if it exists
+    entity.pop("uri", entity.pop("identity", None))
+
     # Add entity with 'namespace' attribute (and not 'uri')
-    with client() as client_:
-        response = client_.post(
-            "/_api/entities",
-            json={
-                "namespace": "test",
-                "version": "v1",
-                "name": "test_entity",
-                "properties": {},
-            },
-        )
+    backend_user = get_backend_user(auth_role="write")
+    backend = get_backend(
+        settings={
+            "mongo_username": backend_user["username"],
+            "mongo_password": backend_user["password"],
+        }
+    )
+    backend.create([entity])
 
     # List namespaces
     with client() as client_:
@@ -88,9 +100,7 @@ def test_namespace_from_entity_namespace(
 
     response_json = response.json()
 
-    expected_response = {"detail": "No namespaces found in the backend."}
-
     # Check response
-    assert response.status_code == 500, response_json
-    assert isinstance(response_json, dict), response_json
-    assert response_json == expected_response, response_json
+    assert response.status_code == 200, response_json
+    assert isinstance(response_json, list), response_json
+    assert response_json == [entity["namespace"]], response_json
