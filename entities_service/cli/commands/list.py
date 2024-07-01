@@ -65,34 +65,54 @@ def namespaces(
             )
             raise typer.Exit(1) from exc
 
-    if not response.is_success:
-        try:
-            error_message = response.json()
-        except json.JSONDecodeError as exc:
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: Could not list namespaces. JSON decode "
-                f"error: {exc}"
-            )
-            raise typer.Exit(1) from exc
-
+    # Decode response
+    try:
+        namespaces: dict[str, Any] | list[str] = response.json()
+    except json.JSONDecodeError as exc:
         ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Could not list namespaces. HTTP status code: "
-            f"{response.status_code}. Error response: "
+            f"[bold red]Error[/bold red]: Could not list namespaces. JSON decode "
+            f"error: {exc}"
         )
-        ERROR_CONSOLE.print_json(data=error_message)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
-    namespaces: list[str] = response.json()
+    # Unsuccessful response (!= 200 OK)
+    if not response.is_success:
+        # First, it may be that there are no namespaces
+        if (
+            response.status_code == 500
+            and isinstance(namespaces, dict)
+            and namespaces.get("detail") == "No namespaces found in the backend."
+        ):
+            print(
+                "[bold yellow]Warning[/bold yellow]: No namespaces found. There are no "
+                f"entities hosted. Ensure {CONFIG.base_url} is the desired service to "
+                "target."
+            )
+            namespaces = []
 
-    if not namespaces:  # pragma: no cover
-        # This will never be reached, since the server will always return at least one
-        # namespace (the "core" namespace)
-        # This is kept here for completeness
-        ERROR_CONSOLE.print("[bold red]Error[/bold red]: No namespaces found.")
+        # Or it may be an error
+        else:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not list namespaces. HTTP status "
+                f"code: {response.status_code}. Error response: "
+            )
+            ERROR_CONSOLE.print_json(data=namespaces)
+            raise typer.Exit(1)
+
+    # Bad response format
+    if not isinstance(namespaces, list):
+        # Expect a list of namespaces
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list namespaces. Invalid response: "
+            f"{namespaces}"
+        )
         raise typer.Exit(1)
 
     if return_info:
         return namespaces
+
+    if not namespaces:
+        raise typer.Exit()
 
     # Print namespaces
     table = Table(
@@ -139,13 +159,14 @@ def entities(
         namespace = valid_namespaces
 
     if namespace is None:
-        namespace = [str(CONFIG.base_url).rstrip("/")]
+        namespace = [str(CONFIG.base_url).rstrip("/")] if valid_namespaces else []
 
     try:
         target_namespaces = [_parse_namespace(ns) for ns in namespace]
     except ValueError as exc:
         ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Cannot parse given namespace(s): {exc}"
+            f"[bold red]Error[/bold red]: Cannot parse one or more namespaces. "
+            f"Error message: {exc}"
         )
         raise typer.Exit(1) from exc
 
@@ -153,7 +174,7 @@ def entities(
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Invalid namespace(s) given: "
             f"{[ns for ns in target_namespaces if ns not in valid_namespaces]}"
-            f"\nValid namespaces: {valid_namespaces}"
+            f"\nValid namespaces: {sorted(valid_namespaces)}"
         )
         raise typer.Exit(1)
 
@@ -179,27 +200,35 @@ def entities(
             )
             raise typer.Exit(1) from exc
 
-    if not response.is_success:
-        try:
-            error_message = response.json()
-        except json.JSONDecodeError as exc:
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: Could not list entities. JSON decode "
-                f"error: {exc}"
-            )
-            raise typer.Exit(1) from exc
+    # Decode response
+    try:
+        entities: dict[str, Any] | list[dict[str, Any]] = response.json()
+    except json.JSONDecodeError as exc:
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list entities. JSON decode "
+            f"error: {exc}"
+        )
+        raise typer.Exit(1) from exc
 
+    # Unsuccessful response (!= 200 OK)
+    if not response.is_success:
         ERROR_CONSOLE.print(
             f"[bold red]Error[/bold red]: Could not list entities. HTTP status code: "
             f"{response.status_code}. Error response: "
         )
-        ERROR_CONSOLE.print_json(data=error_message)
+        ERROR_CONSOLE.print_json(data=entities)
         raise typer.Exit(1)
 
-    entities: list[dict[str, Any]] = response.json()
+    # Bad response format
+    if not isinstance(entities, list):
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list entities. Invalid response: "
+            f"{entities}"
+        )
+        raise typer.Exit(1)
 
     if not entities:
-        print(f"No entities found in namespace {namespace}")
+        print(f"No entities found in namespace(s) {namespace}")
         raise typer.Exit()
 
     # Print entities
@@ -295,11 +324,17 @@ def _parse_namespace(namespace: str | None, allow_external: bool = True) -> str:
 
 
 def _get_specific_namespace(namespace: str) -> str | None:
-    """Retrieve the specific namespace (if any) from a full namespace."""
+    """Retrieve the specific namespace (if any) from a full namespace.
+
+    Note, if the namespace is a fully qualified URL it is expected to already be within
+    the core namespace as given by the `base_url` configuration setting.
+
+    If the namespace is the core namespace, return `None`.
+    """
     if namespace.startswith(str(CONFIG.base_url).rstrip("/")):
         namespace = namespace[len(str(CONFIG.base_url).rstrip("/")) :]
 
     if namespace.strip() in ("/", ""):
         return None
 
-    return namespace.lstrip("/")
+    return namespace.strip("/")

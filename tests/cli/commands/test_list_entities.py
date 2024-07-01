@@ -361,3 +361,307 @@ def test_list_entities_all_namespaces(
     assert list(check_namespaces.values()) == [1] * len(
         check_namespaces
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+
+
+def test_unparseable_namespace(
+    live_backend: bool,
+    cli: CliRunner,
+    list_app: Typer,
+    httpx_mock: HTTPXMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test `entities-service list entities` CLI command.
+
+    With a namespace that results in a raised ValueError when calling
+    `_parse_namespace()`.
+    """
+    from entities_service.service.config import CONFIG
+
+    bad_namespace = "bad_namespace"
+    error_message = "Invalid namespace"
+
+    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+
+    if not live_backend:
+        # Mock response for listing (valid) namespaces
+        httpx_mock.add_response(
+            url=f"{core_namespace}/_api/namespaces",
+            method="GET",
+            json=[core_namespace],
+        )
+
+    # Monkeypatch the `_parse_namespace()` function to raise a ValueError
+    def _raise_valueerror(namespace, allow_external=True) -> str:  # noqa: ARG001
+        raise ValueError(error_message)
+
+    monkeypatch.setattr(
+        "entities_service.cli.commands.list._parse_namespace", _raise_valueerror
+    )
+
+    result = cli.invoke(list_app, ("entities", bad_namespace))
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        f"Error: Cannot parse one or more namespaces. Error message: {error_message}"
+        in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+def test_invalid_namespace(
+    live_backend: bool,
+    cli: CliRunner,
+    list_app: Typer,
+    httpx_mock: HTTPXMock,
+    existing_specific_namespace: str,
+) -> None:
+    """Test `entities-service list entities` CLI command.
+
+    With an invalid namespace.
+    """
+    from entities_service.service.config import CONFIG
+
+    non_existing_namespace = "non_existing_namespace"
+
+    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
+    valid_namespaces = sorted([core_namespace, specific_namespace])
+
+    if not live_backend:
+        # Mock response for listing (valid) namespaces
+        httpx_mock.add_response(
+            url=f"{core_namespace}/_api/namespaces",
+            method="GET",
+            json=valid_namespaces,
+        )
+
+    result = cli.invoke(list_app, ("entities", non_existing_namespace))
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Error: Invalid namespace(s) given: "
+        f"{[str(CONFIG.base_url).rstrip('/') + '/' + non_existing_namespace]}"
+        f"Valid namespaces: {valid_namespaces}" in result.stderr.replace("\n", "")
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.skip_if_live_backend("Cannot mock HTTP error with live backend")
+def test_http_errors(
+    cli: CliRunner,
+    list_app: Typer,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Ensure the proper error message is given if an HTTP error occurs."""
+    from httpx import HTTPError
+
+    from entities_service.service.config import CONFIG
+
+    error_message = "Generic HTTP Error"
+
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+
+    # Mock response for listing (valid) namespaces
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_api/namespaces",
+        method="GET",
+        json=[core_namespace],
+    )
+
+    # Mock response for the list namespaces command
+    httpx_mock.add_exception(
+        HTTPError(error_message),
+        url=f"{core_namespace}/_api/entities?namespace=",
+    )
+
+    result = cli.invoke(list_app, "entities")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Error: Could not list entities. HTTP exception: "
+        f"{error_message}" in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.skip_if_live_backend("Cannot mock JSON decode error with live backend")
+def test_json_decode_errors(
+    cli: CliRunner,
+    list_app: Typer,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Ensure a proper error message is given if a JSONDecodeError occurs."""
+    from entities_service.service.config import CONFIG
+
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+
+    # Mock response for listing (valid) namespaces
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_api/namespaces",
+        method="GET",
+        json=[core_namespace],
+    )
+
+    # Mock response for the list namespaces command
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_api/entities?namespace=",
+        status_code=200,
+        content=b"not json",
+    )
+
+    result = cli.invoke(list_app, "entities")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Error: Could not list entities. JSON decode error: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.skip_if_live_backend("Cannot mock invalid response with live backend")
+def test_unsuccessful_response(
+    cli: CliRunner,
+    list_app: Typer,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Ensure a proper error message is given if the response is not successful."""
+    from entities_service.service.config import CONFIG
+
+    error_message = "Bad response"
+    status_code = 400
+
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+
+    # Mock response for listing (valid) namespaces
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_api/namespaces",
+        method="GET",
+        json=[core_namespace],
+    )
+
+    # Mock response for the list namespaces command
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_api/entities?namespace=",
+        status_code=status_code,
+        json={"detail": error_message},
+    )
+
+    result = cli.invoke(list_app, "entities")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Error: Could not list entities. HTTP status code: "
+        f"{status_code}. Error response: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert error_message in result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.skip_if_live_backend(
+    "Cannot mock invalid response format with live backend"
+)
+def test_bad_response_format(
+    cli: CliRunner,
+    list_app: Typer,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Ensure a proper error message is given if the response format is not as
+    expected."""
+    from entities_service.service.config import CONFIG
+
+    core_namespace = str(CONFIG.base_url).rstrip("/")
+
+    # Mock response for listing (valid) namespaces
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_api/namespaces",
+        method="GET",
+        json=[core_namespace],
+    )
+
+    # Mock response for the list namespaces command
+    httpx_mock.add_response(
+        url=f"{core_namespace}/_api/entities?namespace=",
+        status_code=200,
+        json={"bad": "response format"},  # should be a list of dicts
+    )
+
+    result = cli.invoke(list_app, "entities")
+
+    assert result.exit_code == 1, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "Error: Could not list entities. Invalid response: " in result.stderr
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stdout, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+
+@pytest.mark.usefixtures("_empty_backend_collection")
+def test_empty_list_response(
+    live_backend: bool,
+    cli: CliRunner,
+    list_app: Typer,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Ensure a proper message is given if the list entities response is empty."""
+    from entities_service.service.config import CONFIG
+
+    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+
+    if not live_backend:
+        # Mock response for listing (valid) namespaces
+        httpx_mock.add_response(
+            url=f"{core_namespace}/_api/namespaces",
+            method="GET",
+            json=[core_namespace],
+        )
+
+        # Mock response for the list namespaces command
+        httpx_mock.add_response(
+            url=f"{core_namespace}/_api/entities?namespace=",
+            status_code=200,
+            json=[],
+        )
+
+    result = cli.invoke(list_app, "entities")
+
+    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
+
+    assert (
+        "No entities found in namespace(s) " in result.stdout
+    ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+    assert not result.stderr, CLI_RESULT_FAIL_MESSAGE.format(
+        stdout=result.stdout, stderr=result.stderr
+    )
