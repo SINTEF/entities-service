@@ -324,11 +324,17 @@ def _parse_namespace(namespace: str | None, allow_external: bool = True) -> str:
 
 
 def _get_specific_namespace(namespace: str) -> str | None:
-    """Retrieve the specific namespace (if any) from a full namespace."""
+    """Retrieve the specific namespace (if any) from a full namespace.
+
+    Note, if the namespace is a fully qualified URL it is expected to already be within
+    the core namespace as given by the `base_url` configuration setting.
+
+    If the namespace is the core namespace, return `None`.
+    """
     if namespace.startswith(str(CONFIG.base_url).rstrip("/")):
         namespace = namespace[len(str(CONFIG.base_url).rstrip("/")) :]
 
     if namespace.strip() in ("/", ""):
         return None
 
-    return namespace.lstrip("/")
+    return namespace.strip("/")
