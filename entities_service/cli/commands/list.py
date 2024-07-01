@@ -65,30 +65,47 @@ def namespaces(
             )
             raise typer.Exit(1) from exc
 
-    if not response.is_success:
-        try:
-            error_message = response.json()
-        except json.JSONDecodeError as exc:
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: Could not list namespaces. JSON decode "
-                f"error: {exc}"
-            )
-            raise typer.Exit(1) from exc
-
+    # Decode response
+    try:
+        namespaces: dict[str, Any] | list[str] = response.json()
+    except json.JSONDecodeError as exc:
         ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Could not list namespaces. HTTP status code: "
-            f"{response.status_code}. Error response: "
+            f"[bold red]Error[/bold red]: Could not list namespaces. JSON decode "
+            f"error: {exc}"
         )
-        ERROR_CONSOLE.print_json(data=error_message)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
-    namespaces: list[str] = response.json()
+    # Unsuccessful response (!= 200 OK)
+    if not response.is_success:
+        # First, it may be that there are no namespaces
+        if (
+            response.status_code == 500
+            and isinstance(namespaces, dict)
+            and namespaces.get("detail") == "No namespaces found in the backend."
+        ):
+            print(
+                "[bold yellow]Warning[/bold yellow]: No namespaces found. There are no "
+                f"entities hosted. Ensure {CONFIG.base_url} is the desired service to "
+                "target."
+            )
+            namespaces = []
 
-    if not namespaces:  # pragma: no cover
-        # This will never be reached, since the server will always return at least one
-        # namespace (the "core" namespace)
-        # This is kept here for completeness
-        ERROR_CONSOLE.print("[bold red]Error[/bold red]: No namespaces found.")
+        # Or it may be an error
+        else:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not list namespaces. HTTP status "
+                f"code: {response.status_code}. Error response: "
+            )
+            ERROR_CONSOLE.print_json(data=namespaces)
+            raise typer.Exit(1)
+
+    # Bad response format
+    if not isinstance(namespaces, list):
+        # Expect a list of namespaces
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list namespaces. Invalid response: "
+            f"{namespaces}"
+        )
         raise typer.Exit(1)
 
     if return_info:
