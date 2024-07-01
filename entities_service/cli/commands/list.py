@@ -111,6 +111,9 @@ def namespaces(
     if return_info:
         return namespaces
 
+    if not namespaces:
+        raise typer.Exit()
+
     # Print namespaces
     table = Table(
         box=box.HORIZONTALS,
@@ -156,13 +159,14 @@ def entities(
         namespace = valid_namespaces
 
     if namespace is None:
-        namespace = [str(CONFIG.base_url).rstrip("/")]
+        namespace = [str(CONFIG.base_url).rstrip("/")] if valid_namespaces else []
 
     try:
         target_namespaces = [_parse_namespace(ns) for ns in namespace]
     except ValueError as exc:
         ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Cannot parse given namespace(s): {exc}"
+            f"[bold red]Error[/bold red]: Cannot parse one or more namespaces. "
+            f"Error message: {exc}"
         )
         raise typer.Exit(1) from exc
 
@@ -170,7 +174,7 @@ def entities(
         ERROR_CONSOLE.print(
             "[bold red]Error[/bold red]: Invalid namespace(s) given: "
             f"{[ns for ns in target_namespaces if ns not in valid_namespaces]}"
-            f"\nValid namespaces: {valid_namespaces}"
+            f"\nValid namespaces: {sorted(valid_namespaces)}"
         )
         raise typer.Exit(1)
 
@@ -196,27 +200,35 @@ def entities(
             )
             raise typer.Exit(1) from exc
 
-    if not response.is_success:
-        try:
-            error_message = response.json()
-        except json.JSONDecodeError as exc:
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: Could not list entities. JSON decode "
-                f"error: {exc}"
-            )
-            raise typer.Exit(1) from exc
+    # Decode response
+    try:
+        entities: dict[str, Any] | list[dict[str, Any]] = response.json()
+    except json.JSONDecodeError as exc:
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list entities. JSON decode "
+            f"error: {exc}"
+        )
+        raise typer.Exit(1) from exc
 
+    # Unsuccessful response (!= 200 OK)
+    if not response.is_success:
         ERROR_CONSOLE.print(
             f"[bold red]Error[/bold red]: Could not list entities. HTTP status code: "
             f"{response.status_code}. Error response: "
         )
-        ERROR_CONSOLE.print_json(data=error_message)
+        ERROR_CONSOLE.print_json(data=entities)
         raise typer.Exit(1)
 
-    entities: list[dict[str, Any]] = response.json()
+    # Bad response format
+    if not isinstance(entities, list):
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list entities. Invalid response: "
+            f"{entities}"
+        )
+        raise typer.Exit(1)
 
     if not entities:
-        print(f"No entities found in namespace {namespace}")
+        print(f"No entities found in namespace(s) {namespace}")
         raise typer.Exit()
 
     # Print entities

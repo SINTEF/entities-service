@@ -153,7 +153,7 @@ def test_json_decode_errors(
     )
 
 
-@pytest.mark.skip_if_live_backend("Cannot mock invalid namespace with live backend")
+@pytest.mark.skip_if_live_backend("Cannot mock invalid response with live backend")
 def test_unsuccessful_response(
     cli: CliRunner,
     list_app: Typer,
@@ -190,8 +190,10 @@ def test_unsuccessful_response(
     )
 
 
-@pytest.mark.skip_if_live_backend("Cannot mock invalid namespace with live backend")
-def test_bade_response_format(
+@pytest.mark.skip_if_live_backend(
+    "Cannot mock invalid response format with live backend"
+)
+def test_bad_response_format(
     cli: CliRunner,
     list_app: Typer,
     httpx_mock: HTTPXMock,
