@@ -124,7 +124,7 @@ jobs:
       - name: Run tests
         run: |
           {
-            pytest -vv --live-backend --cov-report=
+            pytest -vv --live-backend --cov-report= --color=yes
           } || {
             echo "Failed! Here's the Docker logs for the service:" &&
             docker logs entities-service &&
@@ -189,7 +189,7 @@ jobs:
           pip install -U -e .[testing]
 
       - name: Run pytest
-        run: pytest -vv --cov-report=xml
+        run: pytest -vv --cov-report=xml --color=yes
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
