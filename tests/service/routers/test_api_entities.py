@@ -61,6 +61,7 @@ def test_list_entities(client: ClientFixture, static_dir: Path) -> None:
 
 
 def test_list_entities_specified_namespaces(
+    live_backend: bool,
     client: ClientFixture,
     static_dir: Path,
     existing_specific_namespace: str,
@@ -151,21 +152,22 @@ def test_list_entities_specified_namespaces(
             f"{json.dumps(sorted_expected_response, indent=2)}"
         )
 
-    # Check logs
-    assert (
-        f"Namespace {core_namespace + '/1.0/Entity'!r} is a URI (as a URL)."
-        in caplog.text
-    ), caplog.text
-
-    for full_namespace in (core_namespace, specific_namespace):
+    if not live_backend:
+        # Check logs
         assert (
-            f"Namespace {full_namespace!r} is a 'regular' full namespace."
+            f"Namespace {core_namespace + '/1.0/Entity'!r} is a URI (as a URL)."
             in caplog.text
         ), caplog.text
 
+        for full_namespace in (core_namespace, specific_namespace):
+            assert (
+                f"Namespace {full_namespace!r} is a 'regular' full namespace."
+                in caplog.text
+            ), caplog.text
+
 
 def test_list_entities_invalid_namespaces(
-    client: ClientFixture, caplog: pytest.LogCaptureFixture
+    live_backend: bool, client: ClientFixture, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Test calling the endpoint with invalid 'namespaces' query parameter."""
     from entities_service.service.config import CONFIG
@@ -190,5 +192,6 @@ def test_list_entities_invalid_namespaces(
     assert "detail" in response_json, response_json
     assert response_json["detail"] == expected_response, response_json
 
-    # Check logs
-    assert expected_log_error in caplog.text, caplog.text
+    if not live_backend:
+        # Check logs
+        assert expected_log_error in caplog.text, caplog.text
