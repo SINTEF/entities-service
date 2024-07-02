@@ -62,6 +62,8 @@ class Backend(ABC):
         self._settings = settings or self._settings_model()
         self._is_closed: bool = False
 
+        self._initialize()
+
     # Exceptions
     @property
     @abstractmethod
@@ -79,6 +81,12 @@ class Backend(ABC):
     def __del__(self) -> None:
         if not self._is_closed:
             self.close()
+
+    def __iter__(self) -> Iterator[dict[str, Any]]:
+        return iter(self.search())
+
+    def __len__(self) -> int:
+        return self.count()
 
     # Container protocol methods
     def __contains__(self, item: Any) -> bool:
@@ -104,17 +112,9 @@ class Backend(ABC):
 
         return False
 
-    @abstractmethod
-    def __iter__(self) -> Iterator[dict[str, Any]]:  # pragma: no cover
-        raise NotImplementedError
-
-    @abstractmethod
-    def __len__(self) -> int:  # pragma: no cover
-        raise NotImplementedError
-
     # Backend methods (initialization)
     @abstractmethod
-    def initialize(self) -> None:  # pragma: no cover
+    def _initialize(self) -> None:  # pragma: no cover
         """Initialize the backend."""
         raise NotImplementedError
 
@@ -149,7 +149,7 @@ class Backend(ABC):
 
     # Backend methods (search)
     @abstractmethod
-    def search(self, query: Any) -> Iterator[dict[str, Any]]:  # pragma: no cover
+    def search(self, query: Any = None) -> Iterator[dict[str, Any]]:  # pragma: no cover
         """Search for entities."""
         raise NotImplementedError
 
@@ -170,3 +170,12 @@ class Backend(ABC):
             raise BackendError("Backend is already closed")
 
         self._is_closed = True
+
+    # Backend methods (other)
+    @abstractmethod
+    def get_dbs(self) -> list[str]:  # pragma: no cover
+        """Get the backend databases.
+
+        This is related (but not necessarily equivalent) to the specific namespaces.
+        """
+        raise NotImplementedError

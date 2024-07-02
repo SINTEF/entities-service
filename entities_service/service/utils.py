@@ -40,7 +40,7 @@ async def _get_entity(version: str, name: str, db: str | None = None) -> dict[st
 
     uri += f"/{version}/{name}"
 
-    entity = get_backend(db=db).read(uri)
+    entity = get_backend(CONFIG.backend, auth_level="read", db=db).read(uri)
 
     if entity is None:
         raise ValueError(f"Could not find entity: uri={uri}")
@@ -48,3 +48,13 @@ async def _get_entity(version: str, name: str, db: str | None = None) -> dict[st
     await _add_dimensions(entity)
 
     return entity
+
+
+async def _get_entities(db: str | None) -> list[dict[str, Any]]:
+    """Utility function for the endpoints to retrieve all endpoints from the
+    namespace/db-specific backend."""
+    entities = list(get_backend(CONFIG.backend, auth_level="read", db=db))
+
+    await _add_dimensions(entities)
+
+    return entities

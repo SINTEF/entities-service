@@ -632,18 +632,6 @@ def _reset_mongo_test_collections(
         )
 
 
-@pytest.fixture(autouse=True)
-def _mock_lifespan(live_backend: bool, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock the MongoDBBackend.initialize() method."""
-    # Only mock the lifespan context manager if the tests are not run with a live
-    # backend
-    if not live_backend:
-        monkeypatch.setattr(
-            "entities_service.service.backend.mongodb.MongoDBBackend.initialize",
-            lambda _: None,
-        )
-
-
 @pytest.fixture()
 def _empty_backend_collection(
     get_backend_user: GetBackendUserFixture,

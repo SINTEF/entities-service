@@ -52,7 +52,17 @@ URI_REGEX = re.compile(
     rf"^(?P<namespace>{re.escape(str(CONFIG.base_url).rstrip('/'))}(?:/(?P<specific_namespace>.+))?)"
     rf"/(?P<version>{NO_GROUPS_SEMVER_REGEX})/(?P<name>[^/#?]+)$"
 )
-"""Regular expression to parse a SOFT entity URI."""
+"""Regular expression to parse a SOFT entity URI as URL."""
+
+GENERIC_NAMESPACE_URI_REGEX = re.compile(
+    r"^(?P<namespace>https?://[^/]+(?::[0-9]+)?(?:/.+)?)"
+    rf"/(?P<version>{NO_GROUPS_SEMVER_REGEX})/(?P<name>[^/#?]+)$"
+)
+"""Regular expression to parse a generic namespace SOFT entity URI as URL.
+
+It is not possible to derive the specific namespace from this URI.
+The whole namespace may be considered the specific namespace.
+"""
 
 
 def _disallowed_namespace_characters(value: str) -> str:

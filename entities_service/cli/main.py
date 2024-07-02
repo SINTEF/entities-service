@@ -25,6 +25,7 @@ APP = typer.Typer(
 for typer_app, typer_app_kwargs in get_subtyper_apps():
     APP.add_typer(typer_app, **typer_app_kwargs)
 
+
 # Add all "leaf"-commands
 for command, commands_kwargs in get_commands():
     APP.command(**commands_kwargs)(command)

@@ -27,6 +27,20 @@ def config_app() -> Typer:
     return APP
 
 
+@pytest.fixture(scope="session")
+def list_app() -> Typer:
+    """Return the list APP."""
+    from entities_service.cli._utils.global_settings import global_options
+    from entities_service.cli.commands.list import APP
+
+    # Add global options to the APP
+    # This is done by the "main" APP, and should hence be done here manually to ensure
+    # they can be used
+    APP.callback()(global_options)
+
+    return APP
+
+
 @pytest.fixture()
 def dotenv_file(tmp_path: Path) -> Path:
     """Create a path to a dotenv file in a temporary test folder."""

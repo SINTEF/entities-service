@@ -120,3 +120,12 @@ def get_backend(
         backend_settings.update(settings)
 
     return backend_class(settings=backend_settings)
+
+
+def get_dbs(backend: Backend | Backends | str | None = None) -> list[str]:
+    """Get the dbs (namespaces) from a given backend."""
+    if isinstance(backend, (Backends, str)) or backend is None:
+        return get_backend(backend).get_dbs()
+
+    # Expect backend to be a backend instance
+    return backend.get_dbs()

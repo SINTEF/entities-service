@@ -111,7 +111,7 @@ jobs:
             --env ENTITIES_SERVICE_X509_CERTIFICATE_FILE \
             --env ENTITIES_SERVICE_CA_FILE \
             --env PORT=${ENTITIES_SERVICE_PORT} \
-            --env RUN_TIME=40 \
+            --env RUN_TIME=60 \
             --env STOP_TIME=3 \
             --name "entities-service" \
             --network "host" \
@@ -124,7 +124,7 @@ jobs:
       - name: Run tests
         run: |
           {
-            pytest -vv --live-backend --cov-report=
+            pytest -vv --live-backend --cov-report= --color=yes
           } || {
             echo "Failed! Here's the Docker logs for the service:" &&
             docker logs entities-service &&
@@ -189,7 +189,7 @@ jobs:
           pip install -U -e .[testing]
 
       - name: Run pytest
-        run: pytest -vv --cov-report=xml
+        run: pytest -vv --cov-report=xml --color=yes
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
