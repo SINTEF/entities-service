@@ -2,17 +2,61 @@
 
 ## [Unreleased](https://github.com/SINTEF/entities-service/tree/HEAD)
 
-[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.6.0...HEAD)
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.7.0...HEAD)
 
-# Support `identity` and ensure `dimensions` is present
+# New `list` command group
 
-`identity` is now allowed as an alias for `uri`. This is in accord with regular SOFT schemas.
+Two new commands are introduced to the CLI:
 
-The `dimensions` key is now always returned when retrieving an entity, even if empty. This is done mainly to support DLite usage, since DLite cannot handle entities that do not explicitly define the `dimensions` key, even though it may be empty.
+## `list namespaces`
 
-# pre-commit.ci
+This returns a table overview of all fully qualified URL namespaces that contain entities from the service located at the value given by the environment variable `ENTITIES_SERVICE_BASE_URL`.
 
-The DX has been optimized by using [pre-commit.ci](https://pre-commit.ci) for running pre-commit hooks on a PR as well as autoupgrading the hooks weekly as part of the repository's CI/CD.
+## `list entities`
+
+Takes as many `NAMESPACE` arguments as desired - even zero. And will list all the entities found in those given namespaces.
+If no namespace is given, the value given by the environment variable `ENTITIES_SERVICE_BASE_URL` will be used.
+
+One can also use the option `--all-namespaces/-a` to return all entities for the core and all specific namespaces at `ENTITIES_SERVICE_BASE_URL`.
+
+# Miscellaneous
+
+Several DX and dependency updates have been introduced, for a full overview, please see the full changelog.
+
+**Implemented enhancements:**
+
+- ✨ List and report on entities in \(specific\) namespace [\#107](https://github.com/SINTEF/entities-service/issues/107)
+
+## [v0.7.0](https://github.com/SINTEF/entities-service/tree/v0.7.0) (2024-07-02)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.6.0...v0.7.0)
+
+**Implemented enhancements:**
+
+- Separate entity URI/identity from hosting URL [\#76](https://github.com/SINTEF/entities-service/issues/76)
+
+**Fixed bugs:**
+
+- 🔧 Cap DLite version [\#161](https://github.com/SINTEF/entities-service/issues/161)
+- 🔧 Fix lines in table output from upload summary [\#149](https://github.com/SINTEF/entities-service/issues/149)
+- 🔧 Ensure the service is deployed if the dependencies are updated [\#139](https://github.com/SINTEF/entities-service/issues/139)
+- 🔧 `dimensions` should always be returned [\#102](https://github.com/SINTEF/entities-service/issues/102)
+
+**Closed issues:**
+
+- 📄 Document the CLI API [\#148](https://github.com/SINTEF/entities-service/issues/148)
+
+**Merged pull requests:**
+
+- Support latest DLite version \(v0.5.16\) [\#162](https://github.com/SINTEF/entities-service/pull/162) ([CasperWA](https://github.com/CasperWA))
+- \[pre-commit.ci\] pre-commit autoupdate [\#159](https://github.com/SINTEF/entities-service/pull/159) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#157](https://github.com/SINTEF/entities-service/pull/157) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#155](https://github.com/SINTEF/entities-service/pull/155) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- Ensure `last_namespace` is updated iteratively [\#151](https://github.com/SINTEF/entities-service/pull/151) ([CasperWA](https://github.com/CasperWA))
+- Add pyproject.toml to service changes file checklist [\#150](https://github.com/SINTEF/entities-service/pull/150) ([CasperWA](https://github.com/CasperWA))
+- \[pre-commit.ci\] pre-commit autoupdate [\#147](https://github.com/SINTEF/entities-service/pull/147) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- Add CLI documentation [\#114](https://github.com/SINTEF/entities-service/pull/114) ([CasperWA](https://github.com/CasperWA))
+- List entities in namespace\(s\) [\#111](https://github.com/SINTEF/entities-service/pull/111) ([CasperWA](https://github.com/CasperWA))
 
 ## [v0.6.0](https://github.com/SINTEF/entities-service/tree/v0.6.0) (2024-05-08)
 
