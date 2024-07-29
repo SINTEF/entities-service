@@ -40,7 +40,7 @@ class ConfigFields(StrEnum):
         ConfigFields[config_name.upper()] = config_name.lower()
 
     @classmethod
-    def autocomplete(cls, incomplete: str) -> Generator[tuple[str, str], None, None]:
+    def autocomplete(cls, incomplete: str) -> Generator[tuple[str, str]]:
         """Return a list of valid configuration options."""
         for member in cls:
             if member.value.startswith(incomplete):
