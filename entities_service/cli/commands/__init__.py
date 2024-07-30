@@ -20,7 +20,7 @@ NO_ARGS_IS_HELP_COMMANDS = ("upload", "validate")
 ALIASED_COMMANDS: dict[str, str] = {}
 
 
-def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
+def get_commands() -> Generator[tuple[Callable, dict[str, Any]]]:
     """Return all CLI commands, along with typer.command() kwargs.
 
     It is important the command module name matches the command function name.
@@ -55,7 +55,7 @@ def get_commands() -> Generator[tuple[Callable, dict[str, Any]], None, None]:
         yield getattr(module, path.stem), command_kwargs
 
 
-def get_subtyper_apps() -> Generator[tuple[Typer, dict[str, Any]], None, None]:
+def get_subtyper_apps() -> Generator[tuple[Typer, dict[str, Any]]]:
     """Return all CLI Typer apps, which are a group of sub-command groups, along with
     typer.add_typer() kwargs.
 
