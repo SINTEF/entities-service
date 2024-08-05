@@ -1191,6 +1191,10 @@ def test_validate_strict(
         if index % 2 == 0:
             existing_entity_content = raw_entity.copy()
 
+            if id_key == "identity":
+                existing_entity_content["uri"] = existing_entity_content.pop("identity")
+                id_key = "uri"
+
             # And for half of those, let's say they exist with different content
             if index % 4 == 0:
                 if isinstance(existing_entity_content["properties"], dict):
