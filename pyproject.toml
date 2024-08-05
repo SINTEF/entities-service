@@ -60,7 +60,7 @@ testing = [
     "cryptography ~=43.0",
     "dlite-python ~=0.5.16",
     "mongomock ~=4.1",
-    "numpy <2",  # requirement for DLite v0.5.16, which does not support NumPy v2
+    "numpy <3",  # requirement for DLite v0.5.16, which does not support NumPy v2
     "pytest ~=8.3",
     "pytest-asyncio ~=0.23.8",
     "pytest-cov ~=5.0",
