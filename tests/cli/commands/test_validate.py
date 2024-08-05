@@ -1153,6 +1153,7 @@ def test_using_stdin(
     ), CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
 
 
+@pytest.mark.usefixtures("_reset_mongo_test_collections")
 @pytest.mark.parametrize("fail_fast", [True, False], ids=["fail-fast", "no-fail-fast"])
 @pytest.mark.parametrize("verbose", [True, False], ids=["verbose", "no-verbose"])
 def test_validate_strict(
