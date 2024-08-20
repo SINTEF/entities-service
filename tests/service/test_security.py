@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..conftest import MockOpenIDConfigCall, OpenIDConfigMock
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_info() -> dict[str, Any]:
     """Test data for verify_user_access_token() function."""
     return {
@@ -46,7 +46,7 @@ def user_info() -> dict[str, Any]:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def group_member_info() -> dict[str, Any]:
     """Test data for verify_user_access_token() function."""
     return {

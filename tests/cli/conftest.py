@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typer.testing import CliRunner
 
 
-@pytest.fixture()
+@pytest.fixture
 def cli() -> CliRunner:
     """Fixture for CLI runner."""
     import os
@@ -22,7 +22,7 @@ def cli() -> CliRunner:
     return CliRunner(mix_stderr=False, env=os.environ.copy())
 
 
-@pytest.fixture()
+@pytest.fixture
 def tmp_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Create a temporary cache directory."""
     cache_dir = tmp_path / ".cache" / "entities-service"
@@ -37,7 +37,7 @@ def tmp_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return cache_dir
 
 
-@pytest.fixture()
+@pytest.fixture
 def tmp_cache_file(tmp_cache_dir: Path) -> Path:
     """Create a temporary cache file."""
     return tmp_cache_dir / "oauth2_token_cache.json"

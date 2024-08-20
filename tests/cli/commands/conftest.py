@@ -41,7 +41,7 @@ def list_app() -> Typer:
     return APP
 
 
-@pytest.fixture()
+@pytest.fixture
 def dotenv_file(tmp_path: Path) -> Path:
     """Create a path to a dotenv file in a temporary test folder."""
     from entities_service.service.config import CONFIG
@@ -53,7 +53,7 @@ def dotenv_file(tmp_path: Path) -> Path:
     return tmp_path / env_file
 
 
-@pytest.fixture()
+@pytest.fixture
 def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -> None:
     """Mock the base url if using a live backend."""
     if not live_backend:
@@ -77,7 +77,7 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def non_mocked_hosts(live_backend: bool) -> list[str]:
     """Return a list of hosts that are not mocked by 'pytest-httpx."""
     if not live_backend:
@@ -104,7 +104,7 @@ def non_mocked_hosts(live_backend: bool) -> list[str]:
     return hosts
 
 
-@pytest.fixture()
+@pytest.fixture
 def _mock_successful_oauth_response(
     monkeypatch: pytest.MonkeyPatch, token_mock: str, httpx_mock: HTTPXMock
 ) -> None:
@@ -124,7 +124,7 @@ def _mock_successful_oauth_response(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def _mock_failed_oauth_response(
     monkeypatch: pytest.MonkeyPatch, httpx_mock: HTTPXMock
 ) -> None:

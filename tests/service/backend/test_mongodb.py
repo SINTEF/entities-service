@@ -21,7 +21,7 @@ if TYPE_CHECKING:
         ) -> MongoDBBackend: ...
 
 
-@pytest.fixture()
+@pytest.fixture
 def mongo_backend(get_backend_user: GetBackendUserFixture) -> GetMongoBackend:
     """Get a MongoDB backend."""
 

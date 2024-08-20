@@ -539,7 +539,7 @@ def _setup_real_mongo_users(
             )
 
 
-@pytest.fixture()
+@pytest.fixture
 def existing_specific_namespace() -> str:
     """Return the specific namespace to test."""
     return "test"
@@ -632,7 +632,7 @@ def _reset_mongo_test_collections(
         )
 
 
-@pytest.fixture()
+@pytest.fixture
 def _empty_backend_collection(
     get_backend_user: GetBackendUserFixture,
     existing_specific_namespace: str,
@@ -656,7 +656,7 @@ def _empty_backend_collection(
         assert backend._collection.count_documents({}) == 0
 
 
-@pytest.fixture()
+@pytest.fixture
 def token_mock() -> str:
     """Return a mock token.
 
@@ -670,7 +670,7 @@ def token_mock() -> str:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def auth_header(token_mock: str) -> dict[Literal["Authorization"], str]:
     """Return the authentication header."""
     from fastapi.security import HTTPAuthorizationCredentials
@@ -684,7 +684,7 @@ def auth_header(token_mock: str) -> dict[Literal["Authorization"], str]:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def openid_config_mock() -> OpenIDConfigMock:
     """Return a mock OpenID configuration."""
 
@@ -705,7 +705,7 @@ def openid_config_mock() -> OpenIDConfigMock:
     return _openid_config_mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_openid_config_call(
     httpx_mock: HTTPXMock, openid_config_mock: OpenIDConfigMock
 ) -> MockOpenIDConfigCall:
@@ -721,7 +721,7 @@ def mock_openid_config_call(
     return _mock_openid_config_call
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_auth_verification(
     httpx_mock: HTTPXMock,
     get_backend_user: GetBackendUserFixture,
@@ -784,7 +784,7 @@ def mock_auth_verification(
     return _mock_auth_verification
 
 
-@pytest.fixture()
+@pytest.fixture
 def client(
     live_backend: bool, auth_header: dict[Literal["Authorization"], str]
 ) -> ClientFixture:

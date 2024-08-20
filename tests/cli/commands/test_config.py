@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.usefixtures("_mock_config_base_url")
 
 
-@pytest.fixture()
+@pytest.fixture
 def _prefill_dotenv_config(dotenv_file: Path) -> None:
     """'Pre'-fill the monkeypatched dotenv config paths."""
     from dotenv import set_key
