@@ -126,11 +126,16 @@ ignore = [
 isort.required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = [
+".github/**" = [
     "BLE",  # flake8-blind-except
     "T20",  # flake8-print
 ]
-".github/**" = [
+"docs/example/**" = [
+    "BLE",  # flake8-blind-except
+    "I002",  # missing-required-import
+    "T20",  # flake8-print
+]
+"tests/**" = [
     "BLE",  # flake8-blind-except
     "T20",  # flake8-print
 ]
