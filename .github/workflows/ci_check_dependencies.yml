@@ -18,8 +18,8 @@ jobs:
       python_version: "3.10"
       install_extras: "[dev]"
       pr_labels: "CI/CD,skip_changelog"
+      # Ignore all further major version updates for NumPy, i.e., keep it at 1.x.x
       ignore: |
-        # Ignore all further major version updates for NumPy, i.e., keep it at 1.x.x
         dependency-name=numpy...update-types=version-update:semver-major
     secrets:
       PAT: ${{ secrets.TEAM40_PAT }}
