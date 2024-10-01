@@ -829,6 +829,7 @@ def client(
         return Client(
             base_url=f"http://{host}:{port}",
             headers=auth_header,
+            timeout=10,
         )
 
     return _client

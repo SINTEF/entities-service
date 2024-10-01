@@ -55,7 +55,7 @@ def namespaces(
     ] = False,
 ) -> list[str] | None:
     """List namespaces from the entities service."""
-    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+    with httpx.Client(base_url=str(CONFIG.base_url), timeout=10) as client:
         try:
             response = client.get("/_api/namespaces")
         except httpx.HTTPError as exc:
@@ -183,7 +183,7 @@ def entities(
     # and/or the "core" namespace (None)
     specific_namespaces = [_get_specific_namespace(ns) for ns in target_namespaces]
 
-    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+    with httpx.Client(base_url=str(CONFIG.base_url), timeout=10) as client:
         try:
             response = client.get(
                 "/_api/entities",
