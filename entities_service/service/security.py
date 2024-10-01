@@ -38,7 +38,7 @@ MINIMUM_GROUP_ACCESS_LEVEL = GitLabRole.DEVELOPER
 
 async def get_openid_config() -> OpenIDConfiguration:
     """Get the OpenID configuration."""
-    async with AsyncClient() as client:
+    async with AsyncClient(timeout=10) as client:
         error = False
         try:
             response = await client.get(
@@ -60,7 +60,7 @@ async def get_openid_config() -> OpenIDConfiguration:
 
 async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | None]:
     """Verify a user-provided GitLab access token."""
-    client = AsyncClient(headers={"Authorization": f"Bearer {token}"})
+    client = AsyncClient(headers={"Authorization": f"Bearer {token}"}, timeout=10)
     error = False
 
     # Get current user
@@ -195,7 +195,8 @@ async def verify_token(
 
     # Get the user info from the OAuth2 provider based on the current credentials
     async with AsyncClient(
-        headers={"Authorization": f"{credentials.scheme} {credentials.credentials}"}
+        headers={"Authorization": f"{credentials.scheme} {credentials.credentials}"},
+        timeout=10,
     ) as client:
         error = False
         try:

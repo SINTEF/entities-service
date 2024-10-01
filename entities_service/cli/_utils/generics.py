@@ -165,7 +165,7 @@ def initialize_oauth2(
         ) from exc
 
     try:
-        with httpx.Client() as client:
+        with httpx.Client(timeout=10) as client:
             response: dict[str, Any] = client.get(openid_config_url).json()
     except (httpx.HTTPError, JSONDecodeError) as exc:
         raise ValueError(
