@@ -37,7 +37,7 @@ def login(
     ] = False,
 ) -> None:
     """Login to the entities service."""
-    with httpx.Client(base_url=str(CONFIG.base_url)) as client:
+    with httpx.Client(base_url=str(CONFIG.base_url), timeout=10) as client:
         try:
             response = client.post("/_admin/create", json=[], auth=oauth)
         except httpx.HTTPError as exc:

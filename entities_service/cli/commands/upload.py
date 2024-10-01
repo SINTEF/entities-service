@@ -402,7 +402,9 @@ def upload(
                 raise typer.Exit()
 
         # Upload entities
-        with httpx.Client(base_url=str(CONFIG.base_url), auth=oauth) as client:
+        with httpx.Client(
+            base_url=str(CONFIG.base_url), auth=oauth, timeout=10
+        ) as client:
             try:
                 response = client.post("/_admin/create", json=successes)
             except httpx.HTTPError as exc:

@@ -380,7 +380,7 @@ def validate(
             break
 
         # Check if entity exists at its given URL URI
-        with httpx.Client(follow_redirects=True) as client:
+        with httpx.Client(follow_redirects=True, timeout=10) as client:
             try:
                 response = client.get(get_uri(entity_model))
             except httpx.HTTPError as exc:
