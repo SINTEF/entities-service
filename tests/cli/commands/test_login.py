@@ -14,7 +14,10 @@ if TYPE_CHECKING:
 
     from .conftest import ParameterizeGetEntities
 
-pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
+pytestmark = [
+    pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked."),
+    pytest.mark.httpx_mock(can_send_already_matched_responses=True),
+]
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 

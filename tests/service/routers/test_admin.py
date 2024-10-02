@@ -261,6 +261,7 @@ def test_create_no_entities(
         response.json()
 
 
+@pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 def test_create_invalid_entity(
     static_dir: Path,
     client: ClientFixture,
