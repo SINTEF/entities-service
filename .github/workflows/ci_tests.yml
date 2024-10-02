@@ -74,14 +74,14 @@ jobs:
           cd docker_security && ${{ github.workspace }}/.github/docker_init/setup_mongo_security.sh
           cd ${{ github.workspace }}
 
-          # Pull mongo:7 image and run it
-          docker pull mongo:7
+          # Pull mongo:8 image and run it
+          docker pull mongo:8
           docker run --rm -d \
             --name "mongo" \
             --network "host" \
             --volume "${{ github.workspace }}/.github/docker_init/create_x509_user.js:/docker-entrypoint-initdb.d/0_create_x509_user.js" \
             --volume "${{ github.workspace }}/docker_security:/mongo_tls" \
-            mongo:7 \
+            mongo:8 \
             --tlsMode allowTLS --tlsCertificateKeyFile /mongo_tls/test-server1.pem --tlsCAFile /mongo_tls/test-ca.pem
           sleep 10  # Wait for the database to start
 
