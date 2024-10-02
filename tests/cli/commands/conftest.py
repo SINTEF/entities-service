@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+import pytest_asyncio
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from typer import Typer
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def config_app() -> Typer:
     """Return the config APP."""
     from entities_service.cli._utils.global_settings import global_options
@@ -27,7 +28,7 @@ def config_app() -> Typer:
     return APP
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def list_app() -> Typer:
     """Return the list APP."""
     from entities_service.cli._utils.global_settings import global_options

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
+import pytest_asyncio
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -415,7 +416,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 ## Pytest fixtures ##
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def live_backend(request: pytest.FixtureRequest) -> bool:
     """Return whether to run the tests with a live backend."""
     import os
@@ -446,7 +447,7 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
     return value
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def static_dir() -> Path:
     """Return the path to the static directory."""
     from pathlib import Path
@@ -454,7 +455,7 @@ def static_dir() -> Path:
     return (Path(__file__).parent / "static").resolve()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def get_backend_user() -> GetBackendUserFixture:
     """Return a function to get the backend user.
 
@@ -505,7 +506,7 @@ def get_backend_user() -> GetBackendUserFixture:
     return _get_backend_user
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(loop_scope="session", scope="session", autouse=True)
 def _setup_real_mongo_users(
     live_backend: bool, get_backend_user: GetBackendUserFixture
 ) -> None:
@@ -716,6 +717,7 @@ def mock_openid_config_call(
         httpx_mock.add_response(
             url=f"{base_url}/.well-known/openid-configuration",
             json=openid_config_mock(base_url=base_url),
+            method="GET",
         )
 
     return _mock_openid_config_call
