@@ -2,7 +2,55 @@
 
 ## [Unreleased](https://github.com/SINTEF/entities-service/tree/HEAD)
 
-[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.7.0...HEAD)
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.7.1...HEAD)
+
+## Support MongoDB 8
+
+Dependencies have been updated as well as CI tests to support and test the latest MongoDB version, 8.
+This is important because the production server on onto-ns.com will be using this version in the backend.
+
+### DX
+
+Update all dependencies and dev tools, updating and keeping the code base modern, readable and relevant.
+
+**Closed issues:**
+
+- Run CI workflows using MongoDB v8 [\#191](https://github.com/SINTEF/entities-service/issues/191)
+
+## [v0.7.1](https://github.com/SINTEF/entities-service/tree/v0.7.1) (2024-10-02)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.7.0...v0.7.1)
+
+## Support MongoDB 8
+
+Dependencies have been updated as well as CI tests to support and test the latest MongoDB version, 8.
+This is important because the production server on onto-ns.com will be using this version in the backend.
+
+### DX
+
+Update all dependencies and dev tools, updating and keeping the code base modern, readable and relevant.
+
+**Fixed bugs:**
+
+- Fix "update pyproject.toml" CI workflow [\#188](https://github.com/SINTEF/entities-service/pull/188) ([CasperWA](https://github.com/CasperWA))
+
+**Merged pull requests:**
+
+- Update to use MongoDB 8 [\#192](https://github.com/SINTEF/entities-service/pull/192) ([CasperWA](https://github.com/CasperWA))
+- \[pre-commit.ci\] pre-commit autoupdate [\#186](https://github.com/SINTEF/entities-service/pull/186) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#184](https://github.com/SINTEF/entities-service/pull/184) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#183](https://github.com/SINTEF/entities-service/pull/183) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#181](https://github.com/SINTEF/entities-service/pull/181) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#178](https://github.com/SINTEF/entities-service/pull/178) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#177](https://github.com/SINTEF/entities-service/pull/177) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#176](https://github.com/SINTEF/entities-service/pull/176) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#171](https://github.com/SINTEF/entities-service/pull/171) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#170](https://github.com/SINTEF/entities-service/pull/170) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#168](https://github.com/SINTEF/entities-service/pull/168) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
+## [v0.7.0](https://github.com/SINTEF/entities-service/tree/v0.7.0) (2024-07-03)
+
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.6.0...v0.7.0)
 
 # New `list` command group
 
@@ -26,13 +74,6 @@ Several DX and dependency updates have been introduced, for a full overview, ple
 **Implemented enhancements:**
 
 - ✨ List and report on entities in \(specific\) namespace [\#107](https://github.com/SINTEF/entities-service/issues/107)
-
-## [v0.7.0](https://github.com/SINTEF/entities-service/tree/v0.7.0) (2024-07-02)
-
-[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.6.0...v0.7.0)
-
-**Implemented enhancements:**
-
 - Separate entity URI/identity from hosting URL [\#76](https://github.com/SINTEF/entities-service/issues/76)
 
 **Fixed bugs:**
