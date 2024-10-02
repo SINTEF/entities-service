@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
+import pytest_asyncio
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -123,8 +124,14 @@ def pytest_collection_modifyitems(
     """Called after collection has been performed. May filter or re-order the items
     in-place."""
     if config.getoption("--live-backend"):
-        # If the tests are run with a live backend, skip the tests marked with
-        # 'skip_if_live_backend'
+        import os
+
+        from entities_service.service.config import CONFIG
+
+        # If the tests are run with a live backend, do the following:
+        # - skip the tests marked with 'skip_if_live_backend'
+        # - add non-mocked hosts list to the httpx_mock marker
+        #   (if the tests are from the cli.commands module)
         prefix_reason = "Live backend used: {reason}"
         default_reason = "Test is skipped when using a live backend"
         for item in items:
@@ -147,9 +154,47 @@ def pytest_collection_modifyitems(
                     reason, str
                 ), "The reason for skipping the test must be a string."
 
-                # The marker does not have a reason
+                # Add the skip marker to the test
                 item.add_marker(
                     pytest.mark.skip(reason=prefix_reason.format(reason=reason))
+                )
+
+            ## HTTPX non-mocked hosts
+
+            # Check if the test is from the cli.commands module
+            if "cli/commands/" not in str(item.path):
+                continue
+
+            host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
+                "ENTITIES_SERVICE_PORT", "8000"
+            )
+
+            localhost = f"localhost:{port}" if port else "localhost"
+            non_mocked_hosts = [localhost, host]
+
+            if (
+                CONFIG.base_url.host
+                and CONFIG.base_url.host not in non_mocked_hosts
+                and CONFIG.base_url.host not in ("onto-ns.com", "www.onto-ns.com")
+            ):
+                non_mocked_hosts.append(CONFIG.base_url.host)
+
+            # Handle the case of the httpx_mock marker already being present
+            if "httpx_mock" in item.keywords:
+                marker: pytest.Mark = item.keywords["httpx_mock"]
+
+                # The marker already has non-mocked hosts - ignore
+                if "non_mocked_hosts" in marker.kwargs:
+                    continue
+
+                # Add the non-mocked hosts to the marker
+                item.add_marker(
+                    pytest.mark.httpx_mock(non_mocked_hosts=non_mocked_hosts)
+                )
+            else:
+                # Add the httpx_mock marker with the non-mocked hosts
+                item.add_marker(
+                    pytest.mark.httpx_mock(non_mocked_hosts=non_mocked_hosts)
                 )
     else:
         # If the tests are run with the mock backend, skip the tests marked with
@@ -415,7 +460,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 ## Pytest fixtures ##
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def live_backend(request: pytest.FixtureRequest) -> bool:
     """Return whether to run the tests with a live backend."""
     import os
@@ -446,7 +491,7 @@ def live_backend(request: pytest.FixtureRequest) -> bool:
     return value
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def static_dir() -> Path:
     """Return the path to the static directory."""
     from pathlib import Path
@@ -454,7 +499,7 @@ def static_dir() -> Path:
     return (Path(__file__).parent / "static").resolve()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def get_backend_user() -> GetBackendUserFixture:
     """Return a function to get the backend user.
 
@@ -505,7 +550,7 @@ def get_backend_user() -> GetBackendUserFixture:
     return _get_backend_user
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(loop_scope="session", scope="session", autouse=True)
 def _setup_real_mongo_users(
     live_backend: bool, get_backend_user: GetBackendUserFixture
 ) -> None:
@@ -716,6 +761,7 @@ def mock_openid_config_call(
         httpx_mock.add_response(
             url=f"{base_url}/.well-known/openid-configuration",
             json=openid_config_mock(base_url=base_url),
+            method="GET",
         )
 
     return _mock_openid_config_call

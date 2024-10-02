@@ -15,7 +15,10 @@ if TYPE_CHECKING:
 
     from ...conftest import ParameterizeGetEntities
 
-pytestmark = pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked.")
+pytestmark = [
+    pytest.mark.skip_if_live_backend("OAuth2 verification cannot be mocked."),
+    pytest.mark.httpx_mock(can_send_already_matched_responses=True),
+]
 
 CLI_RESULT_FAIL_MESSAGE = "STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
 
@@ -90,14 +93,15 @@ def test_upload_filepath(
         status_code=404,  # not found
     )
 
-    # Mock response for "Upload entities"
-    httpx_mock.add_response(
-        url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
-        method="POST",
-        match_headers={"Authorization": f"Bearer {token_mock}"},
-        match_json=[raw_entity],
-        status_code=201,  # created
-    )
+    if namespace != "core":
+        # Mock response for "Upload entities"
+        httpx_mock.add_response(
+            url=f"{str(CONFIG.base_url).rstrip('/')}/_admin/create",
+            method="POST",
+            match_headers={"Authorization": f"Bearer {token_mock}"},
+            match_json=[raw_entity],
+            status_code=201,  # created
+        )
 
     result = cli.invoke(main.APP, f"upload {entity_filepath}")
 

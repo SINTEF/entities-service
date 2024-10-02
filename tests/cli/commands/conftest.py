@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+import pytest_asyncio
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from typer import Typer
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def config_app() -> Typer:
     """Return the config APP."""
     from entities_service.cli._utils.global_settings import global_options
@@ -27,7 +28,7 @@ def config_app() -> Typer:
     return APP
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def list_app() -> Typer:
     """Return the list APP."""
     from entities_service.cli._utils.global_settings import global_options
@@ -75,33 +76,6 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
     monkeypatch.setattr(
         "entities_service.service.config.CONFIG.base_url", AnyHttpUrl(live_base_url)
     )
-
-
-@pytest.fixture
-def non_mocked_hosts(live_backend: bool) -> list[str]:
-    """Return a list of hosts that are not mocked by 'pytest-httpx."""
-    if not live_backend:
-        return []
-
-    import os
-
-    from entities_service.service.config import CONFIG
-
-    host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
-        "ENTITIES_SERVICE_PORT", "8000"
-    )
-
-    localhost = host + (f":{port}" if port else "")
-    hosts = [localhost, host]
-
-    if (
-        CONFIG.base_url.host
-        and CONFIG.base_url.host not in hosts
-        and CONFIG.base_url.host not in ("onto-ns.com", "www.onto-ns.com")
-    ):
-        hosts.append(CONFIG.base_url.host)
-
-    return hosts
 
 
 @pytest.fixture
