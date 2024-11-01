@@ -42,9 +42,9 @@ requires-python = "~=3.10"
 dynamic = ["version", "description"]
 
 dependencies = [
-    "fastapi ~=0.115.0",
+    "fastapi ~=0.115.4",
     "httpx ~=0.27.2",
-    "pydantic-settings ~=2.5",
+    "pydantic-settings ~=2.6",
     "pymongo ~=4.10",
     "python-dotenv ~=1.0",
     "uvicorn >=0.24.0,<1",
@@ -58,7 +58,7 @@ cli = [
 ]
 testing = [
     "cryptography ~=43.0",
-    "dlite-python ~=0.5.22",
+    "dlite-python ~=0.5.23",
     "mongomock ~=4.2",
     "numpy <2",  # requirement for DLite v0.5.16, which does not support NumPy v2
     "pytest ~=8.3",
@@ -71,7 +71,7 @@ server = [
     "gunicorn >=21.2.0,<24",
 ]
 dev = [
-    "pre-commit ~=3.8",
+    "pre-commit ~=4.0",
     "entities-service[cli,testing]",
 ]
 
