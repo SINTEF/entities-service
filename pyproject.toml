@@ -71,7 +71,7 @@ server = [
     "gunicorn >=21.2.0,<24",
 ]
 dev = [
-    "pre-commit >=3.8.0,<5",
+    "pre-commit ~=4.0",
     "entities-service[cli,testing]",
 ]
 
