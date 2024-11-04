@@ -54,7 +54,7 @@ jobs:
       ENTITIES_SERVICE_CA_FILE: docker_security/test-ca.pem
       # These are used in the Dockerfile as well as in pytest
       ENTITIES_SERVICE_HOST: localhost
-      ENTITIES_SERVICE_PORT: 8000
+      ENTITIES_SERVICE_PORT: 7000
 
     steps:
       - name: Checkout ${{ github.repository }}
@@ -136,7 +136,6 @@ jobs:
             --env ENTITIES_SERVICE_MONGO_URI \
             --env ENTITIES_SERVICE_X509_CERTIFICATE_FILE \
             --env ENTITIES_SERVICE_CA_FILE \
-            --env PORT=${ENTITIES_SERVICE_PORT} \
             --name "entities-service" \
             --network "host" \
             --volume "${PWD}:/app" \

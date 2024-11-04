@@ -19,10 +19,8 @@ RUN python -m pip install -U pip && \
   pip install -U setuptools wheel && \
   pip install -U -e .[server]
 
-ENV PORT=80
-EXPOSE ${PORT}
-
-ENTRYPOINT [ "gunicorn", "entities_service.main:APP", "--bind=0.0.0.0:${PORT}", "--workers=1", "--worker-class=entities_service.uvicorn.UvicornWorker" ]
+EXPOSE 7000
+ENTRYPOINT [ "gunicorn", "entities_service.main:APP", "--bind=0.0.0.0:7000", "--workers=1", "--worker-class=entities_service.uvicorn.UvicornWorker" ]
 
 ARG CI=0
 RUN --mount=type=bind,source=.github/utils/requirements.txt,target=/tmp/requirements_ci.txt \
