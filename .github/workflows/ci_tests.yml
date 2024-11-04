@@ -116,6 +116,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+          build-args: |
+            CI=1
 
       - name: Install test dependencies
         run: |
