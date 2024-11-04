@@ -189,10 +189,21 @@ jobs:
           sleep 5
 
           # Combine the coverage data from pytest and the service
-          mv .coverage .coverage.pytest
-          coverage combine --data-file=.coverage.final --rcfile=pyproject.toml .coverage.pytest .coverage.docker
-          coverage xml --data-file=.coverage.final --rcfile=pyproject.toml -o coverage.xml
-          coverage report --data-file=.coverage.final --rcfile=pyproject.toml --show-missing --skip-covered --skip-empty
+          {
+            mv .coverage .coverage.pytest &&
+            coverage combine --data-file=.coverage.final --rcfile=pyproject.toml .coverage.pytest .coverage.docker &&
+            coverage xml --data-file=.coverage.final --rcfile=pyproject.toml -o coverage.xml &&
+            coverage report --data-file=.coverage.final --rcfile=pyproject.toml --show-missing --skip-covered --skip-empty
+          } || {
+            echo "Failed to collect coverage data." &&
+            echo "Here's the Docker logs for the service:" &&
+            docker logs entities-service &&
+
+            echo -e "\nAnd the service log:" &&
+            cat logs/entities_service.log &&
+
+            exit 1
+          }
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
