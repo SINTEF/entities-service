@@ -151,7 +151,7 @@ jobs:
 
           # Health check
           tmp_file=.dockerPs
-          while ! curl -sf http://entities-service:7000/openapi.json >> /dev/null ; do
+          while ! curl -sf http://localhost:${ENTITIES_SERVICE_PORT}/openapi.json >> /dev/null ; do
             docker ps -a > $tmp_file
             grep -E "^.*entities-service .* Exited .*$" $tmp_file && exited=yes && break
             sleep 1
