@@ -147,7 +147,7 @@ jobs:
             --bind="0.0.0.0:${ENTITIES_SERVICE_PORT}" --workers=1 --worker-class="uvicorn.workers.UvicornWorker" --log-level="debug" --pythonpath=".github/utils" run_with_coverage:APP
 
           # Install requirements for health check
-          apt-get update && apt-get install -y --no-install-recommends -fqqy curl
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends -fqqy curl
 
           # Health check
           tmp_file=.dockerPs
