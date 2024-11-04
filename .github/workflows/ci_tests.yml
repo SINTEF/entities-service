@@ -183,10 +183,10 @@ jobs:
           # We can stop the service via a SIGINT signal.
           # Since we map the current directory to /app in the container, the coverage file will be
           # available in the current working directory.
-          docker kill --signal=SIGINT entities-service
+          docker kill --signal=SIGTERM entities-service
 
           # Wait for the coverage file to be written and the service to stop
-          sleep 5
+          sleep 10
 
           # Combine the coverage data from pytest and the service
           {
