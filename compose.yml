@@ -6,7 +6,7 @@ services:
       context: "."
       target: "${ENTITIES_SERVICE_DOCKER_TARGET:-development}"
     ports:
-      - "${ENTITIES_SERVICE_PORT:-8000}:80"
+      - "${ENTITIES_SERVICE_PORT:-7000}:7000"
     environment:
       ENTITIES_SERVICE_BASE_URL: "${ENTITIES_SERVICE_HOST:-http://onto-ns.com/meta}"
       ENTITIES_SERVICE_BACKEND: mongodb
@@ -28,14 +28,9 @@ services:
     image: mongo:8
     restart: always
     ports:
-      - "${MONGO_PORT:-27017}:27017"
-    environment:
-      IN_DOCKER: "true"
-      HOST_USER: "${USER}"
+      - "27017:27017"
     networks:
       - entities_service_net
-    expose:
-      - 27017
     volumes:
       - "./.github/docker_init/create_x509_user.js:/docker-entrypoint-initdb.d/0_create_x509_user.js"
       - "./docker_security:/mongo_tls"

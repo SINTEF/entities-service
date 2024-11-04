@@ -5,7 +5,7 @@ from dlite import Instance
 
 
 def get_instance(uri: str) -> Instance:
-    uri = uri.replace("http://onto-ns.com/meta", "http://localhost:8000")
+    uri = uri.replace("http://onto-ns.com/meta", "http://localhost:7000")
     response = requests.get(uri)
     if not response.ok:
         error_message = (
