@@ -180,15 +180,13 @@ jobs:
 
       - name: Collect coverage
         run: |
-          # We can stop the service via a SIGINT signal, and then collect the coverage data from the
-          # service via 'docker cp'
+          # We can stop the service via a SIGINT signal.
+          # Since we map the current directory to /app in the container, the coverage file will be
+          # available in the current working directory.
           docker kill --signal=SIGINT entities-service
 
           # Wait for the coverage file to be written and the service to stop
           sleep 5
-
-          # Collect coverage data from the service
-          docker cp entities-service:/app/.coverage.docker .coverage.docker
 
           # Combine the coverage data from pytest and the service
           mv .coverage .coverage.pytest
