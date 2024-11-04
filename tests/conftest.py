@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal, Protocol, TypedDict
 
     from fastapi.testclient import TestClient
-    from httpx import Client
+    from httpx import Client, Request
     from pytest_httpx import HTTPXMock
 
     from entities_service.service.backend.mongodb import MongoDBBackend
@@ -124,13 +124,9 @@ def pytest_collection_modifyitems(
     """Called after collection has been performed. May filter or re-order the items
     in-place."""
     if config.getoption("--live-backend"):
-        import os
-
-        from entities_service.service.config import CONFIG
-
         # If the tests are run with a live backend, do the following:
         # - skip the tests marked with 'skip_if_live_backend'
-        # - add non-mocked hosts list to the httpx_mock marker
+        # - add list of hosts to be mocked to the httpx_mock marker
         #   (if the tests are from the cli.commands module)
         prefix_reason = "Live backend used: {reason}"
         default_reason = "Test is skipped when using a live backend"
@@ -165,37 +161,23 @@ def pytest_collection_modifyitems(
             if "cli/commands/" not in str(item.path):
                 continue
 
-            host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
-                "ENTITIES_SERVICE_PORT", "8000"
-            )
-
-            localhost = f"localhost:{port}" if port else "localhost"
-            non_mocked_hosts = [localhost, host]
-
-            if (
-                CONFIG.base_url.host
-                and CONFIG.base_url.host not in non_mocked_hosts
-                and CONFIG.base_url.host not in ("onto-ns.com", "www.onto-ns.com")
-            ):
-                non_mocked_hosts.append(CONFIG.base_url.host)
+            def _mock_hosts(request: Request) -> bool:
+                """Mock the hosts."""
+                return request.url.host in ["onto-ns.com", "www.onto-ns.com"]
 
             # Handle the case of the httpx_mock marker already being present
             if "httpx_mock" in item.keywords:
                 marker: pytest.Mark = item.keywords["httpx_mock"]
 
-                # The marker already has non-mocked hosts - ignore
-                if "non_mocked_hosts" in marker.kwargs:
+                # The marker already has should mock hosts - ignore
+                if "should_mock" in marker.kwargs:
                     continue
 
                 # Add the non-mocked hosts to the marker
-                item.add_marker(
-                    pytest.mark.httpx_mock(non_mocked_hosts=non_mocked_hosts)
-                )
+                item.add_marker(pytest.mark.httpx_mock(should_mock=_mock_hosts))
             else:
                 # Add the httpx_mock marker with the non-mocked hosts
-                item.add_marker(
-                    pytest.mark.httpx_mock(non_mocked_hosts=non_mocked_hosts)
-                )
+                item.add_marker(pytest.mark.httpx_mock(should_mock=_mock_hosts))
     else:
         # If the tests are run with the mock backend, skip the tests marked with
         # 'skip_if_not_live_backend'
@@ -864,7 +846,7 @@ def client(
         )
 
         host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
-            "ENTITIES_SERVICE_PORT", "8000"
+            "ENTITIES_SERVICE_PORT", "7000"
         )
 
         base_url = f"http://{host}"

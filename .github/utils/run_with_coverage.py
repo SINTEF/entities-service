@@ -11,7 +11,7 @@ import atexit
 
 from coverage import Coverage
 
-cov = Coverage(data_file=".coverage.docker", config_file="pyproject.toml")
+cov = Coverage(data_file="/app/.coverage.docker", config_file="/app/pyproject.toml")
 cov.start()
 
 from entities_service.main import APP  # noqa: F401, E402

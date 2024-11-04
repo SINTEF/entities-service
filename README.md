@@ -52,10 +52,10 @@ ENTITIES_SERVICE_MONGO_PASSWORD=<your MongoDB Atlas user's password with read-on
 Run the service:
 
 ```shell
-uvicorn entities_service.main:APP --host localhost --port 8000 --no-server-header --header "Server:EntitiesService"
+uvicorn entities_service.main:APP --host localhost --port 7000 --no-server-header --header "Server:EntitiesService"
 ```
 
-Finally, go to [localhost:8000/docs](http://localhost:8000/docs) and try out retrieving an entity.
+Finally, go to [localhost:7000/docs](http://localhost:7000/docs) and try out retrieving an entity.
 
 `--log-level debug` can be added to the `uvicorn` command to get more verbose logging.
 `--reload` can be added to the `uvicorn` command to enable auto-reloading of the service when any files are changed.
@@ -102,13 +102,13 @@ docker run --rm -d \
   --env "ENTITIES_SERVICE_CA_FILE=docker_security/test-ca.pem" \
   --name "entities-service" \
   -u "${id -ur}:${id -gr}" \
-  -p "8000:80" \
+  -p "7000:7000" \
   entities-service
 ```
 
 Now, fill up the MongoDB with valid entities at the `entities_service` database in the `entities` collection.
 
-Then go to [localhost:8000/docs](http://localhost:8000/docs) and try out retrieving an entity.
+Then go to [localhost:7000/docs](http://localhost:7000/docs) and try out retrieving an entity.
 
 ---
 
@@ -128,8 +128,6 @@ By default the `development` target will be built, to change this, set the `ENTI
 ```shell
 ENTITIES_SERVICE_DOCKER_TARGET=production docker compose --env-file=.env up --build
 ```
-
-Furthermore, the used `localhost` port can be changed via the `PORT` environment variable.
 
 The `--env-file` argument is optional, but if used, it should point to a file containing the environment variables needed by the service.
 See the section on [using a file for environment variables](#using-a-file-for-environment-variables) for more information.
@@ -239,13 +237,13 @@ To test uploading entities using the CLI, one must note that validation of the e
 The validation that is most tricky when testing locally is the namespace validation, as the service will validate the namespace against the `ENTITIES_SERVICE_BASE_URL` environment variable set when starting the service, which defaults to `http://onto-ns.com/meta`.
 However, if using this namespace in the CLI, the CLI will connect to the publicly running service at `http://onto-ns.com/meta`, which will not work when testing locally.
 
-So to make all this work together, one should start the service with the `ENTITIES_SERVICE_BASE_URL` environment variable set to `http://localhost:8000` (which is done through the locally available environment variable `ENTITIES_SERVICE_HOST`), and then use the CLI to upload entities to the service running at `http://localhost:8000`.
+So to make all this work together, one should start the service with the `ENTITIES_SERVICE_BASE_URL` environment variable set to `http://localhost:7000` (which is done through the locally available environment variable `ENTITIES_SERVICE_HOST`), and then use the CLI to upload entities to the service running at `http://localhost:7000`.
 
 In practice, this will look like this:
 
 ```shell
 # Set the relevant environment variables
-export ENTITIES_SERVICE_BASE_URL=http://localhost:8000
+export ENTITIES_SERVICE_BASE_URL=http://localhost:7000
 export ENTITIES_SERVICE_HOST=${ENTITIES_SERVICE_BASE_URL}
 
 # Start the service
@@ -255,7 +253,7 @@ docker compose up -d
 entities-service upload my_entities.yaml --format=yaml
 ```
 
-The `my_entities.yaml` file should contain one or more entities with `uri` values of the form `http://localhost:8000/...`.
+The `my_entities.yaml` file should contain one or more entities with `uri` values of the form `http://localhost:7000/...`.
 
 ### Extra pytest markers
 

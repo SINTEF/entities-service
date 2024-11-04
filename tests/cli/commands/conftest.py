@@ -65,7 +65,7 @@ def _mock_config_base_url(monkeypatch: pytest.MonkeyPatch, live_backend: bool) -
     from pydantic import AnyHttpUrl
 
     host, port = os.getenv("ENTITIES_SERVICE_HOST", "localhost"), os.getenv(
-        "ENTITIES_SERVICE_PORT", "8000"
+        "ENTITIES_SERVICE_PORT", "7000"
     )
 
     live_base_url = f"http://{host}"
