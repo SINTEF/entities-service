@@ -83,15 +83,39 @@ jobs:
             --volume "${{ github.workspace }}/docker_security:/mongo_tls" \
             mongo:8 \
             --tlsMode allowTLS --tlsCertificateKeyFile /mongo_tls/test-server1.pem --tlsCAFile /mongo_tls/test-ca.pem
-          sleep 10  # Wait for the database to start
+
+          # Health check
+          tmp_file=.dockerPs
+          while ! docker exec mongo mongosh --eval "db.runCommand('ping').ok" mongodb://root:root@localhost:27017/?authSource=admin --quiet ; do
+            docker ps -a > $tmp_file
+            grep -E "^.*mongo .* Exited .*$" $tmp_file && exited=yes && break
+            sleep 3
+          done
+          rm -f $tmp_file
+
+          # Write logs
+          docker logs mongo
+
+          if [ -n "$exited" ]; then
+            exit 1
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        run: |
-          docker build \
-            --pull \
-            --tag entities-service \
-            --target ${{ matrix.docker_target }} \
-            .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ${{ matrix.docker_target }}
+          load: true
+          tags: entities-service
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Install test dependencies
         run: |
@@ -106,20 +130,39 @@ jobs:
           touch -a logs/entities_service.log
 
           # Run the service in the background
-          docker run --rm -d \
+          docker run -d \
             --env ENTITIES_SERVICE_MONGO_URI \
             --env ENTITIES_SERVICE_X509_CERTIFICATE_FILE \
             --env ENTITIES_SERVICE_CA_FILE \
             --env PORT=${ENTITIES_SERVICE_PORT} \
-            --env RUN_TIME=60 \
-            --env STOP_TIME=3 \
             --name "entities-service" \
             --network "host" \
             --volume "${PWD}:/app" \
-            --entrypoint "./.github/utils/coverage_entrypoint.sh" \
+            --target "${{ matrix.docker_target }}" \
+            --user "$(id -u):$(id -g)" \
+            --init \
+            --entrypoint "gunicorn" \
             entities-service \
-            ${{ matrix.docker_target }}
-          sleep 5  # Wait for the service to start
+            --bind="0.0.0.0:${ENTITIES_SERVICE_PORT}" --workers=1 --worker-class="uvicorn.workers.UvicornWorker" --log-level="debug" --pythonpath=".github/utils" run_with_coverage:APP
+
+          # Install requirements for health check
+          apt-get update && apt-get install -y --no-install-recommends -fqqy curl
+
+          # Health check
+          tmp_file=.dockerPs
+          while ! curl -sf http://entities-service:7000/openapi.json >> /dev/null ; do
+            docker ps -a > $tmp_file
+            grep -E "^.*entities-service .* Exited .*$" $tmp_file && exited=yes && break
+            sleep 1
+          done
+          rm -f $tmp_file
+
+          # Write logs
+          docker logs entities-service
+
+          if [ -n "$exited" ]; then
+            exit 1
+          fi
 
       - name: Run tests
         run: |
@@ -137,16 +180,17 @@ jobs:
 
       - name: Collect coverage
         run: |
-          # We have mapped the current working directory with the service's working
-          # directory in Docker. This means that we can, first of all, stop the service
-          # via a file touch, and then collect the coverage data from the service.
-          #
-          # See the .github/utils/coverage_entrypoint.sh file for more details on the
-          # stopping mechanism.
-          touch stop_gunicorn
+          # We can stop the service via a SIGINT signal, and then collect the coverage data from the
+          # service via 'docker cp'
+          docker kill --signal=SIGINT entities-service
 
-          sleep 3  # Wait for the service to stop
+          # Wait for the coverage file to be written and the service to stop
+          sleep 5
 
+          # Collect coverage data from the service
+          docker cp entities-service:/app/.coverage.docker .coverage.docker
+
+          # Combine the coverage data from pytest and the service
           mv .coverage .coverage.pytest
           coverage combine --data-file=.coverage.final --rcfile=pyproject.toml .coverage.pytest .coverage.docker
           coverage xml --data-file=.coverage.final --rcfile=pyproject.toml -o coverage.xml
@@ -164,6 +208,14 @@ jobs:
         env:
           OS: ubuntu-latest
           PYTHON: '3.10'
+
+      - name: Clean up Docker
+        if: always()
+        run: |
+          docker stop entities-service ||:
+          docker rm entities-service ||:
+          docker stop mongo ||:
+          docker rm mongo ||:
 
   pytest:
     runs-on: ubuntu-latest
