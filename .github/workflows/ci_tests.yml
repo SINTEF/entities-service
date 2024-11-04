@@ -138,7 +138,6 @@ jobs:
             --name "entities-service" \
             --network "host" \
             --volume "${PWD}:/app" \
-            --target "${{ matrix.docker_target }}" \
             --user "$(id -u):$(id -g)" \
             --init \
             --entrypoint "gunicorn" \
