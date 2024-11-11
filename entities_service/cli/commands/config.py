@@ -190,7 +190,6 @@ def show(
         typer.Option(
             "--reveal-sensitive",
             help="Reveal sensitive values. (DANGEROUS! Use with caution.)",
-            is_flag=True,
             show_default=False,
         ),
     ] = False,
