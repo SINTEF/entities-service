@@ -26,7 +26,6 @@ services:
 
   mongodb:
     image: mongo:8
-    restart: always
     ports:
       - "27017:27017"
     networks:
@@ -41,6 +40,23 @@ services:
       timeout: 5s
       retries: 5
     stop_grace_period: 1s
+
+  mongodb_gui:
+    image: mongo-express:1
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://root:root@mongodb:27017/?authSource=admin
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    networks:
+      - entities_service_net
+    depends_on:
+      mongodb:
+        condition: service_healthy
+        restart: true
 
 networks:
   entities_service_net:
