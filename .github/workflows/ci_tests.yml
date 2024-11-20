@@ -389,3 +389,19 @@ jobs:
             echo "Unknown error."
             exit 3
           fi
+
+  upload-artifact-for-onto-ns-deployment:
+    name: Upload artifact for onto-ns deployment
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate artifact
+        run: |
+          echo "{\"before\":\"${{ github.event.before }}\"}" > onto-ns-deployment.json
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: onto-ns-deployment
+          path: onto-ns-deployment.json

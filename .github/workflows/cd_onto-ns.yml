@@ -25,16 +25,29 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Download deployment artifact
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: onto-ns-deployment
+
       - name: Check changes
         if: github.event_name != 'workflow_dispatch'
         id: check-changes
         run: |
           git fetch --all --quiet
 
-          git diff --name-only origin/main -- | grep -qE "(pyproject.toml|entities_service/((models|service)/(.+/)*)?[^/]*\.py)" && SERVICE_CHANGES=true || SERVICE_CHANGES=false
+          before_sha="$(python -c "import json, pathlib; print(json.load(pathlib.Path('onto-ns-deployment.json').read_text())['before'])")"
+
+          git diff --name-only ${before_sha} -- | grep -qE "(pyproject.toml|entities_service/((models|service)/(.+/)*)?[^/]*\.py)" && SERVICE_CHANGES=true || SERVICE_CHANGES=false
 
           echo "Changed files:"
-          git diff --name-only origin/main --
+          git diff --name-only ${before_sha} --
           echo "SERVICE_CHANGES=${SERVICE_CHANGES}"
 
           echo "service-changes=${SERVICE_CHANGES}" >> $GITHUB_OUTPUT
