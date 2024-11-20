@@ -382,18 +382,18 @@ jobs:
           ERROR_CODE=$?
 
           if [ ${ERROR_CODE} -eq 2 ]; then
-            echo "diff encountered an error."
+            echo "❌ diff encountered an error."
             exit 2
           elif [ ${ERROR_CODE} -eq 1 ]; then
-            echo "CLI documentation has changed."
+            echo "✨ CLI documentation has changed."
             echo "Please update the documentation by running './build_cli_docs.sh' in a bash-compatible terminal."
             echo "Diff:"
             diff --suppress-common-lines --color /tmp/CLI.md docs/CLI.md
             exit 1
           elif [ ${ERROR_CODE} -eq 0 ]; then
-            echo "CLI documentation is up-to-date."
+            echo "👌 CLI documentation is up-to-date."
           else
-            echo "Unknown error."
+            echo "❌ Unknown error."
             exit 3
           fi
 
