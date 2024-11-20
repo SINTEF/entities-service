@@ -51,10 +51,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ci = [
+    "ydiff ~=1.4",
+]
 cli = [
     "httpx-auth ~=0.22.0",
     "pyyaml ~=6.0",
-    "typer[all] ~=0.12.5",
+    "typer ~=0.12.5",
 ]
 testing = [
     "cryptography ~=43.0",

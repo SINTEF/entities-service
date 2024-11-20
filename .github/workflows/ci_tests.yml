@@ -359,7 +359,7 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install -U setuptools wheel
-          pip install -U -e .[cli]
+          pip install -U -e .[cli,ci]
 
       - name: Typer version
         run: typer --version
@@ -367,11 +367,16 @@ jobs:
       - name: Build CLI docs
         run: |
           # Build the CLI documentation
-          # Run it twice, since the first run may create a doc only for the `config` sub-typer app.
-          typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
-          typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
+          # We need to run this multiple times until the documentation is generated
+          # properly. Sometimes it only finds the sub-app `config` and not the main
+          # app `entities-service`.
 
-          diff --suppress-common-lines /tmp/CLI.md docs/CLI.md 2>&1 > /tmp/CLI_diff.md && ERROR_CODE=0 || ERROR_CODE=$?
+          typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
+          until grep -q "# \`entities-service\`" /tmp/CLI.md; do
+            typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
+          done
+
+          diff -u --suppress-common-lines /tmp/CLI.md docs/CLI.md > /tmp/CLI_diff.md 2>&1
 
           ERROR_CODE=$?
 
@@ -379,9 +384,10 @@ jobs:
             echo "diff encountered an error."
             exit 2
           elif [ ${ERROR_CODE} -eq 1 ]; then
-            echo "CLI documentation has changed. Please update the documentation."
+            echo "CLI documentation has changed."
+            echo "Please update the documentation by running './build_cli_docs.sh' in a bash-compatible terminal."
             echo "Diff:"
-            cat /tmp/CLI_diff.md
+            cat /tmp/CLI_diff.md | ydiff -p cat
             exit 1
           elif [ ${ERROR_CODE} -eq 0 ]; then
             echo "CLI documentation is up-to-date."
