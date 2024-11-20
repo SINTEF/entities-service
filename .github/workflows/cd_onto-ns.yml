@@ -18,12 +18,15 @@ jobs:
       - name: Passthrough if manually deploying
         if: github.event_name == 'workflow_dispatch'
         id: passthrough
-        run: echo "service-changes=true" >> $GITHUB_OUTPUT
+        run: |
+          echo "service-changes=true" >> $GITHUB_OUTPUT
 
       - name: Checkout repository
+        if: github.event_name != 'workflow_dispatch'
         uses: actions/checkout@v4
 
       - name: Check changes
+        if: github.event_name != 'workflow_dispatch'
         id: check-changes
         run: |
           git fetch --all --quiet
