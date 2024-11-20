@@ -370,7 +370,7 @@ jobs:
           # We need to run this multiple times until the documentation is generated
           # properly. Sometimes it only finds the sub-app `config` and not the main
           # app `entities-service`.
-          set -x
+          set -x +e
 
           typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
           until grep -q "# \`entities-service\`" /tmp/CLI.md; do
