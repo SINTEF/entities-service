@@ -377,7 +377,7 @@ jobs:
             typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
           done
 
-          diff --suppress-common-lines /tmp/CLI.md docs/CLI.md > /tmp/CLI_diff.md 2>&1
+          diff --suppress-common-lines /tmp/CLI.md docs/CLI.md > /dev/null 2>&1
 
           ERROR_CODE=$?
 
@@ -388,7 +388,7 @@ jobs:
             echo "CLI documentation has changed."
             echo "Please update the documentation by running './build_cli_docs.sh' in a bash-compatible terminal."
             echo "Diff:"
-            cat /tmp/CLI_diff.md
+            diff --suppress-common-lines --color /tmp/CLI.md docs/CLI.md
             exit 1
           elif [ ${ERROR_CODE} -eq 0 ]; then
             echo "CLI documentation is up-to-date."
