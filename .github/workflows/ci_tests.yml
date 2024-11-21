@@ -372,10 +372,17 @@ jobs:
           # app `entities-service`.
           set +e
 
-          typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
-          until grep -q "# \`entities-service\`" /tmp/CLI.md; do
+          typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null 2>&1
+          TIMOUT_RUNTIME=30
+          SECONDS=0
+          until grep -q "# \`entities-service\`" /tmp/CLI.md || [ "$SECONDS" -gt "$TIMOUT_RUNTIME" ] ; do
             typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
           done
+
+          if [ "$SECONDS" -gt "$TIMOUT_RUNTIME" ]; then
+            echo "❌ CLI documentation generation timed out."
+            exit 1
+          fi
 
           diff --suppress-common-lines /tmp/CLI.md docs/CLI.md > /dev/null 2>&1
 
