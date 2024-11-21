@@ -9,7 +9,8 @@ from pydantic import (
     BaseModel,
     Field,
 )
-from pydantic.networks import Url, UrlConstraints
+from pydantic.networks import UrlConstraints
+from pydantic_core import Url
 
 AnyHttpsUrl = Annotated[Url, UrlConstraints(allowed_schemes=["https"])]
 
