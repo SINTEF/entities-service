@@ -19,6 +19,7 @@ $ entities-service [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `config`: Manage configuration options.
+* `list`: List resources.
 * `login`: Login to the entities service.
 * `upload`: Upload (local) entities to a remote location.
 * `validate`: Validate (local) entities.
@@ -106,6 +107,58 @@ Unset all configuration options.
 
 ```console
 $ entities-service config unset-all [OPTIONS]
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+## `entities-service list`
+
+List resources.
+
+**Usage**:
+
+```console
+$ entities-service list [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `entities`: List entities from the entities service.
+* `namespaces`: List namespaces from the entities service.
+
+### `entities-service list entities`
+
+List entities from the entities service.
+
+**Usage**:
+
+```console
+$ entities-service list entities [OPTIONS] [NAMESPACE]...
+```
+
+**Arguments**:
+
+* `[NAMESPACE]...`: Namespace(s) to list entities from. Defaults to the core namespace. If the namespace is a URL, the specific namespace will be extracted.
+
+**Options**:
+
+* `-a, --all`: List entities from all namespaces.
+* `--help`: Show this message and exit.
+
+### `entities-service list namespaces`
+
+List namespaces from the entities service.
+
+**Usage**:
+
+```console
+$ entities-service list namespaces [OPTIONS]
 ```
 
 **Options**:
