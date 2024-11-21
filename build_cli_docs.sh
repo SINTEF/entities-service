@@ -17,11 +17,19 @@ fi
 
 rm /tmp/CLI.md 2> /dev/null
 
+TIMEOUT_EXECUTION_SECONDS=5
+SECONDS=0
+
 # Generate CLI documentation
 typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
-until grep -q "# \`entities-service\`" /tmp/CLI.md; do
+until grep -q "# \`entities-service\`" /tmp/CLI.md || [ "$SECONDS" -gt "${TIMEOUT_EXECUTION_SECONDS}" ]; do
     typer entities_service.cli.main utils docs --output /tmp/CLI.md > /dev/null
 done
+
+if [ "$SECONDS" -gt "${TIMEOUT_EXECUTION_SECONDS}" ]; then
+    echo "❌ Timeout while generating CLI documentation."
+    exit 1
+fi
 
 diff --suppress-common-lines /tmp/CLI.md ${DOCS_PATH} > /dev/null 2>&1
 
