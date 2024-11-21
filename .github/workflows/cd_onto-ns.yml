@@ -48,7 +48,7 @@ jobs:
         run: |
           git fetch --all --quiet
 
-          before_sha="$(python -c "import json, pathlib; print(json.load(pathlib.Path('onto-ns-deployment.json').read_text())['before'])")"
+          before_sha="$(python -c "import json, pathlib; print(json.loads(pathlib.Path('onto-ns-deployment.json').read_text())['before'])")"
 
           git diff --name-only ${before_sha} -- | grep -qE "(pyproject.toml|entities_service/((models|service)/(.+/)*)?[^/]*\.py)" && SERVICE_CHANGES=true || SERVICE_CHANGES=false
 
