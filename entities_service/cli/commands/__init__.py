@@ -31,7 +31,7 @@ def get_commands() -> Generator[tuple[Callable, dict[str, Any]]]:
     """
     this_dir = Path(__file__).parent.resolve()
 
-    for path in this_dir.glob("*.py"):
+    for path in sorted(this_dir.glob("*.py")):
         if path.stem in ("__init__", *SUB_TYPER_APPS):
             continue
 
@@ -63,7 +63,7 @@ def get_subtyper_apps() -> Generator[tuple[Typer, dict[str, Any]]]:
     """
     this_dir = Path(__file__).parent.resolve()
 
-    for path in this_dir.glob("*.py"):
+    for path in sorted(this_dir.glob("*.py")):
         if path.stem not in SUB_TYPER_APPS:
             continue
 

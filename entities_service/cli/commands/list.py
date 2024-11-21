@@ -41,97 +41,6 @@ APP = typer.Typer(
 
 
 @APP.command()
-def namespaces(
-    # Hidden options - used only when calling the function directly
-    return_info: Annotated[
-        bool,
-        typer.Option(
-            hidden=True,
-            help=(
-                "Avoid printing the namespaces and instead return them as a Python "
-                "list. Useful when calling this function from another function."
-            ),
-        ),
-    ] = False,
-) -> list[str] | None:
-    """List namespaces from the entities service."""
-    with httpx.Client(base_url=str(CONFIG.base_url), timeout=10) as client:
-        try:
-            response = client.get("/_api/namespaces")
-        except httpx.HTTPError as exc:
-            ERROR_CONSOLE.print(
-                "[bold red]Error[/bold red]: Could not list namespaces. HTTP "
-                f"exception: {exc}"
-            )
-            raise typer.Exit(1) from exc
-
-    # Decode response
-    try:
-        namespaces: dict[str, Any] | list[str] = response.json()
-    except json.JSONDecodeError as exc:
-        ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Could not list namespaces. JSON decode "
-            f"error: {exc}"
-        )
-        raise typer.Exit(1) from exc
-
-    # Unsuccessful response (!= 200 OK)
-    if not response.is_success:
-        # First, it may be that there are no namespaces
-        if (
-            response.status_code == 500
-            and isinstance(namespaces, dict)
-            and namespaces.get("detail") == "No namespaces found in the backend."
-        ):
-            print(
-                "[bold yellow]Warning[/bold yellow]: No namespaces found. There are no "
-                f"entities hosted. Ensure {CONFIG.base_url} is the desired service to "
-                "target."
-            )
-            namespaces = []
-
-        # Or it may be an error
-        else:
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: Could not list namespaces. HTTP status "
-                f"code: {response.status_code}. Error response: "
-            )
-            ERROR_CONSOLE.print_json(data=namespaces)
-            raise typer.Exit(1)
-
-    # Bad response format
-    if not isinstance(namespaces, list):
-        # Expect a list of namespaces
-        ERROR_CONSOLE.print(
-            f"[bold red]Error[/bold red]: Could not list namespaces. Invalid response: "
-            f"{namespaces}"
-        )
-        raise typer.Exit(1)
-
-    if return_info:
-        return namespaces
-
-    if not namespaces:
-        raise typer.Exit()
-
-    # Print namespaces
-    table = Table(
-        box=box.HORIZONTALS,
-        show_edge=False,
-        highlight=True,
-    )
-
-    table.add_column("Namespaces:", no_wrap=True)
-
-    for namespace in sorted(namespaces):
-        table.add_row(namespace)
-
-    print("", table, "")
-
-    return None
-
-
-@APP.command()
 def entities(
     namespace: Annotated[
         OptionalListStr,
@@ -285,6 +194,97 @@ def entities(
         single_namespace = f"Specific namespace: {core_namespace}/{entity_namespace}\n"
 
     print(f"\nBase namespace: {core_namespace}\n{single_namespace}", table, "")
+
+
+@APP.command()
+def namespaces(
+    # Hidden options - used only when calling the function directly
+    return_info: Annotated[
+        bool,
+        typer.Option(
+            hidden=True,
+            help=(
+                "Avoid printing the namespaces and instead return them as a Python "
+                "list. Useful when calling this function from another function."
+            ),
+        ),
+    ] = False,
+) -> list[str] | None:
+    """List namespaces from the entities service."""
+    with httpx.Client(base_url=str(CONFIG.base_url), timeout=10) as client:
+        try:
+            response = client.get("/_api/namespaces")
+        except httpx.HTTPError as exc:
+            ERROR_CONSOLE.print(
+                "[bold red]Error[/bold red]: Could not list namespaces. HTTP "
+                f"exception: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+    # Decode response
+    try:
+        namespaces: dict[str, Any] | list[str] = response.json()
+    except json.JSONDecodeError as exc:
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list namespaces. JSON decode "
+            f"error: {exc}"
+        )
+        raise typer.Exit(1) from exc
+
+    # Unsuccessful response (!= 200 OK)
+    if not response.is_success:
+        # First, it may be that there are no namespaces
+        if (
+            response.status_code == 500
+            and isinstance(namespaces, dict)
+            and namespaces.get("detail") == "No namespaces found in the backend."
+        ):
+            print(
+                "[bold yellow]Warning[/bold yellow]: No namespaces found. There are no "
+                f"entities hosted. Ensure {CONFIG.base_url} is the desired service to "
+                "target."
+            )
+            namespaces = []
+
+        # Or it may be an error
+        else:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not list namespaces. HTTP status "
+                f"code: {response.status_code}. Error response: "
+            )
+            ERROR_CONSOLE.print_json(data=namespaces)
+            raise typer.Exit(1)
+
+    # Bad response format
+    if not isinstance(namespaces, list):
+        # Expect a list of namespaces
+        ERROR_CONSOLE.print(
+            f"[bold red]Error[/bold red]: Could not list namespaces. Invalid response: "
+            f"{namespaces}"
+        )
+        raise typer.Exit(1)
+
+    if return_info:
+        return namespaces
+
+    if not namespaces:
+        raise typer.Exit()
+
+    # Print namespaces
+    table = Table(
+        box=box.HORIZONTALS,
+        show_edge=False,
+        highlight=True,
+    )
+
+    table.add_column("Namespaces:", no_wrap=True)
+
+    for namespace in sorted(namespaces):
+        table.add_row(namespace)
+
+    print("", table, "")
+
+    return None
 
 
 def _parse_namespace(namespace: str | None, allow_external: bool = True) -> str:

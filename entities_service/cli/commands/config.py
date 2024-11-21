@@ -143,47 +143,6 @@ def set_config(
 
 
 @APP.command()
-def unset(
-    key: Annotated[
-        ConfigFields,
-        typer.Argument(
-            help="Configuration option to unset.",
-            show_choices=True,
-            shell_complete=ConfigFields.autocomplete,
-            case_sensitive=False,
-            show_default=False,
-        ),
-    ],
-) -> None:
-    """Unset a single configuration option."""
-    dotenv_file = CONTEXT["dotenv_path"]
-
-    if dotenv_file.exists():
-        unset_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}".upper())
-        print(f"Unset {CONFIG.model_config['env_prefix'].upper()}{key.upper()}.")
-    else:
-        print(f"{dotenv_file} file not found.")
-
-
-@APP.command()
-def unset_all() -> None:
-    """Unset all configuration options."""
-    dotenv_file = CONTEXT["dotenv_path"]
-
-    typer.confirm(
-        "Are you sure you want to unset (remove) all configuration options in "
-        f"{dotenv_file} file, deleting the file in the process?",
-        abort=True,
-    )
-
-    if dotenv_file.exists():
-        dotenv_file.unlink()
-        print(f"Unset all configuration options. (Removed {dotenv_file}.)")
-    else:
-        print(f"{dotenv_file} file not found.")
-
-
-@APP.command()
 def show(
     reveal_sensitive: Annotated[
         bool,
@@ -229,3 +188,44 @@ def show(
             for key, value in output.items()
         )
     )
+
+
+@APP.command()
+def unset(
+    key: Annotated[
+        ConfigFields,
+        typer.Argument(
+            help="Configuration option to unset.",
+            show_choices=True,
+            shell_complete=ConfigFields.autocomplete,
+            case_sensitive=False,
+            show_default=False,
+        ),
+    ],
+) -> None:
+    """Unset a single configuration option."""
+    dotenv_file = CONTEXT["dotenv_path"]
+
+    if dotenv_file.exists():
+        unset_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}".upper())
+        print(f"Unset {CONFIG.model_config['env_prefix'].upper()}{key.upper()}.")
+    else:
+        print(f"{dotenv_file} file not found.")
+
+
+@APP.command()
+def unset_all() -> None:
+    """Unset all configuration options."""
+    dotenv_file = CONTEXT["dotenv_path"]
+
+    typer.confirm(
+        "Are you sure you want to unset (remove) all configuration options in "
+        f"{dotenv_file} file, deleting the file in the process?",
+        abort=True,
+    )
+
+    if dotenv_file.exists():
+        dotenv_file.unlink()
+        print(f"Unset all configuration options. (Removed {dotenv_file}.)")
+    else:
+        print(f"{dotenv_file} file not found.")
