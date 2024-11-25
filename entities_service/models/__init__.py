@@ -27,19 +27,19 @@ Entity = SOFT7Entity | SOFT5Entity | DLiteSOFT7Entity | DLiteSOFT5Entity
 EntityType = get_args(Entity)
 
 __all__ = (
+    "GENERIC_NAMESPACE_URI_REGEX",
+    "NO_GROUPS_SEMVER_REGEX",
+    "SEMVER_REGEX",
+    "URI_REGEX",
     "Entity",
-    "EntityNamespaceType",
     "EntityNameType",
+    "EntityNamespaceType",
     "EntityType",
     "EntityVersionType",
-    "GENERIC_NAMESPACE_URI_REGEX",
     "get_updated_version",
     "get_uri",
     "get_version",
-    "NO_GROUPS_SEMVER_REGEX",
-    "SEMVER_REGEX",
     "soft_entity",
-    "URI_REGEX",
 )
 
 
