@@ -98,7 +98,7 @@ def set_config(
                 f"{CONFIG.model_config['env_prefix'].upper()!r}."
             ),
             show_choices=True,
-            shell_complete=ConfigFields.autocomplete,
+            autocompletion=ConfigFields.autocomplete,
             case_sensitive=False,
             show_default=False,
         ),
@@ -197,7 +197,7 @@ def unset(
         typer.Argument(
             help="Configuration option to unset.",
             show_choices=True,
-            shell_complete=ConfigFields.autocomplete,
+            autocompletion=ConfigFields.autocomplete,
             case_sensitive=False,
             show_default=False,
         ),
