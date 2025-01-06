@@ -2,20 +2,42 @@
 
 ## [Unreleased](https://github.com/SINTEF/entities-service/tree/HEAD)
 
-[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.7.1...HEAD)
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.7.2...HEAD)
 
-## Support MongoDB 8
+# Support latest Typer and Pydantic
 
-Dependencies have been updated as well as CI tests to support and test the latest MongoDB version, 8.
-This is important because the production server on onto-ns.com will be using this version in the backend.
+Fix/update the codebase to support the latest versions of Typer and Pydantic.
 
-### DX
+## DX
 
-Update all dependencies and dev tools, updating and keeping the code base modern, readable and relevant.
+Update several major aspects of the developer experience.
 
-**Closed issues:**
+## [v0.7.2](https://github.com/SINTEF/entities-service/tree/v0.7.2) (2025-01-06)
 
-- Run CI workflows using MongoDB v8 [\#191](https://github.com/SINTEF/entities-service/issues/191)
+[Full Changelog](https://github.com/SINTEF/entities-service/compare/v0.7.1...v0.7.2)
+
+# Support latest Typer and Pydantic
+
+Fix/update the codebase to support the latest versions of Typer and Pydantic.
+
+## DX
+
+Update several major aspects of the developer experience.
+
+**Fixed bugs:**
+
+- The list functionality seems to be broken [\#211](https://github.com/SINTEF/entities-service/issues/211)
+
+**Merged pull requests:**
+
+- \[pre-commit.ci\] pre-commit autoupdate [\#215](https://github.com/SINTEF/entities-service/pull/215) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- Update deployment CD and CLI docs build [\#212](https://github.com/SINTEF/entities-service/pull/212) ([CasperWA](https://github.com/CasperWA))
+- \[pre-commit.ci\] pre-commit autoupdate [\#210](https://github.com/SINTEF/entities-service/pull/210) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#207](https://github.com/SINTEF/entities-service/pull/207) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#202](https://github.com/SINTEF/entities-service/pull/202) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#200](https://github.com/SINTEF/entities-service/pull/200) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#197](https://github.com/SINTEF/entities-service/pull/197) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- \[pre-commit.ci\] pre-commit autoupdate [\#195](https://github.com/SINTEF/entities-service/pull/195) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 
 ## [v0.7.1](https://github.com/SINTEF/entities-service/tree/v0.7.1) (2024-10-02)
 
@@ -34,19 +56,13 @@ Update all dependencies and dev tools, updating and keeping the code base modern
 
 - Fix "update pyproject.toml" CI workflow [\#188](https://github.com/SINTEF/entities-service/pull/188) ([CasperWA](https://github.com/CasperWA))
 
+**Closed issues:**
+
+- Run CI workflows using MongoDB v8 [\#191](https://github.com/SINTEF/entities-service/issues/191)
+
 **Merged pull requests:**
 
 - Update to use MongoDB 8 [\#192](https://github.com/SINTEF/entities-service/pull/192) ([CasperWA](https://github.com/CasperWA))
-- \[pre-commit.ci\] pre-commit autoupdate [\#186](https://github.com/SINTEF/entities-service/pull/186) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#184](https://github.com/SINTEF/entities-service/pull/184) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#183](https://github.com/SINTEF/entities-service/pull/183) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#181](https://github.com/SINTEF/entities-service/pull/181) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#178](https://github.com/SINTEF/entities-service/pull/178) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#177](https://github.com/SINTEF/entities-service/pull/177) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#176](https://github.com/SINTEF/entities-service/pull/176) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#171](https://github.com/SINTEF/entities-service/pull/171) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#170](https://github.com/SINTEF/entities-service/pull/170) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#168](https://github.com/SINTEF/entities-service/pull/168) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 
 ## [v0.7.0](https://github.com/SINTEF/entities-service/tree/v0.7.0) (2024-07-03)
 
@@ -90,12 +106,8 @@ Several DX and dependency updates have been introduced, for a full overview, ple
 **Merged pull requests:**
 
 - Support latest DLite version \(v0.5.16\) [\#162](https://github.com/SINTEF/entities-service/pull/162) ([CasperWA](https://github.com/CasperWA))
-- \[pre-commit.ci\] pre-commit autoupdate [\#159](https://github.com/SINTEF/entities-service/pull/159) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#157](https://github.com/SINTEF/entities-service/pull/157) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#155](https://github.com/SINTEF/entities-service/pull/155) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 - Ensure `last_namespace` is updated iteratively [\#151](https://github.com/SINTEF/entities-service/pull/151) ([CasperWA](https://github.com/CasperWA))
 - Add pyproject.toml to service changes file checklist [\#150](https://github.com/SINTEF/entities-service/pull/150) ([CasperWA](https://github.com/CasperWA))
-- \[pre-commit.ci\] pre-commit autoupdate [\#147](https://github.com/SINTEF/entities-service/pull/147) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 - Add CLI documentation [\#114](https://github.com/SINTEF/entities-service/pull/114) ([CasperWA](https://github.com/CasperWA))
 - List entities in namespace\(s\) [\#111](https://github.com/SINTEF/entities-service/pull/111) ([CasperWA](https://github.com/CasperWA))
 
@@ -115,8 +127,6 @@ The DX has been optimized by using [pre-commit.ci](https://pre-commit.ci) for ru
 
 **Merged pull requests:**
 
-- \[pre-commit.ci\] pre-commit autoupdate [\#144](https://github.com/SINTEF/entities-service/pull/144) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-- \[pre-commit.ci\] pre-commit autoupdate [\#141](https://github.com/SINTEF/entities-service/pull/141) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 - Allow `identity`, ensure `dimensions` is returned, & use pre-commit.ci [\#103](https://github.com/SINTEF/entities-service/pull/103) ([CasperWA](https://github.com/CasperWA))
 
 ## [v0.5.0](https://github.com/SINTEF/entities-service/tree/v0.5.0) (2024-04-26)
