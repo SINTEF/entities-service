@@ -52,17 +52,17 @@ dependencies = [
 
 [project.optional-dependencies]
 cli = [
-    "httpx-auth ~=0.22.0",
+    "httpx-auth ~=0.23.1",
     "pyyaml ~=6.0",
     "typer ~=0.15.1",
 ]
 testing = [
     "cryptography >=43.0.0,<45",
     # Pytest runs, end in Segmentation Fault for dlite-python versions >0.5.23
-    "dlite-python <=0.5.23; python_version<'3.13'",  # DLite is not yet compatible with Python 3.13
+    "dlite-python <=0.5.23; python_version < '3.13'",  # DLite is not yet compatible with Python 3.13
     "mongomock ~=4.3",
     "pytest ~=8.3",
-    "pytest-asyncio ~=0.25.1",
+    "pytest-asyncio ~=0.25.2",
     "pytest-cov ~=6.0",
     "pytest-httpx >=0.34.0,<1",
     "entities-service[cli]",
