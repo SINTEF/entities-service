@@ -40,15 +40,15 @@ def login(
     with httpx.Client(base_url=str(CONFIG.base_url), timeout=10) as client:
         try:
             response = client.post("/_admin/create", json=[], auth=oauth)
-        except httpx.HTTPError as exc:
-            ERROR_CONSOLE.print(
-                f"[bold red]Error[/bold red]: Could not login. HTTP exception: {exc}"
-            )
-            raise typer.Exit(1) from exc
         except AuthenticationError as exc:
             ERROR_CONSOLE.print(
                 f"[bold red]Error[/bold red]: Could not login. Authentication failed "
                 f"({exc.__class__.__name__}): {exc}"
+            )
+            raise typer.Exit(1) from exc
+        except httpx.HTTPError as exc:
+            ERROR_CONSOLE.print(
+                f"[bold red]Error[/bold red]: Could not login. HTTP exception: {exc}"
             )
             raise typer.Exit(1) from exc
         except json.JSONDecodeError as exc:
