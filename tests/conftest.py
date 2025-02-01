@@ -493,7 +493,7 @@ def get_backend_user() -> GetBackendUserFixture:
     from entities_service.service.config import CONFIG
 
     def _get_backend_user(
-        auth_role: Literal["read", "write"] | None = None
+        auth_role: Literal["read", "write"] | None = None,
     ) -> UserDict:
         """Return the backend user for the given authentication role."""
         if auth_role is None:
@@ -763,7 +763,7 @@ def mock_auth_verification(
     mock_openid_config_call(base_url=str(CONFIG.oauth2_provider_base_url).rstrip("/"))
 
     def _mock_auth_verification(
-        auth_role: Literal["read", "write"] | None = None
+        auth_role: Literal["read", "write"] | None = None,
     ) -> None:
         """Mock authentication on the /_admin endpoints."""
         if auth_role is None:
