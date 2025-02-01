@@ -475,7 +475,10 @@ async def test_verify_user_access_token_parse_error_user(
         assert await verify_user_access_token("mock_token") == (False, None, None)
 
     assert "Could not parse user info from GitLab provider." in caplog.messages
-    assert f"Response:\n{json.dumps({'invalid': 'response'})}" in caplog.messages
+    response = json.dumps(
+        {"invalid": "response"}, indent=0, separators=(",", ":")
+    ).replace("\n", "")
+    assert f"Response:\n{response}" in caplog.messages
 
 
 async def test_verify_user_access_token_parse_error_member(
@@ -511,7 +514,10 @@ async def test_verify_user_access_token_parse_error_member(
 
     assert "Could not parse user info from GitLab provider." not in caplog.messages
     assert "Could not parse member role from GitLab provider." in caplog.messages
-    assert f"Response:\n{json.dumps({'invalid': 'response'})}" in caplog.messages
+    response = json.dumps(
+        {"invalid": "response"}, indent=0, separators=(",", ":")
+    ).replace("\n", "")
+    assert f"Response:\n{response}" in caplog.messages
 
 
 async def test_verify_user_access_token_is_called(

@@ -37,7 +37,7 @@ async def list_entities(
                 "times - entities will be returned as an aggregated, flat list."
             ),
         ),
-    ] = []  # noqa: B006
+    ] = [],  # noqa: B006
 ) -> list[dict[str, Any]]:
     """List all entities in the given namespace(s)."""
     # Format namespaces

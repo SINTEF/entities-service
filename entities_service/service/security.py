@@ -169,7 +169,7 @@ async def verify_user_access_token(token: str) -> tuple[bool, int | None, str | 
 
 
 async def verify_token(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(SECURITY_SCHEME)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(SECURITY_SCHEME)],
 ) -> None:
     """Verify a client user."""
     credentials_exception = HTTPException(
