@@ -27,7 +27,7 @@ def test_get_entity(
     url_path += f"/{parameterized_entity.version}/{parameterized_entity.name}"
 
     with client() as client_:
-        response = client_.get(url_path, timeout=5)
+        response = client_.get(url_path)
 
     try:
         response_json = response.json()
@@ -97,7 +97,7 @@ def test_get_entity_instance(
     url_path += f"/{parameterized_entity.version}/{parameterized_entity.name}"
 
     with client() as client_:
-        response = client_.get(url_path, timeout=5)
+        response = client_.get(url_path)
 
     response_json = response.json()
 
@@ -133,7 +133,7 @@ def test_get_entity_not_found(client: ClientFixture, namespace: str | None) -> N
 
     version, name = "0.0", "NonExistantEntity"
     with client() as client_:
-        response = client_.get(f"{current_namespace}/{version}/{name}", timeout=5)
+        response = client_.get(f"{current_namespace}/{version}/{name}")
 
     assert not response.is_success, "Non existant (valid) URI returned an OK response!"
     assert (
@@ -153,7 +153,7 @@ def test_get_entity_invalid_uri(client: ClientFixture, namespace: str | None) ->
 
     version, name = "1.0", "EntityName"
     with client() as client_:
-        response = client_.get(f"{current_namespace}/{name}/{version}", timeout=5)
+        response = client_.get(f"{current_namespace}/{name}/{version}")
 
     assert not response.is_success, "Invalid URI returned an OK response!"
     assert (

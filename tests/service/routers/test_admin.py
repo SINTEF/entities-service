@@ -187,7 +187,7 @@ def test_create_multiple_entities(
         )
         test_url = uri[len(core_namespace) :]
         with client() as client_:
-            response = client_.get(test_url, timeout=5)
+            response = client_.get(test_url)
 
         assert (
             response.is_success
