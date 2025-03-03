@@ -59,7 +59,7 @@ cli = [
 testing = [
     "cryptography >=43.0.0,<45",
     # Pytest runs, end in Segmentation Fault for dlite-python versions >0.5.23
-    "dlite-python <=0.5.29; python_version < '3.13'",  # DLite is not yet compatible with Python 3.13
+    "dlite-python <=0.5.23; python_version < '3.13'",  # DLite is not yet compatible with Python 3.13
     "mongomock ~=4.3",
     "pytest ~=8.3",
     "pytest-asyncio ~=0.25.3",
