@@ -42,7 +42,7 @@ requires-python = "~=3.10"
 dynamic = ["version", "description"]
 
 dependencies = [
-    "fastapi ~=0.115.11",
+    "fastapi ~=0.115.12",
     "httpx >=0.27.2,<1",
     "pydantic-settings ~=2.8",
     "pymongo ~=4.11",
@@ -59,7 +59,7 @@ cli = [
 testing = [
     "cryptography >=43.0.0,<45",
     # Pytest runs, end in Segmentation Fault for dlite-python versions >0.5.23
-    "dlite-python <=0.5.23; python_version < '3.13'",  # DLite is not yet compatible with Python 3.13
+    "dlite-python <=0.5.29; python_version < '3.13'",  # DLite is not yet compatible with Python 3.13
     "mongomock ~=4.3",
     "pytest ~=8.3",
     "pytest-asyncio ~=0.25.3",
@@ -71,7 +71,7 @@ server = [
     "gunicorn ~=23.0.0",
 ]
 dev = [
-    "pre-commit ~=4.1",
+    "pre-commit ~=4.2",
     "entities-service[cli,testing]",
 ]
 
