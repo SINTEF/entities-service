@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 def test_list_namespaces(client: ClientFixture) -> None:
     """Test calling the endpoint straight up."""
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import ServiceSettings
 
     # List namespaces
     with client() as client_:
@@ -24,7 +24,8 @@ def test_list_namespaces(client: ClientFixture) -> None:
     response_json = response.json()
 
     expected_response = [
-        str(CONFIG.model_fields["base_url"].default).rstrip("/") + specific_namespace
+        str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
+        + specific_namespace
         for specific_namespace in ("", "/test")
     ]
 
@@ -61,7 +62,7 @@ def test_namespace_from_entity_namespace(
     import yaml
 
     from entities_service.service.backend import get_backend
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import ServiceSettings
 
     entity: dict[str, Any] | None = None
     entities: list[dict[str, Any]] = yaml.safe_load(
@@ -79,7 +80,9 @@ def test_namespace_from_entity_namespace(
     assert entity is not None
 
     # Ensure namespace is the core namespace
-    entity["namespace"] = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    entity["namespace"] = str(ServiceSettings.model_fields["base_url"].default).rstrip(
+        "/"
+    )
 
     # Remove uri/identity if it exists
     entity.pop("uri", entity.pop("identity", None))

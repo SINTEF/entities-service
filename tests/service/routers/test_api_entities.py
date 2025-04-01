@@ -73,7 +73,7 @@ def test_list_entities_specified_namespaces(
 
     import yaml
 
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import ServiceSettings
 
     # Load entities
     entities: list[dict[str, Any]] = yaml.safe_load(
@@ -82,7 +82,7 @@ def test_list_entities_specified_namespaces(
     original_length = len(entities)
 
     # Add specific namespace entities
-    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    core_namespace = str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
     for entity in deepcopy(entities):

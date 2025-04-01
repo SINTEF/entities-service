@@ -216,7 +216,7 @@ def test_show_file_not_exist(
 def test_configfields_autocompletion() -> None:
     """Test the ConfigFields.autocomplete() method."""
     from entities_service.cli.commands.config import ConfigFields
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import ServiceSettings
 
     test_values = {
         "b": ["base_url", "backend"],
@@ -237,7 +237,7 @@ def test_configfields_autocompletion() -> None:
         expected_values = sorted(
             zip(
                 expected,
-                [CONFIG.model_fields[_].description for _ in expected],
+                [ServiceSettings.model_fields[_].description for _ in expected],
                 strict=True,
             )
         )
