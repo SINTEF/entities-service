@@ -40,7 +40,7 @@ def test_list_entities(
     """
     from entities_service.models import URI_REGEX, soft_entity
     from entities_service.service.backend import get_backend
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG, ServiceSettings
 
     core_namespace = str(CONFIG.base_url).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
@@ -83,7 +83,7 @@ def test_list_entities(
     # any extra arguments or options... But this can (and will) be tested without a live
     # backend.
     command = (
-        f"entities {CONFIG.model_fields['base_url'].default}"
+        f"entities {ServiceSettings.model_fields['base_url'].default}"
         if live_backend
         else "entities"
     )
@@ -146,9 +146,9 @@ def test_list_entities_namespace(
 
     from entities_service.models import URI_REGEX, soft_entity
     from entities_service.service.backend import get_backend
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG, ServiceSettings
 
-    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    core_namespace = str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
     backend_user = get_backend_user(auth_role="read")
@@ -250,9 +250,9 @@ def test_list_entities_all_namespaces(
     """
     from entities_service.models import URI_REGEX, soft_entity
     from entities_service.service.backend import get_backend
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG, ServiceSettings
 
-    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    core_namespace = str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
 
     backend_user = get_backend_user(auth_role="read")
@@ -375,12 +375,12 @@ def test_unparseable_namespace(
     With a namespace that results in a raised ValueError when calling
     `_parse_namespace()`.
     """
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import ServiceSettings
 
     bad_namespace = "bad_namespace"
     error_message = "Invalid namespace"
 
-    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    core_namespace = str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
 
     if not live_backend:
         # Mock response for listing (valid) namespaces
@@ -424,11 +424,11 @@ def test_invalid_namespace(
 
     With an invalid namespace.
     """
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG, ServiceSettings
 
     non_existing_namespace = "non_existing_namespace"
 
-    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    core_namespace = str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
     specific_namespace = f"{core_namespace}/{existing_specific_namespace}"
     valid_namespaces = sorted([core_namespace, specific_namespace])
 
@@ -634,9 +634,9 @@ def test_empty_list_response(
     httpx_mock: HTTPXMock,
 ) -> None:
     """Ensure a proper message is given if the list entities response is empty."""
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import ServiceSettings
 
-    core_namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    core_namespace = str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
 
     if not live_backend:
         # Mock response for listing (valid) namespaces

@@ -17,7 +17,7 @@ async def test_get_entities(
     """Test _get_entities."""
     from entities_service.models import URI_REGEX
     from entities_service.service.backend import get_backend
-    from entities_service.service.config import CONFIG
+    from entities_service.service.config import CONFIG, ServiceSettings
     from entities_service.service.utils import _get_entities
 
     db = existing_specific_namespace if specific_namespace else None
@@ -25,7 +25,7 @@ async def test_get_entities(
     backend = get_backend(CONFIG.backend, auth_level="read", db=db)
     entities = list(backend)
 
-    namespace = str(CONFIG.model_fields["base_url"].default).rstrip("/")
+    namespace = str(ServiceSettings.model_fields["base_url"].default).rstrip("/")
 
     if specific_namespace:
         namespace += "/test"
