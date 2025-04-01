@@ -19,7 +19,7 @@ from pydantic import SecretBytes, SecretStr
 from entities_service.cli._utils.generics import ERROR_CONSOLE, print
 from entities_service.cli._utils.global_settings import CONTEXT
 from entities_service.cli._utils.types import OptionalStr, StrEnum
-from entities_service.service.config import CONFIG
+from entities_service.service.config import ServiceSettings
 
 APP = typer.Typer(
     name=__file__.rsplit("/", 1)[-1].replace(".py", ""),
@@ -36,7 +36,7 @@ class ConfigFields(StrEnum):
     _ignore_ = "ConfigFields config_name"
 
     ConfigFields = vars()
-    for config_name in sorted(CONFIG.model_fields):
+    for config_name in sorted(ServiceSettings.model_fields):
         ConfigFields[config_name.upper()] = config_name.lower()
 
     @classmethod
@@ -44,7 +44,7 @@ class ConfigFields(StrEnum):
         """Return a list of valid configuration options."""
         for member in cls:
             if member.value.startswith(incomplete):
-                if member.value not in CONFIG.model_fields:  # pragma: no cover
+                if member.value not in ServiceSettings.model_fields:  # pragma: no cover
                     # This block is not covered in the code coverage, since it will
                     # currently never be reached. The current list of configuration
                     # options in CONFIG exactly equals those of the ConfigFields enum.
@@ -53,14 +53,16 @@ class ConfigFields(StrEnum):
                     raise typer.BadParameter(
                         f"Invalid configuration option: {member.value!r}"
                     )
-                yield member.value, CONFIG.model_fields[member.value].description
+                yield member.value, ServiceSettings.model_fields[
+                    member.value
+                ].description
 
     @classmethod
     @cache
     def sensitive_fields(cls) -> dict[ConfigFields, bool]:  # type: ignore[valid-type]
         """Return a mapping of sensitive configuration options."""
         sensitive_fields: dict[ConfigFields, bool] = {}
-        for config_name, field_info in CONFIG.model_fields.items():
+        for config_name, field_info in ServiceSettings.model_fields.items():
             annotation = field_info.rebuild_annotation()
 
             annotation_args = get_args(annotation)
@@ -95,7 +97,7 @@ def set_config(
             help=(
                 "Configuration option to set. These can also be set as an environment "
                 "variable by prefixing with "
-                f"{CONFIG.model_config['env_prefix'].upper()!r}."
+                f"{ServiceSettings.model_config['env_prefix'].upper()!r}."
             ),
             show_choices=True,
             autocompletion=ConfigFields.autocomplete,
@@ -130,15 +132,20 @@ def set_config(
     if not dotenv_file.exists():
         dotenv_file.touch()
 
-    set_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}".upper(), value)
+    set_key(
+        dotenv_file, f"{ServiceSettings.model_config['env_prefix']}{key}".upper(), value
+    )
 
     print(
         (
-            f"Set {CONFIG.model_config['env_prefix'].upper()}{key.upper()} to "
+            f"Set {ServiceSettings.model_config['env_prefix'].upper()}{key.upper()} to "
             "sensitive value."
         )
         if key.is_sensitive()
-        else f"Set {CONFIG.model_config['env_prefix'].upper()}{key.upper()} to {value}."
+        else (
+            f"Set {ServiceSettings.model_config['env_prefix'].upper()}{key.upper()} to "
+            f"{value}."
+        )
     )
 
 
@@ -159,11 +166,13 @@ def show(
     if dotenv_file.exists():
         print(f"Current configuration in {dotenv_file}:\n")
         values: dict[ConfigFields, str | None] = {
-            ConfigFields(key[len(CONFIG.model_config["env_prefix"]) :].lower()): value
+            ConfigFields(
+                key[len(ServiceSettings.model_config["env_prefix"]) :].lower()
+            ): value
             for key, value in dotenv_values(dotenv_file).items()
             if key
             in [
-                f"{CONFIG.model_config['env_prefix']}{_}".upper()
+                f"{ServiceSettings.model_config['env_prefix']}{_}".upper()
                 for _ in ConfigFields.__members__.values()
             ]
         }
@@ -178,7 +187,7 @@ def show(
         if not reveal_sensitive and key.is_sensitive():
             sensitive_value = "*" * 8
 
-        output[f"{CONFIG.model_config['env_prefix']}{key}".upper()] = (
+        output[f"{ServiceSettings.model_config['env_prefix']}{key}".upper()] = (
             sensitive_value or value
         )
 
@@ -207,8 +216,12 @@ def unset(
     dotenv_file = CONTEXT["dotenv_path"]
 
     if dotenv_file.exists():
-        unset_key(dotenv_file, f"{CONFIG.model_config['env_prefix']}{key}".upper())
-        print(f"Unset {CONFIG.model_config['env_prefix'].upper()}{key.upper()}.")
+        unset_key(
+            dotenv_file, f"{ServiceSettings.model_config['env_prefix']}{key}".upper()
+        )
+        print(
+            f"Unset {ServiceSettings.model_config['env_prefix'].upper()}{key.upper()}."
+        )
     else:
         print(f"{dotenv_file} file not found.")
 

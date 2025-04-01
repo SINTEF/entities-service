@@ -824,8 +824,8 @@ def test_non_unique_uris(
     """Test that non-unique URIs result in an error."""
     import json
 
-    from entities_service.cli.commands.config import CONFIG
     from entities_service.cli.main import APP
+    from entities_service.service.config import CONFIG
 
     entity_filepath = static_dir / "valid_entities" / "Person.json"
     raw_entity: dict[str, Any] = json.loads(entity_filepath.read_bytes())
