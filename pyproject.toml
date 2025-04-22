@@ -44,10 +44,10 @@ dynamic = ["version", "description"]
 dependencies = [
     "fastapi ~=0.115.12",
     "httpx >=0.28.1,<1",
-    "pydantic-settings ~=2.8",
-    "pymongo ~=4.11",
+    "pydantic-settings ~=2.9",
+    "pymongo ~=4.12",
     "python-dotenv ~=1.1",
-    "uvicorn ~=0.34.0",
+    "uvicorn ~=0.34.2",
 ]
 
 [project.optional-dependencies]
@@ -59,7 +59,7 @@ cli = [
 testing = [
     "cryptography ~=44.0",
     # Pytest runs, end in Segmentation Fault for dlite-python versions >0.5.23
-    "dlite-python <=0.5.23; python_version < '3.13'",  # DLite is not yet compatible with Python 3.13
+    "dlite-python <=0.5.29; python_version < '3.13'",  # DLite is not yet compatible with Python 3.13
     "mongomock ~=4.3",
     "pytest ~=8.3",
     "pytest-asyncio ~=0.26.0",
