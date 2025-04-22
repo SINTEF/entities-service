@@ -30,6 +30,19 @@ jobs:
       # Build documentation
       run_build_docs: false
 
+  safety:
+    name: Safety
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout ${{ github.repository }}
+      uses: actions/checkout@v4
+
+    - name: Run Safety CLI to check for vulnerabilities
+      uses: pyupio/safety-action@v1
+      with:
+        api-key: ${{ secrets.SAFETY_API_TOKEN }}
+
   docker:
     name: Docker
     runs-on: ubuntu-latest
