@@ -36,6 +36,8 @@ def test_dotenv_path(
 
     Note, calling 'upload', since it returns the `--help` response on no arguments.
     """
+    import traceback
+
     from entities_service.cli._utils.global_settings import CONTEXT
     from entities_service.cli.main import APP
     from entities_service.service.config import CONFIG
@@ -52,8 +54,9 @@ def test_dotenv_path(
     dotenv_path = tmp_path / ".env"
 
     result = cli.invoke(APP, f"--dotenv-config={dotenv_path} upload")
-    assert result.exit_code == 0, CLI_RESULT_FAIL_MESSAGE.format(
-        stdout=result.stdout, stderr=result.stderr
+    assert result.exit_code == 0, (
+        CLI_RESULT_FAIL_MESSAGE.format(stdout=result.stdout, stderr=result.stderr)
+        + f"\n\nresult: {traceback.print_exception(result.exception)}"
     )
     assert not result.stderr
 
