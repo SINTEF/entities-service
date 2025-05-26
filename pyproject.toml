@@ -63,7 +63,7 @@ testing = [
     "dlite-python ~=0.5.29",
     "mongomock ~=4.3",
     "pytest ~=8.3",
-    "pytest-asyncio ~=0.26.0",
+    "pytest-asyncio >=0.26.0,<2",
     "pytest-cov ~=6.1",
     "pytest-httpx >=0.35.0,<1",
     "entities-service[cli]",
