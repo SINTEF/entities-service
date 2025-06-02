@@ -272,7 +272,7 @@ class SOFTEntity(BaseModel):
             # Ensure that `uri` is consistent with `name`, `version`, and `namespace`.
             diff = "\n  ".join(
                 difflib.ndiff(
-                    [data.get("uri", data.get("identity", ""))],
+                    [data.get("uri", data.get("identity", ""))],  # type: ignore[list-item]
                     [f"{data['namespace']}/{data['version']}/{data['name']}"],
                 )
             )
