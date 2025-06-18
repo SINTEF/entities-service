@@ -58,7 +58,7 @@ cli = [
     "typer ~=0.16.0",
 ]
 testing = [
-    "cryptography >=44.0.0,<46",
+    "cryptography ~=45.0",
     "dlite-python ~=0.5.29",
     "mongomock ~=4.3",
     "pytest ~=8.4",
