@@ -49,6 +49,9 @@ class StrReversor(str):
     def __init__(self, obj: str) -> None:
         self.obj = obj
 
+    def __hash__(self):
+        return super().__hash__()
+
     def __eq__(self, value: object, /) -> bool:
         if not isinstance(value, StrReversor):
             return super().__eq__(value)
