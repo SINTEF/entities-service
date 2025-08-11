@@ -46,7 +46,7 @@ dependencies = [
     "fastapi ~=0.116.1",
     "httpx >=0.28.1,<1",
     "pydantic-settings ~=2.10",
-    "pymongo ~=4.13",
+    "pymongo ~=4.14",
     "python-dotenv ~=1.1",
     "uvicorn ~=0.35.0",
 ]
@@ -71,7 +71,7 @@ server = [
     "gunicorn ~=23.0.0",
 ]
 dev = [
-    "pre-commit ~=4.2",
+    "pre-commit ~=4.3",
     "entities-service[cli,testing]",
 ]
 
