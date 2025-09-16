@@ -98,7 +98,7 @@ async def test_openid_source_down(httpx_mock: HTTPXMock) -> None:
     # Mock HTTP Timeout
     httpx_mock.add_exception(TimeoutException("Connection timeout."))
 
-    with pytest.raises(ValueError, match="Could not get OpenID configuration."):
+    with pytest.raises(ValueError, match=r"Could not get OpenID configuration\."):
         await get_openid_config()
 
 
@@ -119,7 +119,7 @@ async def test_openid_config_parse_error(httpx_mock: HTTPXMock) -> None:
     # Mock invalid OpenID configuration response
     httpx_mock.add_response(json=invalid_openid_response)
 
-    with pytest.raises(ValueError, match="Could not parse OpenID configuration."):
+    with pytest.raises(ValueError, match=r"Could not parse OpenID configuration\."):
         await get_openid_config()
 
 
