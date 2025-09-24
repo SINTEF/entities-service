@@ -157,5 +157,5 @@ def test_get_entity_invalid_uri(client: ClientFixture, namespace: str | None) ->
 
     assert not response.is_success, "Invalid URI returned an OK response!"
     assert (
-        response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     ), f"Response:\n\n{response.json()}"
