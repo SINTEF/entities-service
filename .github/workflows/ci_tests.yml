@@ -52,6 +52,7 @@ jobs:
       uses: pypa/gh-action-pip-audit@v1.1.0
       with:
         inputs: ${{ github.workspace }}/
+        internal-be-careful-extra-flags: --verbose
 
   docker:
     name: Docker
