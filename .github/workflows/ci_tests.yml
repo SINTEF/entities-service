@@ -47,11 +47,15 @@ jobs:
       run: |
         python -m pip install -U pip
         pip install -U setuptools wheel
+        pip install -U -r .github/utils/requirements_audit.txt
+
+    - name: Generate requirements.txt
+      run: pip-compile --output-file=${{ github.workspace }}/requirements.txt --all-extras --allow-unsafe ${{ github.workspace }}/pyproject.toml
 
     - name: Run pip-audit
       uses: pypa/gh-action-pip-audit@v1.1.0
       with:
-        inputs: ${{ github.workspace }}/
+        inputs: ${{ github.workspace }}/requirements.txt
         internal-be-careful-extra-flags: --verbose
 
   docker:

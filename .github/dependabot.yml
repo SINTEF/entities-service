@@ -4,8 +4,23 @@ updates:
   directory: "/"
   schedule:
     interval: daily
-    time: "05:24"
+    time: "03:24"
   target-branch: ci/dependency-updates
   labels:
     - CI/CD
     - skip_changelog
+- package-ecosystem: "pip"
+  directory: "/.github/utils"
+  exclude-paths:
+    - "/"
+  schedule:
+    interval: weekly
+    time: "03:04"
+  target-branch: ci/dependency-updates
+  labels:
+    - CI/CD
+    - skip_changelog
+  groups:
+    python: # Group all python dependencies into one single PR
+      patterns:
+        - "*"
