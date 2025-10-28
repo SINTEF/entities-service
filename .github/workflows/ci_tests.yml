@@ -49,6 +49,9 @@ jobs:
         pip install -U setuptools wheel
         pip install -U -r .github/utils/requirements_audit.txt
 
+        # TEMPORARY: Keep pip v25.2 as the latest pip-tools do not support pip v25.3 yet
+        pip install pip<25.3
+
     - name: Generate requirements.txt
       run: pip-compile --output-file=${{ github.workspace }}/requirements.txt --all-extras --allow-unsafe ${{ github.workspace }}/pyproject.toml
 
