@@ -49,6 +49,9 @@ jobs:
         pip install -U setuptools wheel
         pip install -U -r .github/utils/requirements_audit.txt
 
+        # TEMPORARY: Keep pip v25.2 as the latest pip-tools do not support pip v25.3 yet
+        pip install "pip<25.3"
+
     - name: Generate requirements.txt
       run: pip-compile --output-file=${{ github.workspace }}/requirements.txt --all-extras --allow-unsafe ${{ github.workspace }}/pyproject.toml
 
@@ -434,7 +437,7 @@ jobs:
           echo "{\"before\":\"${{ github.event.before }}\"}" > onto-ns-deployment.json
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: onto-ns-deployment
           path: onto-ns-deployment.json
