@@ -9,6 +9,10 @@ updates:
   labels:
     - CI/CD
     - skip_changelog
+  groups:
+    actions: # Group all GitHub Actions into one single PR
+      patterns:
+        - "*"
 - package-ecosystem: "pip"
   directory: "/.github/utils"
   exclude-paths:
