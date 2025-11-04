@@ -141,6 +141,10 @@ jobs:
 
       - name: Install test dependencies
         run: |
+          # Install requirements for health check
+          sudo apt-get update && sudo apt-get install -fqqy --no-install-recommends curl
+
+          # Python dependencies
           python -m pip install -U pip
           pip install -U setuptools wheel
           pip install -U -e .[testing]
@@ -164,9 +168,6 @@ jobs:
             --entrypoint "gunicorn" \
             entities-service \
             --bind="0.0.0.0:${ENTITIES_SERVICE_PORT}" --workers=1 --worker-class="uvicorn.workers.UvicornWorker" --log-level="debug" --pythonpath=".github/utils" run_with_coverage:APP
-
-          # Install requirements for health check
-          sudo apt-get update && sudo apt-get install -fqqy --no-install-recommends curl
 
           # Health check
           echo "Checking service health on port ${ENTITIES_SERVICE_PORT}..."
