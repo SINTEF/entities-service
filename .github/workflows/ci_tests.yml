@@ -169,6 +169,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -fy --no-install-recommends curl
 
           # Health check
+          echo "Checking service health on port ${ENTITIES_SERVICE_PORT}..."
           tmp_file=.dockerPs
           while ! curl -sf http://localhost:${ENTITIES_SERVICE_PORT}/openapi.json >> /dev/null ; do
             docker ps -a > $tmp_file
