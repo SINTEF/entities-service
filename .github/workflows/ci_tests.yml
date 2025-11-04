@@ -49,9 +49,6 @@ jobs:
         pip install -U setuptools wheel
         pip install -U -r .github/utils/requirements_audit.txt
 
-        # TEMPORARY: Keep pip v25.2 as the latest pip-tools do not support pip v25.3 yet
-        pip install "pip<25.3"
-
     - name: Generate requirements.txt
       run: pip-compile --output-file=${{ github.workspace }}/requirements.txt --all-extras --allow-unsafe ${{ github.workspace }}/pyproject.toml
 
@@ -59,6 +56,10 @@ jobs:
       uses: pypa/gh-action-pip-audit@v1.1.0
       with:
         inputs: ${{ github.workspace }}/requirements.txt
+        # GHSA-7f5h-v6xp-fcq8: issue with a 'te' package, that is not used in this repository,
+        #     nor should it have been installed(?)
+        ignore-vulns: |
+          GHSA-7f5h-v6xp-fcq8
 
   docker:
     name: Docker
