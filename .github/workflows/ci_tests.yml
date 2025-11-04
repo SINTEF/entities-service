@@ -123,9 +123,6 @@ jobs:
             exit 1
           fi
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -144,6 +141,10 @@ jobs:
 
       - name: Install test dependencies
         run: |
+          # Install requirements for health check
+          sudo apt-get update && sudo apt-get install -fqqy --no-install-recommends curl
+
+          # Python dependencies
           python -m pip install -U pip
           pip install -U setuptools wheel
           pip install -U -e .[testing]
@@ -168,17 +169,22 @@ jobs:
             entities-service \
             --bind="0.0.0.0:${ENTITIES_SERVICE_PORT}" --workers=1 --worker-class="uvicorn.workers.UvicornWorker" --log-level="debug" --pythonpath=".github/utils" run_with_coverage:APP
 
-          # Install requirements for health check
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends -fqqy curl
-
           # Health check
+          echo "Checking service health on port ${ENTITIES_SERVICE_PORT}..."
           tmp_file=.dockerPs
-          while ! curl -sf http://localhost:${ENTITIES_SERVICE_PORT}/openapi.json >> /dev/null ; do
+          SECONDS=0
+          TIMEOUT=30
+          until curl -sf http://localhost:${ENTITIES_SERVICE_PORT}/openapi.json >> /dev/null || [ "$SECONDS" -gt "$TIMEOUT" ] ; do
             docker ps -a > $tmp_file
-            grep -E "^.*entities-service .* Exited .*$" $tmp_file && exited=yes && break
+            grep -E "^container .* is not running.*$" $tmp_file && exited=yes && break
             sleep 1
           done
           rm -f $tmp_file
+
+          if [ "$SECONDS" -gt "$TIMEOUT" ]; then
+            echo "Service health check timed out after ${TIMEOUT} seconds."
+            exited=yes
+          fi
 
           # Write logs
           docker logs entities-service
