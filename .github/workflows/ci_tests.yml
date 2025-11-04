@@ -56,6 +56,10 @@ jobs:
       uses: pypa/gh-action-pip-audit@v1.1.0
       with:
         inputs: ${{ github.workspace }}/requirements.txt
+        # GHSA-7f5h-v6xp-fcq8: issue with a 'te' package, that is not used in this repository,
+        #     nor should it have been installed(?)
+        ignore-vulns: |
+          GHSA-7f5h-v6xp-fcq8
 
   docker:
     name: Docker
