@@ -36,7 +36,7 @@ jobs:
 
     steps:
     - name: Checkout ${{ github.repository }}
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup Python 3.10
       uses: actions/setup-python@v6
@@ -81,7 +81,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.repository }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python 3.10
         uses: actions/setup-python@v6
@@ -265,7 +265,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.repository }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python ${{ matrix.python_version }}
         uses: actions/setup-python@v6
@@ -305,7 +305,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
@@ -377,7 +377,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.repository }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python 3.10
         uses: actions/setup-python@v6
