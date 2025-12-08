@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path as sysPath
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Path, status
 
@@ -20,10 +20,6 @@ from entities_service.service.config import CONFIG
 from entities_service.service.logger import setup_logger
 from entities_service.service.routers import get_routers
 from entities_service.service.utils import _get_entity
-
-if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
 
 LOGGER = logging.getLogger("entities_service")
 

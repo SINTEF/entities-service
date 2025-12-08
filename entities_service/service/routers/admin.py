@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
@@ -18,10 +18,6 @@ from entities_service.service.backend import get_backend
 from entities_service.service.config import CONFIG
 from entities_service.service.security import verify_token
 from entities_service.service.utils import _add_dimensions
-
-if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
 
 LOGGER = logging.getLogger(__name__)
 
