@@ -444,7 +444,7 @@ jobs:
           echo "{\"before\":\"${{ github.event.before }}\"}" > onto-ns-deployment.json
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: onto-ns-deployment
           path: onto-ns-deployment.json
