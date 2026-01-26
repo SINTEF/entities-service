@@ -68,7 +68,7 @@ testing = [
     "entities-service[cli]",
 ]
 server = [
-    "gunicorn ~=23.0.0",
+    "gunicorn ~=24.0",
 ]
 dev = [
     "pre-commit ~=4.5",
