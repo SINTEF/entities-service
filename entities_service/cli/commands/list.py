@@ -158,9 +158,7 @@ def entities(
     table.add_column("Version", no_wrap=True)
 
     last_namespace, last_name = "", ""
-    for entity in sorted(
-        entities, key=lambda entity: get_namespace_name_version(entity)
-    ):
+    for entity in sorted(entities, key=get_namespace_name_version):
         entity_namespace, entity_name, entity_version = get_namespace_name_version(
             entity
         )
