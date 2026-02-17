@@ -356,7 +356,7 @@ def upload(
             # 2. Name
             # 3. Version (reversed)
 
-            successes.sort(key=lambda entity: get_namespace_name_version(entity))
+            successes.sort(key=get_namespace_name_version)
 
             last_namespace = ""
             for entity in successes:
