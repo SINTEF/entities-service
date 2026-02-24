@@ -43,12 +43,12 @@ requires-python = "~=3.10"
 dynamic = ["version", "description"]
 
 dependencies = [
-    "fastapi ~=0.129.0",
+    "fastapi ~=0.131.0",
     "httpx >=0.28.1,<1",
     "pydantic-settings ~=2.13",
     "pymongo ~=4.16",
     "python-dotenv ~=1.2",
-    "uvicorn ~=0.40.0",
+    "uvicorn ~=0.41.0",
 ]
 
 [project.optional-dependencies]
@@ -59,7 +59,7 @@ cli = [
 ]
 testing = [
     "cryptography ~=46.0",
-    "dlite-python ~=0.5.29",
+    "dlite-python ~=0.5.29,!=0.5.40",  # Avoid DLite v0.5.40 due to Segmentation Fault
     "mongomock ~=4.3",
     "pytest ~=9.0",
     "pytest-asyncio ~=1.3",
