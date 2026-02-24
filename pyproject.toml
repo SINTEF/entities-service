@@ -59,7 +59,7 @@ cli = [
 ]
 testing = [
     "cryptography ~=46.0",
-    "dlite-python ~=0.5.40",
+    "dlite-python ~=0.5.29,!=0.5.40",  # Avoid DLite v0.5.40 due to Segmentation Fault
     "mongomock ~=4.3",
     "pytest ~=9.0",
     "pytest-asyncio ~=1.3",
