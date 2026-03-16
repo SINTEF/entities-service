@@ -48,7 +48,7 @@ dependencies = [
     "pydantic-settings ~=2.13",
     "pymongo ~=4.16",
     "python-dotenv ~=1.2",
-    "uvicorn ~=0.41.0",
+    "uvicorn ~=0.42.0",
 ]
 
 [project.optional-dependencies]
