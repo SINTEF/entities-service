@@ -43,19 +43,19 @@ requires-python = "~=3.10"
 dynamic = ["version", "description"]
 
 dependencies = [
-    "fastapi ~=0.135.1",
+    "fastapi ~=0.135.3",
     "httpx >=0.28.1,<1",
     "pydantic-settings ~=2.13",
     "pymongo ~=4.16",
     "python-dotenv ~=1.2",
-    "uvicorn ~=0.42.0",
+    "uvicorn ~=0.43.0",
 ]
 
 [project.optional-dependencies]
 cli = [
     "httpx-auth ~=0.23.1",
     "pyyaml ~=6.0",
-    "typer ~=0.15.4",
+    "typer ~=0.24.1",
 ]
 testing = [
     "cryptography ~=46.0",
@@ -68,7 +68,7 @@ testing = [
     "entities-service[cli]",
 ]
 server = [
-    "gunicorn ~=25.1",
+    "gunicorn ~=25.3",
 ]
 dev = [
     "pre-commit ~=4.5",
