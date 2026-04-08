@@ -236,7 +236,7 @@ jobs:
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
@@ -283,7 +283,7 @@ jobs:
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
