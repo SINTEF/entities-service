@@ -48,14 +48,14 @@ dependencies = [
     "pydantic-settings ~=2.13",
     "pymongo ~=4.16",
     "python-dotenv ~=1.2",
-    "uvicorn ~=0.43.0",
+    "uvicorn ~=0.44.0",
 ]
 
 [project.optional-dependencies]
 cli = [
     "httpx-auth ~=0.23.1",
     "pyyaml ~=6.0",
-    "typer ~=0.24.1",
+    "typer ~=0.15.4",
 ]
 testing = [
     "cryptography ~=46.0",
