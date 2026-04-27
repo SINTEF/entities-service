@@ -43,22 +43,22 @@ requires-python = "~=3.10"
 dynamic = ["version", "description"]
 
 dependencies = [
-    "fastapi ~=0.136.0",
+    "fastapi ~=0.136.1",
     "httpx >=0.28.1,<1",
-    "pydantic-settings ~=2.13",
-    "pymongo ~=4.16",
+    "pydantic-settings ~=2.14",
+    "pymongo ~=4.17",
     "python-dotenv ~=1.2",
-    "uvicorn ~=0.44.0",
+    "uvicorn ~=0.46.0",
 ]
 
 [project.optional-dependencies]
 cli = [
     "httpx-auth ~=0.23.1",
     "pyyaml ~=6.0",
-    "typer ~=0.15.4",
+    "typer ~=0.25.0",
 ]
 testing = [
-    "cryptography ~=46.0",
+    "cryptography >=46.0.0,<48",
     "dlite-python ~=0.5.29,!=0.5.40",  # Avoid DLite v0.5.40 due to Segmentation Fault
     "mongomock ~=4.3",
     "pytest ~=9.0",
@@ -71,7 +71,7 @@ server = [
     "gunicorn ~=25.3",
 ]
 dev = [
-    "pre-commit ~=4.5",
+    "pre-commit ~=4.6",
     "entities-service[cli,testing]",
 ]
 
