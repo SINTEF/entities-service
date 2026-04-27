@@ -55,10 +55,10 @@ dependencies = [
 cli = [
     "httpx-auth ~=0.23.1",
     "pyyaml ~=6.0",
-    "typer ~=0.25.0",
+    "typer ~=0.15.4",
 ]
 testing = [
-    "cryptography >=46.0.0,<48",
+    "cryptography ~=47.0",
     "dlite-python ~=0.5.29,!=0.5.40",  # Avoid DLite v0.5.40 due to Segmentation Fault
     "mongomock ~=4.3",
     "pytest ~=9.0",
