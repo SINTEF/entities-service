@@ -58,7 +58,7 @@ cli = [
     "typer ~=0.15.4",
 ]
 testing = [
-    "cryptography ~=47.0",
+    "cryptography ~=48.0",
     "dlite-python ~=0.5.29,!=0.5.40",  # Avoid DLite v0.5.40 due to Segmentation Fault
     "mongomock ~=4.3",
     "pytest ~=9.0",
@@ -68,7 +68,7 @@ testing = [
     "entities-service[cli]",
 ]
 server = [
-    "gunicorn ~=25.3",
+    "gunicorn ~=26.0",
 ]
 dev = [
     "pre-commit ~=4.6",
