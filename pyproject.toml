@@ -48,7 +48,7 @@ dependencies = [
     "pydantic-settings ~=2.14",
     "pymongo ~=4.17",
     "python-dotenv ~=1.2",
-    "uvicorn ~=0.46.0",
+    "uvicorn ~=0.47.0",
 ]
 
 [project.optional-dependencies]
@@ -59,7 +59,7 @@ cli = [
 ]
 testing = [
     "cryptography ~=48.0",
-    "dlite-python ~=0.5.29,!=0.5.40",  # Avoid DLite v0.5.40 due to Segmentation Fault
+    "dlite-python ~=0.5.49,!=0.5.40",  # Avoid DLite v0.5.40 due to Segmentation Fault
     "mongomock ~=4.3",
     "pytest ~=9.0",
     "pytest-asyncio ~=1.3",
