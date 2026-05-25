@@ -43,19 +43,19 @@ requires-python = "~=3.10"
 dynamic = ["version", "description"]
 
 dependencies = [
-    "fastapi ~=0.136.1",
+    "fastapi ~=0.136.3",
     "httpx >=0.28.1,<1",
     "pydantic-settings ~=2.14",
     "pymongo ~=4.17",
     "python-dotenv ~=1.2",
-    "uvicorn ~=0.47.0",
+    "uvicorn ~=0.48.0",
 ]
 
 [project.optional-dependencies]
 cli = [
     "httpx-auth ~=0.23.1",
     "pyyaml ~=6.0",
-    "typer ~=0.15.4",
+    "typer ~=0.25.1",
 ]
 testing = [
     "cryptography ~=48.0",
