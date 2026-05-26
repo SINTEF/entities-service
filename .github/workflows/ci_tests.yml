@@ -56,10 +56,13 @@ jobs:
       uses: pypa/gh-action-pip-audit@v1.1.0
       with:
         inputs: ${{ github.workspace }}/requirements.txt
-        # GHSA-7f5h-v6xp-fcq8: issue with a 'te' package, that is not used in this repository,
-        #     nor should it have been installed(?)
+        # MAL-2026-4750: fastar installed from fastapi 0.136.3
+        #   The 'fastar' package is not described in the FastAPI documentation, but is installed as
+        #   a dependency of FastAPI when using the `standard` extra.
+        #   We do not use the 'standard' extra, and the 'fastar' package is never installed,
+        #   hence it is ignored.
         ignore-vulns: |
-          GHSA-7f5h-v6xp-fcq8
+          MAL-2026-4750
 
   docker:
     name: Docker
