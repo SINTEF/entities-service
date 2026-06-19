@@ -36,7 +36,7 @@ jobs:
 
     steps:
     - name: Checkout ${{ github.repository }}
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Python 3.10
       uses: actions/setup-python@v6
@@ -84,7 +84,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.repository }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python 3.10
         uses: actions/setup-python@v6
@@ -239,7 +239,7 @@ jobs:
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
@@ -268,7 +268,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.repository }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python ${{ matrix.python_version }}
         uses: actions/setup-python@v6
@@ -286,7 +286,7 @@ jobs:
 
       - name: Upload coverage
         if: github.repository_owner == 'SINTEF'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
@@ -308,7 +308,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
@@ -380,7 +380,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.repository }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python 3.10
         uses: actions/setup-python@v6
