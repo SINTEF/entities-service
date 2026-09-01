@@ -329,8 +329,7 @@ def _get_specific_namespace(namespace: str) -> str | None:
 
     If the namespace is the core namespace, return `None`.
     """
-    if namespace.startswith(str(CONFIG.base_url).rstrip("/")):
-        namespace = namespace[len(str(CONFIG.base_url).rstrip("/")) :]
+    namespace = namespace.removeprefix(str(CONFIG.base_url).rstrip("/"))
 
     if namespace.strip() in ("/", ""):
         return None
